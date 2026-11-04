@@ -4,6 +4,8 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
 ## 0.1.0
 
 Kioku's first version: memory for coding agents, kept in brains, git
