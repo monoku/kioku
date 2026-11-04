@@ -1,0 +1,3 @@
+# pnpm runs no dependency's install script unless it is allowed here; esbuild's checks its native binary.
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,613 @@
+$ kioku help
+kioku.md · memory for coding agents
+
+kioku <verb> [arguments] [--json]
+
+Machine
+  setup       once per machine: the configuration, kioku on your PATH, your shell's completion, the
+              search model; no brain
+  doctor      checks the machine and says how to fix what is missing
+  update      installs the latest release, or the one named, rewrites the agent integration and
+              refreshes the brains
+  completion  prints your shell's completion script, which setup makes the shell source
+  config      lists, reads and sets the machine's preferences
+  plugin      install or uninstall a host's integration (2 verbs)
+
+In a project folder
+  init        links a project folder to its project brain, its team brain, or both; alone, the ones
+              its kioku.yaml names
+  sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
+
+Brains, pages and namespaces
+  brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
+  page        search, list and show the pages of this folder's brains, and write them (14 verbs)
+  namespace   list, add, describe and rename the namespaces of a brain (4 verbs)
+
+kioku <group> lists a group's verbs; kioku help <verb>, or kioku <verb> --help, one verb's usage;
+the reference has them all: https://github.com/monoku/kioku/blob/main/docs/reference/cli.md
+
+$ kioku 
+kioku.md · memory for coding agents
+
+kioku <verb> [arguments] [--json]
+
+Machine
+  setup       once per machine: the configuration, kioku on your PATH, your shell's completion, the
+              search model; no brain
+  doctor      checks the machine and says how to fix what is missing
+  update      installs the latest release, or the one named, rewrites the agent integration and
+              refreshes the brains
+  completion  prints your shell's completion script, which setup makes the shell source
+  config      lists, reads and sets the machine's preferences
+  plugin      install or uninstall a host's integration (2 verbs)
+
+In a project folder
+  init        links a project folder to its project brain, its team brain, or both; alone, the ones
+              its kioku.yaml names
+  sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
+
+Brains, pages and namespaces
+  brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
+  page        search, list and show the pages of this folder's brains, and write them (14 verbs)
+  namespace   list, add, describe and rename the namespaces of a brain (4 verbs)
+
+kioku <group> lists a group's verbs; kioku help <verb>, or kioku <verb> --help, one verb's usage;
+the reference has them all: https://github.com/monoku/kioku/blob/main/docs/reference/cli.md
+
+$ kioku -h
+kioku.md · memory for coding agents
+
+kioku <verb> [arguments] [--json]
+
+Machine
+  setup       once per machine: the configuration, kioku on your PATH, your shell's completion, the
+              search model; no brain
+  doctor      checks the machine and says how to fix what is missing
+  update      installs the latest release, or the one named, rewrites the agent integration and
+              refreshes the brains
+  completion  prints your shell's completion script, which setup makes the shell source
+  config      lists, reads and sets the machine's preferences
+  plugin      install or uninstall a host's integration (2 verbs)
+
+In a project folder
+  init        links a project folder to its project brain, its team brain, or both; alone, the ones
+              its kioku.yaml names
+  sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
+
+Brains, pages and namespaces
+  brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
+  page        search, list and show the pages of this folder's brains, and write them (14 verbs)
+  namespace   list, add, describe and rename the namespaces of a brain (4 verbs)
+
+kioku <group> lists a group's verbs; kioku help <verb>, or kioku <verb> --help, one verb's usage;
+the reference has them all: https://github.com/monoku/kioku/blob/main/docs/reference/cli.md
+
+$ kioku help page
+kioku page <verb>
+
+Search, list and show the pages of this folder's brains, and write them.
+
+  search     searches the brains of this folder, by meaning and by text
+  list       the pages, 20 at a time, with their fields
+  show       one page, with its body, its links and its history
+  save       writes a page, or answers the similar pages it found instead
+  update     rewrites a page's body, or one section, keeping its history
+  supersede  writes a new decision and marks the old one as replaced
+  forget     deletes a page; git keeps it
+  confirm    records that a page is still true
+  retire     marks a page as not current, kept as history
+  rename     gives a page a new title; links follow
+  move       moves a page to another namespace of its brain; its id stays and links follow
+  link       links two related pages, each under the other's See also
+  promote    writes a page again in a more shared brain and retires the original
+  evolve     lists the instincts ready to become Skills, or converts one
+
+kioku help page <verb> shows one.
+
+$ kioku help brain
+kioku brain <verb>
+
+Make, clone, sync, publish and check the brains of this machine.
+
+  create     makes a brain on this machine, with no remote and no network; alone, your personal
+             brain
+  clone      brings a brain you already have to this machine: your personal one, on a second machine
+  sync       pulls and pushes a brain, or every brain, wherever you are
+  publish    pushes a brain that lives only on this machine to an empty repository, the one at --to
+             or the one its key says; the one this folder is inside, else yours
+  list       the brains this machine knows, and the chain of this folder
+  path       prints a brain's folder
+  trust      lets this machine load a brain a repository names, or every brain of an owner
+  remove     takes a brain off this machine, never off the git host: deletes its clone and forgets
+             it; refuses what would lose work unless --force
+  log        the writes of the chain's brains since today, or since when you say
+  stats      what the writes of the chain's brains add up to over a span, 30d unless you say: by
+             verb, and how many saved pages were forgotten
+  sources    what the brains were filled from, with the version each page was written from
+  validate   checks a brain's files against the format
+  lint       what to review: similar pages, quiet instincts, superseded decisions, and the rest
+  language   declares the language a brain's pages are written in; the summary tells the agent
+  refresh    rewrites the files the tool owns in a brain, or in every brain
+  conflicts  the changes kept aside after a conflict with the team's, and how to resolve them
+
+kioku help brain <verb> shows one.
+
+$ kioku help namespace
+kioku namespace <verb>
+
+List, add, describe and rename the namespaces of a brain.
+
+  list      the namespaces of the brains of this folder, with the pages in each
+  add       declares a namespace, or one under another, and writes its index with what it is for
+  describe  says what a namespace is for, in the paragraph under its index's title
+  rename    gives a namespace another path, with everything under it; its folder, its pages and the
+            links into it follow
+
+kioku help namespace <verb> shows one.
+
+$ kioku help plugin
+kioku plugin <host> <verb>
+
+Install or uninstall a host's integration.
+
+  claude-code install    adds Claude Code's integration as a plugin, with Claude Code's own
+                         commands; asks first
+  claude-code uninstall  removes that plugin and its marketplace
+
+kioku help plugin <verb> shows one.
+
+$ kioku page
+kioku page <verb>
+
+Search, list and show the pages of this folder's brains, and write them.
+
+  search     searches the brains of this folder, by meaning and by text
+  list       the pages, 20 at a time, with their fields
+  show       one page, with its body, its links and its history
+  save       writes a page, or answers the similar pages it found instead
+  update     rewrites a page's body, or one section, keeping its history
+  supersede  writes a new decision and marks the old one as replaced
+  forget     deletes a page; git keeps it
+  confirm    records that a page is still true
+  retire     marks a page as not current, kept as history
+  rename     gives a page a new title; links follow
+  move       moves a page to another namespace of its brain; its id stays and links follow
+  link       links two related pages, each under the other's See also
+  promote    writes a page again in a more shared brain and retires the original
+  evolve     lists the instincts ready to become Skills, or converts one
+
+kioku help page <verb> shows one.
+
+$ kioku brain
+kioku brain <verb>
+
+Make, clone, sync, publish and check the brains of this machine.
+
+  create     makes a brain on this machine, with no remote and no network; alone, your personal
+             brain
+  clone      brings a brain you already have to this machine: your personal one, on a second machine
+  sync       pulls and pushes a brain, or every brain, wherever you are
+  publish    pushes a brain that lives only on this machine to an empty repository, the one at --to
+             or the one its key says; the one this folder is inside, else yours
+  list       the brains this machine knows, and the chain of this folder
+  path       prints a brain's folder
+  trust      lets this machine load a brain a repository names, or every brain of an owner
+  remove     takes a brain off this machine, never off the git host: deletes its clone and forgets
+             it; refuses what would lose work unless --force
+  log        the writes of the chain's brains since today, or since when you say
+  stats      what the writes of the chain's brains add up to over a span, 30d unless you say: by
+             verb, and how many saved pages were forgotten
+  sources    what the brains were filled from, with the version each page was written from
+  validate   checks a brain's files against the format
+  lint       what to review: similar pages, quiet instincts, superseded decisions, and the rest
+  language   declares the language a brain's pages are written in; the summary tells the agent
+  refresh    rewrites the files the tool owns in a brain, or in every brain
+  conflicts  the changes kept aside after a conflict with the team's, and how to resolve them
+
+kioku help brain <verb> shows one.
+
+$ kioku namespace
+kioku namespace <verb>
+
+List, add, describe and rename the namespaces of a brain.
+
+  list      the namespaces of the brains of this folder, with the pages in each
+  add       declares a namespace, or one under another, and writes its index with what it is for
+  describe  says what a namespace is for, in the paragraph under its index's title
+  rename    gives a namespace another path, with everything under it; its folder, its pages and the
+            links into it follow
+
+kioku help namespace <verb> shows one.
+
+$ kioku plugin
+kioku plugin <host> <verb>
+
+Install or uninstall a host's integration.
+
+  claude-code install    adds Claude Code's integration as a plugin, with Claude Code's own
+                         commands; asks first
+  claude-code uninstall  removes that plugin and its marketplace
+
+kioku help plugin <verb> shows one.
+
+$ kioku plugin claude-code
+kioku plugin claude-code <verb>
+
+Install or uninstall a host's integration.
+
+  install    adds Claude Code's integration as a plugin, with Claude Code's own commands; asks first
+  uninstall  removes that plugin and its marketplace
+
+kioku help plugin claude-code <verb> shows one.
+
+$ kioku help setup
+kioku setup [--shell fish|zsh|bash|all] [--no-model]
+
+Once per machine: the configuration, kioku on your PATH, your shell's completion, the search model;
+no brain.
+
+More in the reference, under `kioku setup`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-setup
+
+$ kioku help doctor
+kioku doctor
+
+Checks the machine and says how to fix what is missing.
+
+More in the reference, under `kioku doctor`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-doctor
+
+$ kioku help update
+kioku update [<version>] [--check] [--dry-run]
+
+Installs the latest release, or the one named, rewrites the agent integration and refreshes the
+brains.
+
+More in the reference, under `kioku update`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-update
+
+$ kioku help completion
+kioku completion fish|zsh|bash
+
+Prints your shell's completion script, which setup makes the shell source.
+
+More in the reference, under `kioku completion`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-completion
+
+$ kioku help plugin claude-code install
+kioku plugin claude-code install [--dry-run]
+
+Adds Claude Code's integration as a plugin, with Claude Code's own commands; asks first.
+
+More in the reference, under `kioku plugin claude-code install`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-plugin-claude-code-install
+
+$ kioku help plugin claude-code uninstall
+kioku plugin claude-code uninstall [--dry-run]
+
+Removes that plugin and its marketplace.
+
+More in the reference, under `kioku plugin claude-code uninstall`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-plugin-claude-code-uninstall
+
+$ kioku help config
+kioku config
+kioku config get <key>
+kioku config set <key> <value>
+kioku config unset <key>
+
+Lists, reads and sets the machine's preferences.
+
+More in the reference, under `kioku config`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-config
+
+$ kioku help init
+kioku init [<brain>] [--team <brain>] [--create] [--dir <folder>]
+
+Links a project folder to its project brain, its team brain, or both; alone, the ones its kioku.yaml
+names.
+
+More in the reference, under `kioku init`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-init
+
+$ kioku help sync
+kioku sync [--cwd <dir>] [--background]
+
+Pulls the brains of this folder's chain, pushes what is pending, updates the index.
+
+More in the reference, under `kioku sync`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-sync
+
+$ kioku help brain create
+kioku brain create [<brain> --tier personal|project|team] [--dir <folder>] [--language <tag>]
+
+Makes a brain on this machine, with no remote and no network; alone, your personal brain.
+
+More in the reference, under `kioku brain create`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-create
+
+$ kioku help brain clone
+kioku brain clone <brain> [--url <url>] [--dir <folder>]
+
+Brings a brain you already have to this machine: your personal one, on a second machine.
+
+More in the reference, under `kioku brain clone`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-clone
+
+$ kioku help brain sync
+kioku brain sync <brain>
+kioku brain sync --all
+
+Pulls and pushes a brain, or every brain, wherever you are.
+
+More in the reference, under `kioku brain sync`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-sync
+
+$ kioku help brain publish
+kioku brain publish [<brain>] [--to <url>]
+
+Pushes a brain that lives only on this machine to an empty repository, the one at --to or the one
+its key says; the one this folder is inside, else yours.
+
+More in the reference, under `kioku brain publish`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-publish
+
+$ kioku help brain list
+kioku brain list
+
+The brains this machine knows, and the chain of this folder.
+
+More in the reference, under `kioku brain list`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-list
+
+$ kioku help brain path
+kioku brain path <brain>
+
+Prints a brain's folder.
+
+More in the reference, under `kioku brain path`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-path
+
+$ kioku help brain trust
+kioku brain trust <brain>
+kioku brain trust --owner <owner>
+
+Lets this machine load a brain a repository names, or every brain of an owner.
+
+More in the reference, under `kioku brain trust`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-trust
+
+$ kioku help brain remove
+kioku brain remove <brain> [--force] [--dry-run]
+
+Takes a brain off this machine, never off the git host: deletes its clone and forgets it; refuses
+what would lose work unless --force.
+
+More in the reference, under `kioku brain remove`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-remove
+
+$ kioku help brain log
+kioku brain log [--since <when>] [--brain <b>] [--limit <n> [--offset <n>]]
+
+The writes of the chain's brains since today, or since when you say.
+
+More in the reference, under `kioku brain log`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-log
+
+$ kioku help brain stats
+kioku brain stats [--since <when>] [--brain <b>]
+
+What the writes of the chain's brains add up to over a span, 30d unless you say: by verb, and how
+many saved pages were forgotten.
+
+More in the reference, under `kioku brain stats`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-stats
+
+$ kioku help brain sources
+kioku brain sources [<source>] [--brain <b>] [--all]
+
+What the brains were filled from, with the version each page was written from.
+
+More in the reference, under `kioku brain sources`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-sources
+
+$ kioku help brain validate
+kioku brain validate [<brain>]
+
+Checks a brain's files against the format.
+
+More in the reference, under `kioku brain validate`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-validate
+
+$ kioku help brain lint
+kioku brain lint [<brain>] [--limit <n>]
+
+What to review: similar pages, quiet instincts, superseded decisions, and the rest.
+
+More in the reference, under `kioku brain lint`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-lint
+
+$ kioku help brain language
+kioku brain language <tag> [--brain <b>]
+
+Declares the language a brain's pages are written in; the summary tells the agent.
+
+More in the reference, under `kioku brain language`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-language
+
+$ kioku help brain refresh
+kioku brain refresh [<brain>] [--all]
+
+Rewrites the files the tool owns in a brain, or in every brain.
+
+More in the reference, under `kioku brain refresh`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-refresh
+
+$ kioku help brain conflicts
+kioku brain conflicts [<brain>] [--branch <b> [--page <path>]] [--open <b>] [--resolve <b>]
+
+The changes kept aside after a conflict with the team's, and how to resolve them.
+
+More in the reference, under `kioku brain conflicts`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-conflicts
+
+$ kioku help page search
+kioku page search <words> [--brain <b>] [--limit <n>] [--include-retired]
+
+Searches the brains of this folder, by meaning and by text.
+
+More in the reference, under `kioku page search`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-search
+
+$ kioku help page list
+kioku page list [--brain <b>] [--kind <k>] [--namespace <ns>] [--limit <n> [--offset <n>]] [--fields <a,b>] [--count]
+
+The pages, 20 at a time, with their fields.
+
+More in the reference, under `kioku page list`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-list
+
+$ kioku help page show
+kioku page show <path> [--brain <b>] [--section <name> | --outline | --head <n>]
+
+One page, with its body, its links and its history.
+
+More in the reference, under `kioku page show`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-show
+
+$ kioku help page save
+kioku page save --brain <b> --kind <k> --title <t> --source <s> [--sub <decision|playbook|context|instinct>]
+           [--evidence <q>] [--summary <s>] [--aliases <a,b>] [--namespace <ns>]
+           [--stale-after <date>] [--source-version <v>] [--create [--see-also <paths>]] < body
+
+Writes a page, or answers the similar pages it found instead.
+
+More in the reference, under `kioku page save`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-save
+
+$ kioku help page update
+kioku page update <path> [--brain <b>] [--section <name>] [--evidence <line> --source <s>]
+             [--note <line>] [--summary <s>] [--aliases <a,b>] [--stale-after <date>|none]
+             [--source-version <v>|none] < body
+
+Rewrites a page's body, or one section, keeping its history.
+
+More in the reference, under `kioku page update`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-update
+
+$ kioku help page supersede
+kioku page supersede <old path> [--brain <b>] --title <t> --source <s> [--evidence <q>]
+                [--summary <s>] [--aliases <a,b>] [--namespace <ns>] [--stale-after <date>]
+                [--source-version <v>] < body
+
+Writes a new decision and marks the old one as replaced.
+
+More in the reference, under `kioku page supersede`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-supersede
+
+$ kioku help page forget
+kioku page forget <path> [--brain <b>]
+
+Deletes a page; git keeps it.
+
+More in the reference, under `kioku page forget`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-forget
+
+$ kioku help page confirm
+kioku page confirm <path> [--brain <b>] [--note <line>]
+
+Records that a page is still true.
+
+More in the reference, under `kioku page confirm`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-confirm
+
+$ kioku help page retire
+kioku page retire <path> [--brain <b>] [--reason <line>] [--undo]
+
+Marks a page as not current, kept as history.
+
+More in the reference, under `kioku page retire`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-retire
+
+$ kioku help page rename
+kioku page rename <path> --title <new title> [--brain <b>]
+
+Gives a page a new title; links follow.
+
+More in the reference, under `kioku page rename`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-rename
+
+$ kioku help page move
+kioku page move <path> --namespace <ns> [--brain <b>]
+
+Moves a page to another namespace of its brain; its id stays and links follow.
+
+More in the reference, under `kioku page move`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-move
+
+$ kioku help page link
+kioku page link <path> <path> [--brain <b>] [--type contradicts|qualifies]
+
+Links two related pages, each under the other's See also.
+
+More in the reference, under `kioku page link`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-link
+
+$ kioku help page promote
+kioku page promote <path> --to <brain | tier> [--brain <b>] [--title <t>] [--summary <s>]
+              [--aliases <a,b>] [--namespace <ns>] [--evidence <q>] [--create]
+              [--keep | --forget] < body
+
+Writes a page again in a more shared brain and retires the original.
+
+More in the reference, under `kioku page promote`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-promote
+
+$ kioku help page evolve
+kioku page evolve [<instinct path> [--to skill|rule|playbook]] [--brain <b>]
+
+Lists the instincts ready to become Skills, or converts one.
+
+More in the reference, under `kioku page evolve`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-evolve
+
+$ kioku help namespace list
+kioku namespace list [--brain <b>]
+
+The namespaces of the brains of this folder, with the pages in each.
+
+More in the reference, under `kioku namespace list`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-list
+
+$ kioku help namespace add
+kioku namespace add <path> --summary <text> [--brain <b>]
+
+Declares a namespace, or one under another, and writes its index with what it is for.
+
+More in the reference, under `kioku namespace add`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-add
+
+$ kioku help namespace describe
+kioku namespace describe <path> --summary <text> [--brain <b>]
+
+Says what a namespace is for, in the paragraph under its index's title.
+
+More in the reference, under `kioku namespace describe`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-describe
+
+$ kioku help namespace rename
+kioku namespace rename <from> <to> [--brain <b>] [--dry-run]
+
+Gives a namespace another path, with everything under it; its folder, its pages and the links into
+it follow.
+
+More in the reference, under `kioku namespace rename`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-rename
+
+$ kioku help hook
+kioku hook session-start|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]
+
+What the plugin's hooks call.
+
+More in the reference, under `kioku hook`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-hook

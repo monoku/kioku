@@ -1,0 +1,138 @@
+{
+  "modules": ["./register.tsx"],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook session-start"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook user-prompt-submit"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook pre-tool-use"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(kioku namespace add *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook pre-tool-use"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(kioku page save *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page update *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page supersede *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page forget *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page evolve *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page link *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page confirm *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page retire *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page rename *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page move *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page promote *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page show *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page search *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page list *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku brain log *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku brain stats *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku brain lint *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          }
+        ]
+      }
+    ]
+  }
+}

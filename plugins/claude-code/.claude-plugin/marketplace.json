@@ -1,0 +1,13 @@
+{
+  "name": "kioku",
+  "description": "Claude Code plugin for Kioku, memory for coding agents",
+  "owner": {
+    "name": "Monoku"
+  },
+  "plugins": [
+    {
+      "name": "kioku",
+      "source": "./"
+    }
+  ]
+}

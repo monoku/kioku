@@ -1,0 +1,44 @@
+{
+  "name": "kioku",
+  "version": "0.1.0",
+  "description": "Memory for coding agents",
+  "license": "Apache-2.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/monoku/kioku.git"
+  },
+  "kioku": {
+    "claudeCode": "2.1.316"
+  },
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "typecheck:plugin": "tsc -p tsconfig.plugin.json",
+    "typecheck:plugin:real": "node scripts/typecheck-plugin-real.mjs",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "node scripts/build.mjs && node --test \"tests/**/*.test.ts\"",
+    "plugin:hooks": "node scripts/plugin-hooks.mjs",
+    "docs:cli": "node scripts/cli-reference.ts",
+    "demo": "node scripts/demo/make.ts",
+    "dev:claude": "node scripts/dev/claude.ts",
+    "test:demo": "node --test scripts/demo/check.test.ts",
+    "test:plugin": "claude plugin test plugins/claude-code",
+    "bench": "node scripts/bench.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@types/node": "^24",
+    "esbuild": "^0.25",
+    "typescript": "^5.9"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}

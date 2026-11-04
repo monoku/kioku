@@ -1,0 +1,71 @@
+# A release is merging its pull request (§6.4). A push to main that brings the commit `Release <version>` and whose tag
+# does not exist yet: the version is checked, that commit is tested, and the GitHub release creates the tag and carries
+# the bundle, built here from that commit, as kioku.mjs, which the installer and `kioku update` fetch
+# (§6.3), its checksum as kioku.mjs.sha256, the plugin that travels beside it as kioku-plugin.tar.gz with its
+# checksum (§6.2), and the CHANGELOG's section as its notes. Every release is the latest (§6.4). A tag on a commit off
+# main publishes nothing.
+name: release
+on:
+  push:
+    branches: [main]
+    # A tag by hand, on a commit that main holds, publishes too.
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the commits of the push, and the tags
+      - name: What this push brings
+        id: found
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: node scripts/publish-release.mjs "$BEFORE" "$AFTER" "$RUNNER_TEMP/notes.md"
+      - name: Take the release commit
+        if: steps.found.outputs.tag != ''
+        env:
+          SHA: ${{ steps.found.outputs.sha }}
+        run: git checkout --detach "$SHA"
+      - name: The tag is the version
+        if: steps.found.outputs.tag != ''
+        env:
+          TAG: ${{ steps.found.outputs.tag }}
+        run: node scripts/check-tag.mjs "$TAG"
+      - uses: pnpm/action-setup@v4   # reads the version from package.json's packageManager
+        if: steps.found.outputs.tag != ''
+      - uses: actions/setup-node@v4
+        if: steps.found.outputs.tag != ''
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.found.outputs.tag != ''
+        run: pnpm install --frozen-lockfile
+      - if: steps.found.outputs.tag != ''
+        run: pnpm typecheck
+      - if: steps.found.outputs.tag != ''
+        run: pnpm lint
+      - name: Build the bundle from the release commit, and test it
+        if: steps.found.outputs.tag != ''
+        run: pnpm test
+      - if: steps.found.outputs.tag != ''
+        run: pnpm typecheck:plugin
+      - name: Install Claude Code at the pinned version
+        if: steps.found.outputs.tag != ''
+        run: npm install --global "@anthropic-ai/claude-code@$(node -p 'require("./package.json").kioku.claudeCode')"
+      - if: steps.found.outputs.tag != ''
+        run: pnpm test:plugin
+      - name: Publish the release
+        if: steps.found.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.found.outputs.tag }}
+          SHA: ${{ steps.found.outputs.sha }}
+        run: |
+          sha256sum lib/kioku.mjs | awk '{ print $1 "  kioku.mjs" }' > kioku.mjs.sha256
+          sha256sum lib/kioku-plugin.tar.gz | awk '{ print $1 "  kioku-plugin.tar.gz" }' > kioku-plugin.tar.gz.sha256
+          gh release create "$TAG" "lib/kioku.mjs#kioku.mjs" "kioku.mjs.sha256#kioku.mjs.sha256" "lib/kioku-plugin.tar.gz#kioku-plugin.tar.gz" "kioku-plugin.tar.gz.sha256#kioku-plugin.tar.gz.sha256" --target "$SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest

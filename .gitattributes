@@ -1,0 +1,8 @@
+# Every clone checks out LF: the editorconfig asks for it, and the golden tests compare bytes
+* text=auto eol=lf
+*.png binary
+
+# Written by a command; GitHub folds them in a pull request
+tests/golden/** linguist-generated
+plugins/claude-code/hooks/hooks.json linguist-generated
+pnpm-lock.yaml linguist-generated

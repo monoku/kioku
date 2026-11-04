@@ -1,0 +1,15 @@
+node_modules/
+.DS_Store
+
+# Written on this machine by the repository's own commands
+# pnpm build: the bundle and the plugin's archive
+lib/
+# pnpm demo: the demo's brains and its home
+.demo/
+# pnpm bench --save: this machine's times
+benchmarks/
+
+# Laid by Claude Code when a session loads the mod from this checkout
+# (claude --plugin-dir plugins/claude-code); pnpm typecheck:plugin:real reads them
+plugins/claude-code/.claude-plugin/types/
+plugins/claude-code/tsconfig.json

@@ -1,0 +1,60 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml",
+      "!**/*.svg",
+      "!pnpm-lock.yaml",
+      "!.plans",
+      "!tests/golden"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 120
+  },
+  "linter": {
+    "rules": {
+      "style": {
+        "noNonNullAssertion": "off",
+        "useTemplate": "off",
+        "noDescendingSpecificity": "off",
+        "useConst": "off",
+        "useExponentiationOperator": "off"
+      },
+      "suspicious": {
+        "noAssignInExpressions": "off",
+        "useIterableCallbackReturn": "off",
+        "noImplicitAnyLet": "off",
+        "noExplicitAny": "off",
+        "noControlCharactersInRegex": "off",
+        "noTemplateCurlyInString": "off",
+        "noUselessEscapeInString": "off"
+      },
+      "complexity": {
+        "noAdjacentSpacesInRegex": "off",
+        "useOptionalChain": "off",
+        "noCommaOperator": "off",
+        "noUselessLoneBlockStatements": "off",
+        "useArrowFunction": "off"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "off",
+        "noVoidTypeReturn": "off"
+      }
+    }
+  },
+  "assist": {
+    "enabled": false
+  }
+}

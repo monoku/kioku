@@ -1,0 +1,47 @@
+# Every push to main and develop and every pull request: install, typecheck, lint, and test, which builds the bundle
+# first and runs it (§6.4), on the Node versions the tool supports; the mod, in the engine it runs in, at the version
+# package.json pins; and the two shell scripts that ship.
+name: ci
+on:
+  push:
+    branches: [main, develop]   # another branch runs through its pull request; a tag's push runs the release workflow
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [24, 26]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4   # reads the version from package.json's packageManager
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+  mod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4   # reads the version from package.json's packageManager
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck:plugin
+      - name: Install Claude Code at the pinned version
+        run: npm install --global "@anthropic-ai/claude-code@$(node -p 'require("./package.json").kioku.claudeCode')"
+      - run: pnpm test:plugin
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install --yes shellcheck
+      - run: shellcheck install.sh plugins/claude-code/hooks/kioku.sh
