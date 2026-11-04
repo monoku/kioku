@@ -36,7 +36,7 @@ jobs:
         env:
           TAG: ${{ steps.found.outputs.tag }}
         run: node scripts/check-tag.mjs "$TAG"
-      - uses: pnpm/action-setup@v4   # reads the version from package.json's packageManager
+      - uses: pnpm/action-setup@v5   # reads the version from package.json's packageManager
         if: steps.found.outputs.tag != ''
       - uses: actions/setup-node@v4
         if: steps.found.outputs.tag != ''
