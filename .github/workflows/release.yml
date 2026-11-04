@@ -38,7 +38,7 @@ jobs:
         run: node scripts/check-tag.mjs "$TAG"
       - uses: pnpm/action-setup@v4   # reads the version from package.json's packageManager
         if: steps.found.outputs.tag != ''
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.found.outputs.tag != ''
         with:
           node-version: 24
