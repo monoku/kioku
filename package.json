@@ -9,7 +9,7 @@
     "url": "https://github.com/monoku/kioku.git"
   },
   "kioku": {
-    "claudeCode": "2.1.316"
+    "claudeCode": "2.1.318"
   },
   "type": "module",
   "packageManager": "pnpm@12.16.1",
