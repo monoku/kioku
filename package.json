@@ -35,7 +35,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@types/node": "^24",
-    "esbuild": "^0.25",
+    "esbuild": "^0.28",
     "typescript": "^5.9"
   },
   "dependencies": {
