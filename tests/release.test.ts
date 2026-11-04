@@ -10,6 +10,8 @@ import { dirname, join } from "node:path";
 import { tagProblem } from "../scripts/check-tag.mjs";
 // @ts-expect-error: a plain script, without types
 import { releaseIn, releaseNotes, releaseOfTag } from "../scripts/publish-release.mjs";
+// @ts-expect-error: a plain script, without types
+import { withVersion } from "../scripts/json-version.mjs";
 import { launcherScript } from "../src/core/setup/install.ts";
 import { INSTALL_COMMAND, INSTALL_URL, PRODUCT_REPO } from "../src/product.ts";
 import pkg from "../package.json" with { type: "json" };
@@ -55,6 +57,23 @@ test("release.mjs prepares <major>.<minor>.<patch> only, before it touches anyth
     );
     assert.equal(said.trim(), "usage: node scripts/release.mjs prepare <major.minor.patch>", version);
   }
+});
+
+test("release.mjs sets the version and leaves every other byte as the formatter laid it, so its own lint passes (§6.4)", () => {
+  const plugin = readFileSync(new URL("../plugins/claude-code/.claude-plugin/plugin.json", import.meta.url), "utf8");
+  const set = withVersion(plugin, "9.9.9");
+  assert.equal(JSON.parse(set).version, "9.9.9");
+  assert.equal(set, plugin.replace(/"version": "[^"]*"/, '"version": "9.9.9"'), "only the version moves");
+  assert.match(set, /^ {2}"keywords": \[[^\n]*\],$/m, "an array on one line stays on one line");
+  const nested = '{\n  "name": "x",\n  "version": "0.1.0",\n  "dependencies": { "a": { "version": "1.0.0" } }\n}\n';
+  assert.equal(
+    JSON.parse(withVersion(nested, "0.2.0")).dependencies.a.version,
+    "1.0.0",
+    "a nested version is not touched",
+  );
+  assert.throws(() => withVersion('{ "name": "x" }', "0.2.0"), /no "version" field/);
+  const script = readFileSync(new URL("../scripts/release.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(script, /JSON\.stringify\(/, "the script rewrites no JSON file whole");
 });
 
 test("a tag with a part after the patch is refused: every release is <major>.<minor>.<patch> (§6.4)", () => {
