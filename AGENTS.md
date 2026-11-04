@@ -53,9 +53,7 @@ exact; milliseconds compare on one machine). Tests never touch the real home.
   pass; `develop` reaches `main` by a pull request, and `main` comes back into
   `develop` after each release. Never commit to `main`.
 - Every commit that changes what a person or a machine sees adds its line under
-  `## Unreleased` in `CHANGELOG.md`. Until 0.1.0 is released, `## Unreleased` is
-  the first version's text: a change keeps that text true instead of adding a
-  line.
+  `## Unreleased` in `CHANGELOG.md`, above the last version's section.
 - The skill is capped at 1,500 words and names no paths or ids; a test enforces
   both. The `AGENTS.md` the tool writes into brains names no host.
 - The repository's name is written once, in `package.json`, read by
