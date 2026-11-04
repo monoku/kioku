@@ -9,7 +9,7 @@
     "url": "https://github.com/monoku/kioku.git"
   },
   "kioku": {
-    "claudeCode": "2.1.316"
+    "claudeCode": "2.1.318"
   },
   "type": "module",
   "packageManager": "pnpm@12.16.1",
@@ -35,8 +35,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@types/node": "^24",
-    "esbuild": "^0.25",
-    "typescript": "^5.9"
+    "esbuild": "^0.28",
+    "typescript": "^7.0"
   },
   "dependencies": {
     "yaml": "^2.9.1"
