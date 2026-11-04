@@ -9,6 +9,7 @@
 // latest. Then main comes back into develop, so the next pull request from develop does not fight over CHANGELOG.md.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { withVersion } from "./json-version.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const [step, version = ""] = process.argv.slice(2);
@@ -48,14 +49,10 @@ if (unreleased === null || unreleased[1].trim() === "") {
 run("git", ["switch", "-q", "-c", branch]);
 writeFileSync(logPath, log.replace(/^## Unreleased$/m, `## ${version}`));
 const pkgPath = `${root}package.json`;
-const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-pkg.version = version;
-writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+writeFileSync(pkgPath, withVersion(readFileSync(pkgPath, "utf8"), version));
 // The plugin is released with the tool: Claude Code updates it only when this version moves (§6.2).
 const pluginPath = `${root}plugins/claude-code/.claude-plugin/plugin.json`;
-const plugin = JSON.parse(readFileSync(pluginPath, "utf8"));
-plugin.version = version;
-writeFileSync(pluginPath, `${JSON.stringify(plugin, null, 2)}\n`);
+writeFileSync(pluginPath, withVersion(readFileSync(pluginPath, "utf8"), version));
 
 run("pnpm", ["typecheck"]);
 run("pnpm", ["lint"]);
