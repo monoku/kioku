@@ -113,7 +113,7 @@ test("every read and every write of a command is one entry, each in one arrow (Â
     ["move", "moved"],
     ["link", "linked"],
     ["promote", "promoted"],
-  ]) {
+  ] as [string, string][]) {
     const e = entriesFor(`kioku page ${verb} p.md --brain northwind/brain-acme`, done({ path: "p.md" }));
     assert.deepEqual([e[0]!.what, e[0]!.arrow], [what, "write"], verb);
   }

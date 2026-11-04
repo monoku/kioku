@@ -12,3 +12,7 @@ updates:
     target-branch: develop
     schedule:
       interval: weekly
+    ignore:
+      # The types of the oldest Node Kioku runs on (engines.node), so that nothing newer type-checks by mistake.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
