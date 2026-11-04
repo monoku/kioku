@@ -1,11 +1,14 @@
-# Weekly, one pull request per update: the actions the workflows use and the packages the lockfile holds.
+# Weekly, one pull request per update: the actions the workflows use and the packages the lockfile holds. Each goes
+# to develop, where every change lands before a release takes it to main.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
   - package-ecosystem: npm
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
