@@ -4,6 +4,14 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **A session's start says Kioku's version**, on a line of its own, and under
+  it the history's `summary` row, `↓ summary   session summary · 316 pages
+  (personal, project, team)`. It comes first, and a blank line parts it
+  from each notice; the one that says a newer version is available no longer
+  repeats the version this machine runs, which the summary says.
+
 ## 0.2.1
 
 - **The installer now leaves a machine as `kioku update` does.** `kioku setup`,
