@@ -23,7 +23,7 @@ import { runInit } from "./init.ts";
 import { runDoctorVerb } from "./doctor.ts";
 import { runPlugin } from "./plugin.ts";
 import { runSetup } from "./setup.ts";
-import { finishByBundle, runUpdate, type UpdateFinish } from "./update.ts";
+import { finishByBundle, runUpdate, type UpdateFinish, prepareByBundle } from "./update.ts";
 import { paint, uiFor, type Ui } from "./render.ts";
 import { progressFor, progressMode, type Progress } from "./progress.ts";
 import { useSteps } from "../core/steps.ts";
@@ -70,6 +70,8 @@ export interface Context {
   semantic: SemanticDeps;
   /** Finish an update from the bundle just installed, `kioku update --finish` run from it (§6.4); absent, this process finishes it. */
   finishUpdate?: (bundle: string) => Promise<UpdateFinish>;
+  /** Have the bundle just downloaded put its plugin beside it, `kioku update --prepare` run from it (§6.4); throws when it could not. */
+  prepareUpdate?: (bundle: string) => Promise<void>;
   /** The version the files a brain refresh writes are taken to be (§2.7); absent, this build's. For tests. */
   version?: string;
   /** The machine configuration, read at most once in this run: for the hooks, which write nothing to it. A verb that writes it reads the file. */
@@ -140,6 +142,7 @@ export function defaultContext(bundle?: string): Context {
     now: () => new Date(),
     semantic: { download: httpDownload, loadEmbedder },
     finishUpdate: finishByBundle,
+    prepareUpdate: prepareByBundle,
     ask: async (question) => {
       const rl = createInterface({ input: process.stdin, output: process.stdout });
       try {

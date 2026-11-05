@@ -86,6 +86,10 @@ kioku update [<version>] [--check] [--dry-run]
 
 Installs the latest release, or the one named, rewrites the agent integration and refreshes the brains.
 
+`--prepare` is what the tool passes itself; not for people.
+
+`--archive` is what the tool passes itself; not for people.
+
 `--finish` is what the tool passes itself; not for people.
 <!-- /generated -->
 

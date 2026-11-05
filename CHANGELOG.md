@@ -11,6 +11,12 @@ What changed in each version of Kioku. What is true now is in the
   (personal, project, team)`. It comes first, and a blank line parts it
   from each notice; the one that says a newer version is available no longer
   repeats the version this machine runs, which the summary says.
+- **An update hands the plugin to the version it installs.** `kioku update`
+  downloads only the new version's bundle, and that version fetches its own
+  plugin and puts it in place before it becomes active; the installer checks
+  the plugin's download and hands it to the bundle the same way. A release can
+  so change how its plugin is laid out without a version in between. Going back
+  to 0.2.x with `kioku update <version>` still works.
 
 ## 0.2.1
 

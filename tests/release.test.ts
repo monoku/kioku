@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -243,9 +243,9 @@ test("the installer fetches from the product repository and lays the tool out as
   assert.match(installer, /fetch kioku-plugin\.tar\.gz\.sha256/);
   assert.match(installer, /versions\/\$VERSION\/kioku\.mjs/);
   assert.ok(
-    installer.indexOf('mv "$TMP/plugin" "$INSTALL_DIR/versions/$VERSION/plugin"') <
+    installer.indexOf('update --prepare --archive "$TMP/kioku-plugin.tar.gz"') <
       installer.indexOf('ln -sfn "versions/$VERSION"'),
-    "the plugin is in place before current moves, so current/plugin is always one (§6.2)",
+    "the bundle downloaded puts its plugin in place before current moves, so current/plugin is always one (§6.2, §6.4)",
   );
   assert.match(installer, /ln -sfn "versions\/\$VERSION" "\$INSTALL_DIR\/current"/);
   assert.match(
@@ -316,6 +316,46 @@ test("with no terminal the installer installs only, runs no setup and names the 
     assert.ok(existsSync(join(dir, "share", "current", "plugin", ".claude-plugin", "marketplace.json")));
     const on = run(`${join(dir, "bin")}:${process.env.PATH ?? ""}`);
     assert.match(on, /^Next, in a terminal: kioku setup$/m, "its folder is on the PATH: the command alone");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the installer installs nothing when the bundle it downloaded cannot put its plugin in place, and says why (§6.3, §6.4)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "kioku-install-"));
+  try {
+    const assets = join(dir, "assets");
+    mkdirSync(assets, { recursive: true });
+    serveRelease(assets);
+    const broken = Buffer.from("not an archive");
+    writeFileSync(join(assets, "kioku-plugin.tar.gz"), broken);
+    writeFileSync(
+      join(assets, "kioku-plugin.tar.gz.sha256"),
+      `${createHash("sha256").update(broken).digest("hex")}  kioku-plugin.tar.gz\n`,
+    );
+    let stderr = "";
+    try {
+      execFileSync("sh", [fileURLToPath(new URL("../install.sh", import.meta.url))], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          KIOKU_BASE_URL: `file://${assets}`,
+          KIOKU_INSTALL_DIR: join(dir, "share"),
+          KIOKU_BIN_DIR: join(dir, "bin"),
+          KIOKU_HOME: join(dir, "home"),
+        },
+      });
+      assert.fail("the installer succeeded");
+    } catch (e) {
+      stderr = (e as { stderr?: string }).stderr ?? "";
+    }
+    assert.match(
+      stderr,
+      /the plugin could not be put in place \(the plugin's archive is not one .*\); nothing was installed/,
+    );
+    assert.deepEqual(readdirSync(join(dir, "share", "versions")), [], "no version was left");
+    assert.equal(existsSync(join(dir, "share", "current")), false, "and nothing was made current");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
