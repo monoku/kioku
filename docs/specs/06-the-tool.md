@@ -42,20 +42,21 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | machine | `setup` | sets the machine up once, idempotent, in a terminal (§6.3) |
 | | `plugin <host> install` | adds the host's plugin, saying what it will do and asking, in a terminal (§6.2) |
 | | `plugin <host> uninstall` | removes the plugin and its marketplace, in a terminal (§6.2) |
-| | `config` | lists, reads and sets the preferences and the machine's team, checking a value before writing; `set` and `unset` in a terminal (§2.5) |
+| | `config` | lists, reads and sets the preferences, the owners the machine trusts and the machine's team, checking a value before writing; `set` and `unset` in a terminal (§2.5) |
 | | `completion` | prints the shell's completion of the verbs, their flags, the brains of the machine and `config`'s keys (§6.3) |
 | | `doctor` | checks the machine, from Node and git to each brain, the index, the model, the installed tool and each host's plugin; changes nothing and says what to do (§6.3) |
 | | `update` | brings the machine to the latest release, or to the one named (§6.4) |
-| in a project folder | `init` | writes the folder's `kioku.yaml`, registers the brains it names and clones the chain (§2.4) |
+| in a project folder | `init <brain>` | writes the project brain in the folder's `kioku.yaml`, its name and its address once it has one, keeping a `team` written by hand; given an address, clones it when the machine lacks it, given a name, makes it shared; registers it and clones the chain; alone, trusts and clones what the file names and writes the address of one published since (§2.4) |
 | | `sync` | pulls and pushes the brains of this folder's chain and updates the index (§4.2) |
-| brains | `brain create` | makes a brain on this machine, with its files and first commit, asking no git host anything; with none named, the personal brain `<name>/brain`; one that fails leaves nothing (§2.3) |
-| | `brain clone` | brings a brain that exists and registers it as its `kioku.yaml` says, in a terminal (§2.4) |
+| brains | `brain create <owner>/<repo>` | makes a brain on this machine, with the name given, with its files and first commit, asking no git host anything and taking no destination; personal unless `--tier` says project or team; the name is always given; one that fails leaves nothing (§2.3) |
+| | `brain clone <address>` | brings a brain that exists from any address, under the name it holds (§2.2, §2.5), and registers it as its `kioku.yaml` says, in a terminal (§2.4) |
 | | `brain sync` | pulls and pushes a brain, or every brain of the machine, and reindexes them for full text; one with no remote is `no-remote` (§4.2) |
-| | `brain publish` | gives a brain with no remote its repository, leaving one with a remote alone, in a terminal (§2.3) |
-| | `brain remove` | takes a brain off this machine, never off the git host, leaving the files of one kept in a folder of the person's, in a terminal (§2.5) |
+| | `brain publish <brain> --remote <destination>` | gives a brain with no remote its repository, its name unchanged, leaving one with a remote alone, in a terminal (§2.3) |
+| | `brain remove` | takes a brain off this machine, its folder with it, never off the git host, in a terminal (§2.5) |
 | | `brain validate` | checks a brain's files against the format (§5) |
 | | `brain language` | declares the language the brain's pages are written in, in one commit (§3.2) |
 | | `brain refresh` | rewrites the files the tool owns, committing when something changed and pushing in a shared brain (§2.7) |
+| | `brain upgrade <brain>` | raises a brain to the newest format, in one commit, pushing in a brain with a remote; in a terminal (§3.2) |
 | | `brain lint` | reports what a brain accumulates (§4.4) |
 | | `namespace list` | the namespaces of each brain of the chain, as a tree, with the pages in each by kind (§3.2) |
 | | `namespace add` | the only verb that makes a namespace, declaring it and writing its index in one commit; the host asks the person first (§3.2, §6.2) |
@@ -64,7 +65,6 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `brain conflicts` | the changes kept aside after a conflict, per brain, and the ways to see and resolve them; the brain stays on its default branch (§1.6) |
 | | `brain list` | the brains this machine knows, the chain of this folder and, inside a brain, which one and what it leaves unloaded (§2.7) |
 | | `brain path` | prints the brain's folder |
-| | `brain trust` | registers a repository, or trusts an owner, then clones the chain, in a terminal (§2.4) |
 | | `brain log` | the writes of the chain's brains, newest first, from each brain's history, with who and how (`via`, §1.6); a window |
 | | `brain stats` | what the writes of the chain's brains add up to over a span, by verb and by `via`, naming no author, with how many saved pages were forgotten and this machine's count of pages opened (§4.5) |
 | | `brain sources` | what was ingested, per source, with the version each page was written from (§1.7) |
@@ -80,7 +80,7 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `page move` | gives a page another namespace of its brain; the id stays, the links follow (§3.2) |
 | | `page rename` | gives a page a new title; the links follow (§3.5) |
 | | `page link` | adds each page to the other's See also, with the relation when given (§3.3) |
-| | `page promote` | writes the page again in a more shared brain, through `save` there, then retires, forgets or keeps the original (§1.3) |
+| | `page promote` | writes the page again in a more shared brain of the chain, by tier or name, through `save` there, then retires, forgets or keeps the original (§1.3) |
 | | `page evolve` | lists the Skill candidates with their When and occasions, or converts one (§3.6) |
 | the integration's | `hook` | what the host's hooks call (§6.2) |
 
@@ -103,12 +103,23 @@ JSON the message is one line, what is wrong and the usage. `kioku --version`,
 
 **Which brain.** The verbs that take a page take `--brain <b>`; a path is
 brain-relative or absolute, and without `--brain` it is looked up in the chain.
-`--brain` takes a brain's tier, key or repository, among the brains of
-the chain; `kioku brain <verb> <brain>` takes the same among every brain of
-the machine. Two brains that answer equally well are an error naming their
-keys, never a guess; a brain not on the machine, an error saying how to bring
-it. `init`, `brain create`, `brain clone` and `brain trust` name a brain by its
-repository.
+`--brain` takes a brain's tier, `personal`, `project` or `team`, or its name,
+among the brains of the chain;
+`kioku brain <verb> <brain>` takes a name among every brain of the machine. Two
+brains that answer equally well are an error naming them, never a guess; a brain
+not on the machine, an error saying how to bring it. `brain clone` names a brain
+by its address, which says where and never what name it holds; `brain create`,
+by the name it will have; and `init`, by an address or a name (§2.2, §2.4).
+
+**When a brain is named.** A verb that fixes a brain's identity (`brain create`,
+`brain clone`, `brain upgrade`, `init`), takes it off the machine (`brain remove`)
+or sends it to a git host (`brain publish`, `brain sync`) always takes the brain
+named, never one inferred from the folder or the tier, and `page save` always
+names the brain it writes to. A verb that only reads, or changes a brain on this
+machine (`page`, `namespace`, `brain log`, `brain lint` and the rest), takes
+`--brain` or `[<brain>]` as an option: without it the brain the folder is inside,
+else the brains of the chain answer, and where more than one would answer a
+write, it is the error above.
 
 **Bounded answers.** A verb whose answer grows with a brain gives 20 entries
 unless `--limit` says otherwise, one number for all. `page list` and `brain
@@ -235,7 +246,7 @@ update; and the search model (§4.3), fetched by the `sync` it starts in the
 background, unless `--no-model`.
 Neither it nor the installer makes a brain: while there is no personal brain,
 `setup` says how to bring one or make one and, unless `unpublished` is muted
-(§1.2), that `kioku brain publish` then puts it in a repository they make (§2.3). It
+(§1.2), that `kioku brain publish <brain> --remote <destination>` then puts it in a repository they make (§2.3). It
 refuses outside a terminal, and ends by naming the agent hosts on the machine
 with no Kioku plugin, with the command that installs it (§6.2), the person's
 own step; until then nothing happens in that host's sessions, and `doctor`
@@ -260,7 +271,10 @@ that is not newer than the version running changes nothing, so a machine on a
 build of its own newer than the latest stays there. It checks the bundle and
 the plugin's archive against their checksums, puts the plugin beside the bundle
 before the active version moves, then hands over to the version it installed,
-which refreshes every brain (§2.7). It keeps the previous version and says that
+which rewrites a configuration an older version wrote (§2.5), raises the
+person's own brain to the newest format and says so (§3.2), and refreshes every
+brain (§2.7); a project or team brain of an older format is left as it is, and
+said. It keeps the previous version and says that
 `kioku update <previous version>` goes back. `--check` says whether there is a
 newer version and `--dry-run` what it would do; both write nothing. `kioku
 update <version>` installs that release, a newer or an earlier one, only in a

@@ -31,7 +31,8 @@ reach.
 - **A brain loads only when trusted** (§2.4). A `kioku.yaml` naming another
   brain makes the machine say so, never clone it.
 - **What changes the machine needs a terminal** (design principle 11):
-  `setup`, `config set`, `brain clone`, `publish`, `remove`, `trust`,
+  `setup`, `config set` (trusting an owner among it), `init` where it accepts an
+  address or makes a brain, `brain clone`, `publish`, `remove`,
   `plugin … install|uninstall` and `update <version>` refuse unless
   standard input and output are a terminal (`needs_terminal`,
   `src/cli/terminal.ts`).
@@ -87,10 +88,13 @@ is the remedy; rewriting history is the person's, outside Kioku.
   them.
 - **`curl | sh`**: the installer checks what it downloads; a reader who wants
   more reads the script first.
+- **A brain's name is what it says of itself.** Anyone can write
+  `northwind/…` in a brain they make, so trust follows the address a brain is
+  cloned from, never its name, and a clone that holds another name than the
+  link says is refused (§2.4).
 - **Git runs nothing a repository ships.** A clone is a plain `git clone` of
-  a reference held to `[\w.-]` parts, or of a `url` the machine trusts: the
-  one a key says, an ssh address of the same repository, or one the person
-  recorded, never one a folder's `kioku.yaml` alone gives (§2.4); an
+  a `url` the machine trusts: one the person recorded or gave, or the https or
+  ssh form of it, never one a folder's `kioku.yaml` alone gives (§2.4); an
   address beginning with `-` is refused, and addresses go after `--`. Hooks,
   filters and drivers need configuration a clone does not carry, and nothing
   recurses into submodules. The person's own git configuration is theirs.

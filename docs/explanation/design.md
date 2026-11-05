@@ -21,8 +21,12 @@ bends a principle changes it here first, and the spec with it.
    Markdown with front matter, readable by any editor, `grep` and the git host.
    Nothing of the memory lives only where the tool can read it: the index is
    derived. What a machine counts about its own use lives with the machine. A
-   brain works whole where it was made, with no remote; publishing it is the
-   person's act.
+   brain works whole where it was made, with no remote and no host. It is named
+   by the person, `owner/repo`, and carries its name in its own files, so it is
+   the same brain on every machine and at any address; it has an address only
+   when published, and trust follows the address, never the name. Its tier,
+   personal, project or team, is its own and fixed, and a link takes only a
+   brain of its tier.
 
 4. **Every brain is the person's choice.** Installing makes no brain. A code
    repository names its project brain, and a machine loads it only once the
