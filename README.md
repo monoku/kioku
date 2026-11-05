@@ -8,6 +8,9 @@
 # Kioku
 
 [![ci](https://github.com/monoku/kioku/actions/workflows/ci.yml/badge.svg)](https://github.com/monoku/kioku/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/monoku/kioku)](https://github.com/monoku/kioku/releases/latest)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![node](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](https://nodejs.org)
 
 Memory for coding agents, kept in **brains**: git repositories of Markdown
 pages, yours and your team's. Your agent reads the brains at the start of every
