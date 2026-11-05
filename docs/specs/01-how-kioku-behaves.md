@@ -81,10 +81,19 @@ and its answer is left out.
 ### What the hooks say
 
 What no call made, the hooks say as a system message of the host: the summary,
-the notices, and the question before a namespace (§3.2). The summary is told in
-the rows' words, but is not a row: one line, with nothing under it,
-`⬢ kioku.md · ↓ summary  session summary · 324 pages (personal 73 · project 79 · team 172)`;
-a session resumed or compacted says `resumed` or `after /compact`.
+the notices, and the question before a namespace (§3.2). At a session's start
+it begins on a line of its own, under the words the host puts before it. The
+summary comes first, and the notices after it, a blank line between each. It is the brand with the version
+of the tool that runs, and under it one line, the history's `summary` row in
+its words and its columns:
+
+```
+⬢ kioku.md 0.2.1
+  ⎿ ↓ summary   session summary · 324 pages (personal, project, team)
+```
+
+A session resumed or compacted says why, `resumed` or `after /compact`, in
+place of `session summary`.
 
 `display.mute` in the machine configuration (§2.5) lists, by name, the notices
 the person does not want; a muted notice is said neither in a session nor in a
@@ -117,7 +126,8 @@ for information, `⚠` when the person has something to do or something was not
 loaded, `✕` when Kioku could not do its work; then the message, in lower case,
 with no full stop, in the past for what has happened; under the headline, one
 line per fact, each starting `  ⎿ `, the command whole on its own line, `run …`.
-The summary is the headline alone. In a terminal the message has colour; a host
+The summary has no headline: the brand says the version, and its one line is
+under it. In a terminal the message has colour; a host
 that does not draw it shows the same words plainly. `display.color` decides
 (§2.5): `auto`, the default, colours unless `NO_COLOR` is set or `TERM` is
 `dumb`; `always` and `never` regardless.
