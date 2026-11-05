@@ -3,12 +3,14 @@
  * desktop app, runs the plugin's hooks against the bundle of this working tree and the demo's own brains, and never
  * touches `~/.kioku`: builds `lib/kioku.mjs`, writes a `kioku` launcher for it under `<out>/bin`, sets `KIOKU_HOME`,
  * `KIOKU_BIN` and `CLAUDE_CODE_PLUGIN_DIRS` (this checkout's plugin, loaded in place of an installed one) in the
- * `.claude/settings.local.json` of `<out>/app`, leaving any other key there as it was, and
- * writes a `.mise.toml` there so that a terminal in that folder has the same `KIOKU_HOME` and this launcher first on its
- * `PATH`: `kioku` there is this checkout's. Both say to git that the person is sam, `github.user` (§2.3), added to the
+ * `.claude/settings.local.json` of `<out>/app`, with a `SessionStart` hook that puts `<out>/bin` first on the `PATH` of
+ * the session's shell, leaving any other key there as it was, and
+ * writes a `.mise.toml` in `<out>` so that a terminal anywhere under it (the code repository, a demo brain, the remotes)
+ * has the same `KIOKU_HOME` and this launcher first on its `PATH`: `kioku` there is this checkout's, never the installed
+ * one against `~/.kioku`. Both say to git that the person is sam, `github.user` (§2.3), added to the
  * person's own git configuration through git's variables, so the demo's story stays sam's whatever that says.
  */
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -27,7 +29,8 @@ export function prepareSession(root: string, out: string): void {
   chmodSync(launcher, 0o755);
 
   const settingsPath = join(app, ".claude", "settings.local.json");
-  let settings: { env?: Record<string, string> } = {};
+  type Hook = { matcher?: string; hooks: { type: string; command: string }[] };
+  let settings: { env?: Record<string, string>; hooks?: Record<string, Hook[]> } = {};
   if (existsSync(settingsPath)) {
     try {
       settings = JSON.parse(readFileSync(settingsPath, "utf8"));
@@ -44,13 +47,31 @@ export function prepareSession(root: string, out: string): void {
     CLAUDE_CODE_PLUGIN_DIRS: join(root, "plugins", "claude-code"),
     ...GIT_USER,
   };
+  // The hooks find the tool by KIOKU_BIN; the agent's own commands, by the PATH, which mise does not set in a session's
+  // shell. Claude Code reads the file CLAUDE_ENV_FILE names before each command, so `kioku` there is this checkout's.
+  const ENV_HOOK = "# kioku demo";
+  const putOnPath: Hook = {
+    hooks: [
+      {
+        type: "command",
+        command: `echo 'export PATH="${join(out, "bin")}:$PATH"' >> "$CLAUDE_ENV_FILE" ${ENV_HOOK}`,
+      },
+    ],
+  };
+  const others = (settings.hooks?.SessionStart ?? []).filter((h) => !h.hooks.some((c) => c.command.endsWith(ENV_HOOK)));
+  settings.hooks = { ...settings.hooks, SessionStart: [...others, putOnPath] };
   mkdirSync(join(app, ".claude"), { recursive: true });
   writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
 
+  // mise reads the folders above the one a terminal is in, so one file here covers every folder of the demo.
+  const MISE_HEADER = "# Written by pnpm demo:";
+  // An earlier demo wrote it in the code repository; `pnpm dev:claude` keeps the folder, so take that one away.
+  const old = join(app, ".mise.toml");
+  if (existsSync(old) && readFileSync(old, "utf8").startsWith(MISE_HEADER)) rmSync(old);
   writeFileSync(
-    join(app, ".mise.toml"),
+    join(out, ".mise.toml"),
     [
-      "# Written by pnpm demo: a terminal here runs this checkout's kioku against the demo's brains (mise trust once).",
+      `${MISE_HEADER} a terminal under this folder runs this checkout's kioku against the demo's brains (mise trust once).`,
       "[env]",
       `KIOKU_HOME = "${join(out, ".home")}"`,
       `_.path = ["${join(out, "bin")}"]`,
