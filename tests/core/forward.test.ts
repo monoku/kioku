@@ -31,6 +31,39 @@ async function kioku(argv: string[], home: string, terminal = true) {
   return { code, raw, out: JSON.parse(raw) };
 }
 
+/** A machine as 0.1.0 left it: the personal brain in a `path` of the person's, with no remote; a project brain from GitHub, under 0.1.0's folder, with one. */
+function oldMachine(home: string): void {
+  oldBrain(join(home, "code/sam/brain"), "personal");
+  oldBrain(join(home, ".kioku/brains/northwind/brain-acme"), "project", "https://github.com/northwind/brain-acme.git");
+  put(
+    home,
+    ".kioku/config.yaml",
+    [
+      "brain: github.com/sam/brain",
+      "repositories:",
+      "  github.com/sam/brain:",
+      "    path: ~/code/sam/brain",
+      "  github.com/northwind/brain-acme: {}",
+      "",
+    ].join("\n"),
+  );
+}
+
+/** What bringing `oldMachine` forward leaves: the configuration by name, no address guessed, the personal brain moved and raised. */
+function assertForward(home: string): void {
+  const brains = join(home, ".kioku/brains");
+  const config = readMachineConfig(home)!;
+  assert.deepEqual([config.brain, config.legacy], ["sam/brain", undefined]);
+  assert.deepEqual(
+    config.repositories,
+    { "northwind/brain-acme": "https://github.com/northwind/brain-acme.git" },
+    "the clone's own address, and none for the personal brain, which had no remote",
+  );
+  assert.equal(existsSync(join(home, "code/sam/brain")), false, "moved from its path");
+  assert.match(readFileSync(join(brains, "sam/brain/kioku.yaml"), "utf8"), /^format: 2\nname: sam\/brain\n/);
+  assert.match(readFileSync(join(brains, "northwind/brain-acme/kioku.yaml"), "utf8"), /^format: 1$/m);
+}
+
 test("the hand-over of update brings a 0.1.0 machine forward: the configuration by name, each brain in its folder, the personal brain raised (§2.5, §3.2, §6.4)", () =>
   scratch(async (home) => {
     const brains = join(home, ".kioku/brains");
@@ -170,4 +203,58 @@ test("doctor says a brain of an older format can be raised: the personal one by 
       check.fix,
       /once your teammates run a version that reads format 2, `kioku brain upgrade northwind\/brain-acme` raises it/,
     );
+  }));
+
+test("setup brings a 0.1.0 machine forward as the hand-over of update does, and says so; run again, it does nothing (§2.5, §3.2, §6.3)", () =>
+  scratch(async (home) => {
+    oldMachine(home);
+    const r = await kioku(["setup", "--no-model"], home);
+    assert.equal(r.code, 0, r.raw);
+    assert.equal(r.out.forwarded.rewrote, true);
+    assert.deepEqual(
+      r.out.forwarded.moved.map((m: { brain: string }) => m.brain),
+      ["sam/brain"],
+    );
+    assert.deepEqual([r.out.forwarded.raised?.brain, r.out.forwarded.raised?.to], ["sam/brain", 2]);
+    assert.deepEqual(r.out.forwarded.behind, ["northwind/brain-acme"]);
+    assert.equal(r.out.personal, "sam/brain");
+    assertForward(home);
+    assert.ok(r.out.agents !== undefined, "the rest of setup ran");
+    // Every brain's own files refreshed, as the hand-over does (§2.7): the personal brain, which 0.1.0 left without them.
+    const own = r.out.refreshed.brains.find((b: { brain: string }) => b.brain === "sam/brain");
+    assert.ok(own.written.includes("AGENTS.md"), r.raw);
+    assert.ok(existsSync(join(home, ".kioku/brains/sam/brain/AGENTS.md")));
+
+    const again = await kioku(["setup", "--no-model"], home);
+    assert.equal(again.code, 0, again.raw);
+    assert.deepEqual(
+      [again.out.forwarded.rewrote, again.out.forwarded.moved, again.out.forwarded.raised],
+      [false, [], undefined],
+    );
+    assert.deepEqual(
+      again.out.refreshed.brains.flatMap((b: { written: string[] }) => b.written),
+      [],
+      "the files are current",
+    );
+    let text = "";
+    await run(["setup", "--no-model"], { stdout: (t) => (text += t), isTty: true }, ctx({ home, interactive: true }));
+    assert.match(text, /Already set up/, "a shared brain left behind is doctor's to say, not every setup's");
+  }));
+
+test("a configuration written before the hand-over keeps what 0.1.0 wrote for it to bring forward, and guesses no address (§2.5)", () =>
+  scratch(async (home) => {
+    oldMachine(home);
+    const set = await kioku(["config", "set", "display.color", "never"], home);
+    assert.equal(set.code, 0, set.raw);
+    const text = readFileSync(join(home, ".kioku/config.yaml"), "utf8");
+    assert.doesNotMatch(
+      text,
+      /https:\/\/github\.com\/sam\/brain\.git/,
+      "no address guessed for a brain with no remote",
+    );
+    assert.match(text, /path: ~\/code\/sam\/brain/, "the path kept for the hand-over");
+
+    await bringForward(home, new Date());
+    assertForward(home);
+    assert.equal(readMachineConfig(home)!.display?.color, "never");
   }));

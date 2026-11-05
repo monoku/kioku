@@ -243,7 +243,13 @@ configuration (§2.5); `kioku` on the `PATH`, by a link in a folder already on
 it or else by the shell's profile; the shell's completion, by a file or a
 profile line that evaluates `kioku completion <shell>`, so it follows every
 update; and the search model (§4.3), fetched by the `sync` it starts in the
-background, unless `--no-model`.
+background, unless `--no-model`. Before it writes anything, it brings forward
+what an older version left, as the hand-over of `kioku update` does (§6.4): it
+rewrites a configuration an older version wrote (§2.5) and raises the person's
+own brain to the newest format (§3.2), and says so; a project or team brain of
+an older format is left as it is, and said. Then it refreshes every brain
+(§2.7), writing only what differs. The installer, run over an older version, so
+leaves the machine as `kioku update` does.
 Neither it nor the installer makes a brain: while there is no personal brain,
 `setup` says how to bring one or make one and, unless `unpublished` is muted
 (§1.2), that `kioku brain publish <brain> --remote <destination>` then puts it in a repository they make (§2.3). It

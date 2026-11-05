@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { configPath, readMachineConfig, remindsUnpublished, updateMachineConfig } from "../core/config/machine.ts";
-import { userError } from "../core/errors.ts";
+import { firstLine, userError } from "../core/errors.ts";
 import { parseVerb } from "./args.ts";
 import { installDirs, launcherPath, onPath, type InstallDirs } from "../core/setup/install.ts";
 import { SHELLS, applyPath, lineFor, planPath, shellOf, type PathPlan, type Shell } from "../core/setup/path.ts";
@@ -8,6 +8,10 @@ import { applyCompletion, type CompletionPlan } from "../core/setup/completion.t
 import { currentPlatform, downloadMB, PINS } from "../core/semantic/pins.ts";
 import { configuredMode, readSemanticState, semanticStatus, writeSemanticState } from "../core/semantic/status.ts";
 import { INSTALL_COMMAND } from "../product.ts";
+import { bringForward, describeForwarded } from "../core/setup/forward.ts";
+import type { RefreshResult } from "../core/brains/refresh.ts";
+import { brainRepoOfKey } from "../core/config/brain-ref.ts";
+import { refreshBrains } from "./update.ts";
 import { allHarnesses } from "../harness/index.ts";
 import type { Context, Handler, Outcome } from "./run.ts";
 import { personHome } from "./home.ts";
@@ -16,7 +20,8 @@ import { checklist, PLAIN, type Mark } from "./render.ts";
 
 /**
  * `kioku setup [--shell fish|zsh|bash|all] [--no-model]` (§6.1, §6.3): what a machine needs, once and idempotently:
- * the configuration, which records nothing about who the person is (git does, §2.5), `kioku` on the person's PATH, the
+ * what an older version left brought forward (§2.5, §3.2) and every brain's own files refreshed (§2.7), as the hand-over
+ * of `update` does (§6.4), the configuration, which records nothing about who the person is (git does, §2.5), `kioku` on the person's PATH, the
  * shell's completion and
  * the search model fetched in the background (§4.3). It makes no brain (§2.3): while there is no personal brain it
  * says how to make or bring one, and it ends by naming the agent hosts found with no integration yet; adding one is
@@ -30,12 +35,27 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
   // Before anything is written: the configuration and the PATH are the person's to set up, not an agent's.
   requireTerminal(ctx, "kioku setup", "it sets up your configuration and your PATH, so the agent does not do it");
 
+  // What an older version left, brought forward before anything is written, as the hand-over of `update` does (§6.3,
+  // §6.4): the installer, run over an older version, so leaves the machine as `kioku update` does.
+  const forwarded = await bringForward(ctx.home, ctx.now());
+
   // The configuration (§2.5): setting a machine up decides nothing about who the person is.
   const config = readMachineConfig(ctx.home);
   const configuration: "created" | "nothing" = config === undefined ? "created" : "nothing";
   if (configuration === "created") await updateMachineConfig(() => undefined, ctx.home);
   const written = readMachineConfig(ctx.home);
   const personal = written?.brain;
+
+  // Every brain's own files brought to this version's text, as the hand-over of `update` does (§2.7, §6.4): nothing
+  // when they are current. A refresh that fails leaves the rest of setup to run, and says so.
+  let refreshed: unknown = null;
+  let refreshError: string | undefined;
+  try {
+    refreshed = await refreshBrains(ctx);
+  } catch (e) {
+    refreshError = firstLine(e);
+  }
+  const refreshes = refreshedBrains(refreshed);
 
   // The PATH: a link in a folder already on it, else the shell's profile; nothing when `kioku` resolves.
   const person = personHome(ctx);
@@ -69,9 +89,28 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
   }));
 
   const modelChanged = model.action === "fetching" || (model.action === "full-text" && model.detail === "set");
+  // A shared brain left behind is said with what was brought forward, not on every run: `doctor` keeps saying it (§3.2).
+  const acted =
+    forwarded.rewrote ||
+    forwarded.moved.length + forwarded.kept.length > 0 ||
+    (forwarded.raised !== undefined && forwarded.raised.from !== forwarded.raised.to);
+  const forward = acted ? describeForwarded(forwarded) : [];
   const unchanged =
-    configuration === "nothing" && shellPath === undefined && completion?.action !== "written" && !modelChanged;
-  const items: [Mark, string][] = [];
+    configuration === "nothing" &&
+    forward.length === 0 &&
+    refreshes.length === 0 &&
+    refreshError === undefined &&
+    shellPath === undefined &&
+    completion?.action !== "written" &&
+    !modelChanged;
+  const items: [Mark, string][] = forward.map((s) => [s.done ? "done" : "todo", s.text]);
+  for (const r of refreshes)
+    items.push(["done", `Refreshed the files Kioku owns in ${brainRepoOfKey(r.brain)}: ${r.written.join(", ")}`]);
+  if (refreshError !== undefined)
+    items.push([
+      "failed",
+      `Could not refresh the files Kioku owns in your brains (${refreshError}): run kioku brain refresh --all`,
+    ]);
   const then: string[] = [];
   if (configuration === "created") items.push(["done", `Wrote the configuration, ${configPath(ctx.home)}`]);
   else if (unchanged) then.push("Already set up. Nothing to do.");
@@ -125,6 +164,9 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
     data: {
       configuration,
       personal: personal ?? null,
+      forwarded,
+      refreshed,
+      ...(refreshError !== undefined && { refreshError }),
       launcher: { path: launcher.path, present: launcher.present, onPath: reachable },
       ...(shellPath !== undefined && {
         shellPath: {
@@ -144,6 +186,12 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
     text: checklist(ctx.ui ?? PLAIN, items, then),
   };
 };
+
+/** The brains whose files a refresh wrote, from what `brain refresh --all` answered. */
+function refreshedBrains(answer: unknown): RefreshResult[] {
+  const brains = (answer as { brains?: unknown } | null)?.brains;
+  return Array.isArray(brains) ? (brains as RefreshResult[]).filter((r) => r.written.length > 0) : [];
+}
 
 /** What `setup` did about the search model. */
 interface ModelStep {
