@@ -16,9 +16,9 @@ test("promote writes the page again in a more shared brain, retires the original
     const r = await w.kioku(["page", "promote", MEMORY, "--brain", "sam/brain", "--to", "team"], BODY);
     assert.equal(r.code, 0, r.raw);
     assert.equal(r.out.status, "done");
-    assert.equal(r.out.brain, "github.com/northwind/brain");
+    assert.equal(r.out.brain, "northwind/brain");
     assert.equal(r.out.path, "memory/prefer-small-commits.md");
-    assert.deepEqual(r.out.promotedFrom, { brain: "github.com/sam/brain", path: MEMORY, action: "retired" });
+    assert.deepEqual(r.out.promotedFrom, { brain: "sam/brain", path: MEMORY, action: "retired" });
 
     const made = readFileSync(join(w.team, "memory/prefer-small-commits.md"), "utf8");
     assert.match(made, /^source: "Promoted from sam\/brain: memory\/prefer-small-commits\.md"$/m);

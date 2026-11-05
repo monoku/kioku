@@ -57,7 +57,7 @@ test("a hook after a tool call reads the machine configuration once (§6.2)", ()
           tool_name: "Bash",
           tool_input: { command: "kioku page show p.md" },
           tool_response: {
-            stdout: `${JSON.stringify({ brain: "github.com/northwind/brain-acme", path: "p.md", title: "Pool" })}\n`,
+            stdout: `${JSON.stringify({ brain: "northwind/brain-acme", path: "p.md", title: "Pool" })}\n`,
           },
         }),
       }),

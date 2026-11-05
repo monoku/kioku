@@ -122,12 +122,18 @@ export async function world<T>(fn: (w: World) => Promise<T>, o: WorldOptions = {
     );
     commitAll(sam);
 
-    // The machine knows the brains the person linked with `kioku init`; `registered: false` is a machine that does not (§2.4).
+    // The machine knows the addresses the person accepted with `kioku init`; `registered: false` is a machine that does not (§2.4).
     const known =
-      o.registered === false ? "{}" : "\n  github.com/northwind/brain-acme: {}\n  github.com/northwind/brain: {}";
-    put(home, ".kioku/config.yaml", `brain: github.com/sam/brain\nrepositories: ${known}\n`);
+      o.registered === false
+        ? ""
+        : "repositories:\n  northwind/brain-acme: https://github.com/northwind/brain-acme.git\n  northwind/brain: https://github.com/northwind/brain.git\n";
+    put(home, ".kioku/config.yaml", `brain: sam/brain\n${known}`);
     const repo = join(home, "work/acme-api");
-    put(repo, "kioku.yaml", "brain: github.com/northwind/brain-acme\nteam: github.com/northwind/brain\n");
+    put(
+      repo,
+      "kioku.yaml",
+      "brain: { name: northwind/brain-acme, url: https://github.com/northwind/brain-acme.git }\nteam: { name: northwind/brain, url: https://github.com/northwind/brain.git }\n",
+    );
 
     const calls: string[][] = [];
     const kioku: World["kioku"] = async (argv, k = {}) => {

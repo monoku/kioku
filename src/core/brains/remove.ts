@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, rmdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { parseRepo, repoKey, cloneOf } from "../config/brain-ref.ts";
+import { brainFolder, parseName, repoKey } from "../config/brain-ref.ts";
 import { readMachineConfig, remindsUnpublished, updateMachineConfig } from "../config/machine.ts";
 import { userError } from "../errors.ts";
 import { gitQuiet } from "../git.ts";
@@ -21,6 +21,8 @@ export interface RemoveResult {
   team: boolean;
   /** Whether the clone had a remote, so a repository elsewhere still holds the brain. */
   published: boolean;
+  /** The address it was published at, which `brain clone` brings it back from (§2.3). */
+  remote?: string;
   dryRun: boolean;
 }
 
@@ -48,13 +50,14 @@ export async function removeBrain(
   brain: KnownBrain,
   o: { force: boolean; dryRun: boolean },
 ): Promise<RemoveResult> {
-  const ref = parseRepo(brain.key)!;
+  const ref = parseName(brain.key)!;
   const repository = repoKey(ref);
   const config = readMachineConfig(home);
   if (config === undefined)
     throw userError("this machine has no configuration; there is no brain to remove", "brain_unknown");
-  const folder = cloneOf(config, ref, home);
-  const managed = config.repositories[repository]?.path === undefined;
+  // Every brain lives in the managed folder (§2.5): removing it deletes its folder.
+  const folder = brainFolder(home, ref);
+  const managed = true;
   const personal = config.brain === repository;
   const team = config.team === repository;
   const name = brain.key ?? brain.key;
@@ -73,7 +76,7 @@ export async function removeBrain(
     if (existsSync(folder)) {
       if (gitQuiet(folder, ["remote", "get-url", "origin"]) === undefined) {
         throw userError(
-          `${name} has no remote, so its clone is its only copy and deleting it deletes that memory; --force deletes it anyway${remindsUnpublished(readMachineConfig(home)) ? `, or kioku brain publish ${name} puts it in a repository you make first` : ""}`,
+          `${name} has no remote, so its clone is its only copy and deleting it deletes that memory; --force deletes it anyway${remindsUnpublished(readMachineConfig(home)) ? `, or kioku brain publish ${name} --remote <address> puts it in a repository you make first` : ""}`,
           "brain_no_remote",
         );
       }
@@ -86,7 +89,9 @@ export async function removeBrain(
     }
   }
 
-  const published = existsSync(folder) && gitQuiet(folder, ["remote", "get-url", "origin"]) !== undefined;
+  // As written in the clone: the address `brain clone` brings it back from (§2.3).
+  const remote = existsSync(folder) ? gitQuiet(folder, ["config", "--get", "remote.origin.url"]) : undefined;
+  const published = remote !== undefined;
   const result: RemoveResult = {
     brain: brain.key,
     folder,
@@ -94,6 +99,7 @@ export async function removeBrain(
     personal,
     team,
     published,
+    ...(remote !== undefined && { remote }),
     dryRun: o.dryRun,
   };
   if (o.dryRun) return result;

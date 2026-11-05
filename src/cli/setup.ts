@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import { configPath, readMachineConfig, remindsUnpublished, updateMachineConfig } from "../core/config/machine.ts";
 import { userError } from "../core/errors.ts";
 import { parseVerb } from "./args.ts";
-import { knownUser } from "../core/setup/personal.ts";
 import { installDirs, launcherPath, onPath, type InstallDirs } from "../core/setup/install.ts";
 import { SHELLS, applyPath, lineFor, planPath, shellOf, type PathPlan, type Shell } from "../core/setup/path.ts";
 import { applyCompletion, type CompletionPlan } from "../core/setup/completion.ts";
@@ -106,17 +105,18 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
       ]);
   }
   if (personal === undefined) {
-    // The repository `brain create` makes, as the name the person goes by gives it (§2.3): worked out, not recorded.
-    const yours = `${knownUser() ?? "you"}/brain`;
+    // The name is the person's to give (§2.3): Kioku works out none.
     items.push(["todo", "You have no personal brain on this machine yet; Kioku makes none on its own."]);
     then.push(
       "In a terminal,",
-      "  kioku brain create",
-      `makes yours, ${yours}, on this machine, which needs no remote, or`,
-      `  kioku brain clone ${yours}`,
+      "  kioku brain create <owner>/<repo>",
+      "makes yours on this machine, with the name you give it, sam/memoria say, which needs no remote, or",
+      "  kioku brain clone <address>",
       "brings it from its repository.",
       ...(remindsUnpublished(written)
-        ? ["kioku brain publish then puts it in a repository you make, when you want one."]
+        ? [
+            "Then kioku brain publish, given the brain and --remote with an address, puts it in a repository you make, when you want one.",
+          ]
         : []),
     );
   }

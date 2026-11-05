@@ -46,7 +46,7 @@ test("§2.5: a decision saved in the project brain is validated, committed as th
     const r = await w.kioku(SAVE_8, DECISION_BODY);
     assert.equal(r.code, 0, r.raw);
     assert.equal(r.out.status, "done");
-    assert.equal(r.out.brain, "github.com/northwind/brain-acme");
+    assert.equal(r.out.brain, "northwind/brain-acme");
     assert.equal(r.out.path, PATH_8);
     assert.equal(r.out.publication, "pushed");
     assert.match(r.out.commit, /^[0-9a-f]{7,}$/);
@@ -91,7 +91,7 @@ test("a brain in a format newer than the tool reads is not written to: refused b
     assert.equal(r.code, 2, r.raw);
     assert.equal(r.out.status, "error");
     assert.equal(r.out.error.code, "format_newer");
-    assert.match(r.out.error.message, /format 99, newer than the newest this tool reads \(1\).*run kioku update/);
+    assert.match(r.out.error.message, /format 99, newer than the newest this tool reads \(2\).*run kioku update/);
     assert.equal(commits(w.acme), before);
     assert.ok(!existsSync(join(w.acme, PATH_8)));
     assert.ok(clean(w.acme));
@@ -111,7 +111,7 @@ test("brain language declares the language in kioku.yaml, leaves the format, and
     assert.equal(commits(w.acme), before + 1);
     assert.equal(sh(w.acme, "log", "-1", "--format=%s"), "language: es");
     const yaml = readFileSync(join(w.acme, "kioku.yaml"), "utf8");
-    assert.match(yaml, /^format: 1$/m);
+    assert.match(yaml, /^format: 2$/m);
     assert.match(yaml, /^language: es$/m);
     assert.deepEqual(
       validateBrain(w.acme).findings.filter((f) => f.severity === "error"),
@@ -144,7 +144,7 @@ test("a second save on the same subject answers similar and writes nothing; with
     assert.deepEqual([again.out.path, again.out.commit, again.out.publication], [null, null, null]);
     const { touched, ...similar } = again.out.similar[0];
     assert.deepEqual(similar, {
-      brain: "github.com/northwind/brain-acme",
+      brain: "northwind/brain-acme",
       path: PATH_8,
       title: "Run migrations before the deploy",
       kind: "knowledge",
@@ -342,7 +342,7 @@ test("update --evidence on an instinct adds one dated Evidence line and leaves t
       "Session 2026-10-07 in acme-billing",
     ]);
     assert.equal(r.code, 0, r.raw);
-    assert.equal(r.out.brain, "github.com/sam/brain");
+    assert.equal(r.out.brain, "sam/brain");
     assert.equal(r.out.publication, "local");
     const after = readFileSync(join(w.sam, rel), "utf8");
     assert.equal(
@@ -476,14 +476,14 @@ test("with the remote unreachable a shared save commits and is pending; the next
     assert.equal(r.out.publication, "pending");
     assert.ok(existsSync(join(w.acme, PATH_8)));
     const pending = readPending(w.home);
-    assert.deepEqual(Object.keys(pending), ["github.com/northwind/brain-acme"]);
-    assert.equal(pending["github.com/northwind/brain-acme"]!.path, w.acme);
+    assert.deepEqual(Object.keys(pending), ["northwind/brain-acme"]);
+    assert.equal(pending["northwind/brain-acme"]!.path, w.acme);
     assert.ok(existsSync(pendingPath(w.home)));
     const text = await w.kioku(["page", "update", PATH_8, "--section", "Why"], "Because.\n", true);
     assert.match(text.out, /publication pending; sync retries it/);
     assert.equal(
-      readPending(w.home)["github.com/northwind/brain-acme"]!.since,
-      pending["github.com/northwind/brain-acme"]!.since,
+      readPending(w.home)["northwind/brain-acme"]!.since,
+      pending["northwind/brain-acme"]!.since,
       "the first failure's time is kept",
     );
 
@@ -513,7 +513,7 @@ test("with the remote unreachable a shared save commits and is pending; the next
       "## What happened\n\nx\n\n## Lesson\n\ny\n\n## Rule of thumb\n\nz\n",
     );
     assert.equal(personal.out.status, "done", personal.raw);
-    assert.equal(personal.out.brain, "github.com/sam/brain");
+    assert.equal(personal.out.brain, "sam/brain");
     assert.equal(personal.out.publication, "local");
     assert.deepEqual(readPending(w.home), {});
   }));
@@ -637,7 +637,7 @@ test("--brain names a brain by name or tier; a path is found in the one brain th
         ["page", "save", "--brain", brain, "--kind", "memory", "--title", `Lesson via ${brain}`, "--source", "s"],
         body,
       );
-      assert.equal(r.out.brain, "github.com/sam/brain", r.raw);
+      assert.equal(r.out.brain, "sam/brain", r.raw);
     }
     assert.equal(
       (
@@ -646,7 +646,7 @@ test("--brain names a brain by name or tier; a path is found in the one brain th
           body,
         )
       ).out.brain,
-      "github.com/northwind/brain-acme",
+      "northwind/brain-acme",
     );
     assert.equal(
       (await w.kioku(["page", "save", "--brain", "nope", "--kind", "memory", "--title", "x", "--source", "s"], body))
@@ -667,7 +667,7 @@ test("--brain names a brain by name or tier; a path is found in the one brain th
     );
     assert.equal((await w.kioku(["page", "forget", "memory/same.md"])).out.error.code, "ambiguous");
     const named = await w.kioku(["page", "forget", "memory/same.md", "--brain", "northwind/brain-acme"]);
-    assert.equal(named.out.brain, "github.com/northwind/brain-acme", named.raw);
+    assert.equal(named.out.brain, "northwind/brain-acme", named.raw);
     const absolute = await w.kioku([
       "page",
       "update",
@@ -675,7 +675,7 @@ test("--brain names a brain by name or tier; a path is found in the one brain th
       "--summary",
       "Small.",
     ]);
-    assert.equal(absolute.out.brain, "github.com/sam/brain", absolute.raw);
+    assert.equal(absolute.out.brain, "sam/brain", absolute.raw);
     assert.equal(absolute.out.path, "memory/prefer-small-commits.md");
   }));
 

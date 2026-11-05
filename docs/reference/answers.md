@@ -9,8 +9,11 @@ missing from the answer or from this page. How to call each verb is
 
 ## Every verb
 
-Where an answer names a `brain`, it is the brain's key, `host/owner/repo`
-(spec §2.3); the tier is `tier` where it is answered.
+Where an answer names a `brain`, or a `key`, it is the brain's name,
+`owner/repo`, the same on every machine (spec §2.2, §2.3); the tier is `tier`
+where it is answered. Contract 2: in contract 1 a brain was named by its
+repository, `host/owner/repo`, and `brain trust`, `brain create`'s `userFrom`
+and `brain clone`'s `registered` were answered.
 
 A refusal carries `error`, with `code` and `message`, at the top: a writing
 verb beside `status: "error"` in its own shape (below); any other verb as
@@ -82,7 +85,11 @@ is something to do, `fix`.
 **`kioku update`**: `status` (`updated`, `current`, `available`, `managed`),
 `version`, `latest` (when the latest release is behind the one running), `was`,
 `installed`, `pruned`, `refreshed` (what `brain refresh --all` answered),
-`finishError` and `dryRun`; `managed` answers `origin` (`homebrew`, `other`)
+`forwarded` (what the version installed brought forward: `rewrote`, the
+configuration 0.1.0 wrote; `moved` and `kept`, the brains moved to their folder
+or left where they were and why; `raised`, the personal brain raised to the
+newest format; `behind`, the shared brains of an older format), `finishError`
+and `dryRun`; `managed` answers `origin` (`homebrew`, `other`)
 and `command`.
 
 **`kioku plugin <host> install`** and **`uninstall`**: `host`, `status`
@@ -97,35 +104,36 @@ and `command`.
 
 ## Project folders and brains
 
-**`kioku init`**: what `brain trust` answers, and `created`, each brain made,
-as `brain create` answers it.
+**`kioku init`**: `file`, `inRepository`, `wrote`, `brain` and `team` when the
+file names them, `brought` when it cloned the brain from the address given (as
+`brain clone` answers it), `cloned` (what cloning the chain did, as `sync`'s
+`outcomes`), `created` (each brain made, as `brain create` answers it),
+`addressed` (the brains whose address it wrote, published since), `notHere`
+(the brains the file names by name alone that this machine does not have) and
+`chain`.
 
 **`kioku sync`** and **`kioku brain sync`**: `busy`, `outcomes` (`key`,
 `tier`, `path`, `status`: `pulled`, `pushed`, `up-to-date`, `no-remote`,
 `failed`, `conflict`; `message`) and `index`.
 
 **`kioku brain create`**: `action` (`created`), `brain`, `tier`, `path`,
-`commit`, `publication` (`local`) and `userFrom` (`git`, `system`) when no
-brain was named and the personal brain took the name the person goes by.
+`commit`, `publication` (`local`), and `language` when one was given.
 
-**`kioku brain clone`**: `brain`, `tier`, `path`, `action` (`cloned`,
-`registered`).
+**`kioku brain clone`**: `brain`, `tier`, `path`, `action` (`cloned`) and
+`url`, the address it was cloned from.
 
 **`kioku brain publish`**: `brain`, `status` (`pushed`, `connected`, `exists`),
 `remote`.
 
-**`kioku brain remove`**: `brain`, `folder`, `removed` (`folder`,
-`unregistered`), `personal`, `team`, `published`, `dryRun`.
+**`kioku brain remove`**: `brain`, `folder`, `removed` (`folder`), `personal`,
+`team`, `published`, `remote` when it had one, `dryRun`.
 
-**`kioku brain list`**: `brains`, each with `key`, `folder`, `onDisk` and
-`personal`; `chain`, each link with `tier`, `key`, `folder` and `onDisk`,
+**`kioku brain list`**: `brains`, each with `key`, `folder`, `onDisk`,
+`personal`, and `tier`, `format` and `remote` when they are known; `chain`, each link with `tier`, `key`, `folder` and `onDisk`,
 and the team's with `from` (`folder`, `machine`); `inside`; `notLoaded` (`tier`, `key`); `untrusted`
 (`tier`, `key`, and `address` when the folder gives one this machine does not know for it).
 
 **`kioku brain path`**: `brain` (its key) and `path`.
-
-**`kioku brain trust`**: `trusted`, `kind` (`brain`, `owner`), `added`,
-`cloned`.
 
 **`kioku brain validate`**: `ok`, `errors`, `warnings`, `brains`.
 
@@ -147,6 +155,10 @@ saved), `confirmed`, `opened`, `unopened` and `counting_since`.
 **`kioku brain sources`**: one entry per source, with `brain`, `source`,
 `count`, `last`, `version` and `versions`; with a source, `pages`, each with
 its `source_version`.
+
+**`kioku brain upgrade`**: `brain`, `from` and `to`, the formats before and
+after, and, when it raised the brain, `commit` and `published` (`pushed`,
+`pending`, `local`).
 
 **`kioku brain refresh`**: `brains`, each with `brain`, `path`, `written`,
 `commit`, `publication` and, when left, `left` (`newer`, `build`) and

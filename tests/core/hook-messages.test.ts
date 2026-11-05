@@ -42,7 +42,7 @@ test("the start says the summary in one line, and a call's hook answers nothing:
     const shown = await w.kioku(["page", "show", POSTGRES, "--brain", "northwind/brain-acme"]);
     const read = await after(w, `kioku page show ${POSTGRES} --brain northwind/brain-acme`, shown.raw);
     assert.equal(read.raw.trim(), "", "a read gets no message: its row says it");
-    const done = `${JSON.stringify({ status: "done", brain: "github.com/northwind/brain-acme", path: POSTGRES, publication: "local" })}\n`;
+    const done = `${JSON.stringify({ status: "done", brain: "northwind/brain-acme", path: POSTGRES, publication: "local" })}\n`;
     assert.equal(
       (await after(w, "kioku page save --brain northwind/brain-acme", done)).raw.trim(),
       "",

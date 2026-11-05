@@ -73,7 +73,7 @@ test("namespace add makes a path under a parent that exists, and describe change
     const flat = await k("add", "billing", "--summary", "What is charged.");
     assert.equal(flat.out.status, "done", flat.raw);
     assert.equal(flat.out.format, undefined, "nothing raises the format");
-    assert.match(readFileSync(join(w.acme, "kioku.yaml"), "utf8"), /format: 1/);
+    assert.match(readFileSync(join(w.acme, "kioku.yaml"), "utf8"), /format: 2/);
 
     const orphan = await k("add", "ops/oncall", "--summary", "Who answers.");
     assert.equal(orphan.out.error.code, "not_found", "the parent must exist");
@@ -87,9 +87,9 @@ test("namespace add makes a path under a parent that exists, and describe change
 
     const nested = await k("add", "billing/invoices", "--summary", "How an invoice is made.");
     assert.equal(nested.out.status, "done", nested.raw);
-    assert.equal(nested.out.format, undefined, "a path is a namespace in format 1 (§3.2)");
+    assert.equal(nested.out.format, undefined, "a path is a namespace in format 2 (§3.2)");
     const yaml = readFileSync(join(w.acme, "kioku.yaml"), "utf8");
-    assert.match(yaml, /format: 1/);
+    assert.match(yaml, /format: 2/);
     assert.match(yaml, /- billing\/invoices/);
     assert.equal(Number(sh(w.acme, "rev-list", "--count", "HEAD")), before + 2, "one commit each");
     assert.equal(

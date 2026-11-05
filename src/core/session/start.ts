@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
-import { basename } from "node:path";
-import { isFrontPageAt } from "../brain/brain.ts";
-import { resolveChain, trustCommand } from "../config/chain.ts";
+import { basename, join } from "node:path";
+import { isFrontPageAt, NEWEST_FORMAT } from "../brain/brain.ts";
+import { resolveChain, trustCommand, trustOwnerCommand } from "../config/chain.ts";
 import { mutes, remindsUnpublished, type MachineConfig } from "../config/machine.ts";
 import { writeAtomic } from "../fs/atomic.ts";
 import { gitQuiet } from "../git.ts";
@@ -15,7 +15,6 @@ import { cmd, dim, read, type Message } from "./message.ts";
 import { sessionReads, type SessionReads } from "./session-reads.ts";
 import { composeSummaryOffering, type SummaryBrainSource } from "./summary.ts";
 import { loadSummaryBrains } from "./summary-load.ts";
-import { knownUser } from "../setup/personal.ts";
 import { holdViews, newSince, readViews, recordViews } from "./views.ts";
 import { listWords, plural, readJson } from "../util.ts";
 
@@ -116,22 +115,45 @@ export async function startSession(
     });
   }
   for (const u of chain.untrusted) {
-    const trust = cmd(trustCommand(u));
+    const owner = trustOwnerCommand(u);
     messages.push({
       level: "warn",
       head: [`did not load ${u.key}`],
       details: [
         [dim(`this folder's ${u.tier} brain`)],
+        [`at ${u.address}, an address this machine does not know for it`],
         [
-          u.address === undefined
-            ? "this machine does not trust it"
-            : `at ${u.address}, an address this machine does not know for it`,
+          "if you trust it, run ",
+          cmd(trustCommand(u)),
+          ...(owner === undefined ? [] : [", or ", cmd(owner), " for its owner,"]),
+          " in a terminal, then start a new session",
         ],
-        ["if you trust it, run ", trust, " in a terminal, then start a new session"],
       ],
       name: "untrusted",
     });
   }
+  // A link by name alone works only on the machines that have that brain (§2.4).
+  for (const l of chain.withoutAddress)
+    messages.push({
+      head: [`${l.key} is linked without its address`],
+      details: [
+        [dim(`this folder's ${l.tier} brain`)],
+        ["a teammate cannot clone it from this file"],
+        ["run ", cmd("kioku init"), " here, which writes its address"],
+      ],
+      name: "link-without-address",
+    });
+  for (const l of chain.notHere)
+    messages.push({
+      level: "warn",
+      head: [`did not load ${l.key}`],
+      details: [
+        [dim(`this folder's ${l.tier} brain, named without an address`)],
+        ["this machine does not have it"],
+        ["a teammate who has it gives its address; then ", cmd("kioku init <address>")],
+      ],
+      name: "brain-not-here",
+    });
   if (Object.keys(pending).length > 0) {
     const names = listWords(Object.keys(pending).map((k) => k.split("/").pop()!));
     messages.push({
@@ -156,6 +178,17 @@ export async function startSession(
     });
   }
   if (cloned.length > 0) settleModelNotice(home, config);
+  // A shared brain of an older format is the person's to raise, once its teammates have updated (§3.2).
+  if (!continuing && !mutes(config, "format-behind")) {
+    const behind = cloned
+      .filter((l) => l.tier !== "personal")
+      .filter((l) => {
+        const found = reads.folderConfig(join(l.path, "kioku.yaml"));
+        return found.ok && found.value.form === "brain" && found.value.format < NEWEST_FORMAT;
+      })
+      .map((l) => l.key);
+    messages.push(...sayFormatBehind(home, behind, now));
+  }
   if (!continuing) {
     const personal = cloned.find((l) => l.tier === "personal");
     // A muted notice is not even counted as said (§1.2).
@@ -165,7 +198,7 @@ export async function startSession(
   }
 
   const named = brainsOfLinks(chain.links);
-  if (cloned.length === 0 && chain.missing.length === 0 && chain.untrusted.length === 0)
+  if (cloned.length === 0 && chain.missing.length === 0 && chain.untrusted.length === 0 && chain.notHere.length === 0)
     return { messages, brains: named };
   const hints = [
     basename(chain.root ?? input.cwd),
@@ -176,6 +209,7 @@ export async function startSession(
     brains: loadSummaryBrains(brains, reads),
     missing: chain.missing,
     untrusted: chain.untrusted,
+    notHere: chain.notHere,
     ...(chain.inside !== undefined && { inside: chain.inside, notLoaded: chain.notLoaded }),
     ...(chain.teamFrom !== undefined && { teamFrom: chain.teamFrom }),
     problems: chain.problems,
@@ -209,6 +243,30 @@ interface BackupState {
   nudged?: string;
   /** When the hook last said the machine has no personal brain; said once a week until there is one. */
   noPersonal?: string;
+  /** When the hook last said a shared brain of the chain is of an older format (§3.2); once a week. */
+  formatBehind?: string;
+}
+
+/**
+ * Say once a week which shared brains of the chain are of an older format than this version writes (§3.2): they are
+ * read and written as they are, and `kioku brain upgrade` raises one once its teammates have updated.
+ */
+function sayFormatBehind(home: string, behind: string[], now: Date): Message[] {
+  if (behind.length === 0) return [];
+  const last = readBackupState(home).formatBehind;
+  if (last !== undefined && now.getTime() - Date.parse(last) < BACKUP_NUDGE_DAYS * 86_400_000) return [];
+  writeBackupState(home, { formatBehind: now.toISOString() });
+  return [
+    {
+      head: [`${listWords(behind)} ${behind.length === 1 ? "is" : "are"} of an older brain format`],
+      details: [
+        [dim(`this version writes format ${NEWEST_FORMAT}`)],
+        ["teammates on an older version still write to it as it is"],
+        ["once they have updated: ", cmd(`kioku brain upgrade ${behind[0]}`)],
+      ],
+      name: "format-behind",
+    },
+  ];
 }
 
 const readBackupState = (home: string): BackupState => readJson<BackupState>(backupStatePath(home)) ?? {};
@@ -231,7 +289,7 @@ function nudgeBackup(home: string, personal: string | undefined, now: Date, read
     {
       level: "warn",
       head: ["your personal brain is only on this machine"],
-      details: [[dim(`${count}, no remote`)], ["back it up: ", cmd("kioku brain publish")]],
+      details: [[dim(`${count}, no remote`)], ["back it up: ", cmd("kioku brain publish <brain> --remote <address>")]],
       name: "unpublished",
     },
   ];
@@ -245,7 +303,6 @@ function sayNoPersonal(home: string, now: Date): Message[] {
   const last = readBackupState(home).noPersonal;
   if (last !== undefined && now.getTime() - Date.parse(last) < BACKUP_NUDGE_DAYS * 86_400_000) return [];
   writeBackupState(home, { noPersonal: now.toISOString() });
-  const create = cmd("kioku brain create");
   return [
     {
       level: "warn",
@@ -254,9 +311,9 @@ function sayNoPersonal(home: string, now: Date): Message[] {
         ["nothing personal is saved"],
         [
           "run ",
-          create,
-          " to make one here, or ",
-          cmd(`kioku brain clone ${knownUser() ?? "<owner>"}/brain`),
+          cmd("kioku brain create <owner>/<repo>"),
+          " to make one here, named as you like, or ",
+          cmd("kioku brain clone <address>"),
           " to bring yours",
         ],
       ],

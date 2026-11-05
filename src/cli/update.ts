@@ -12,6 +12,7 @@ import {
   type UpdateOutcome,
 } from "../core/setup/update.ts";
 import { runBrain } from "./brain.ts";
+import { bringForward, type Forwarded } from "../core/setup/forward.ts";
 import type { Context, Handler } from "./run.ts";
 import { personHome } from "./home.ts";
 import { requireTerminal } from "./terminal.ts";
@@ -26,9 +27,10 @@ import { CHANGELOG_URL } from "../product.ts";
  * not carry. A version the person names asks for a terminal, since every `kioku` call then runs it.
  */
 
-/** What finishing an update answers: what `brain refresh --all` said. */
+/** What finishing an update answers: what `brain refresh --all` said, and what was brought forward (§2.5, §3.2). */
 export interface UpdateFinish {
   refreshed: unknown;
+  forwarded?: Forwarded;
   /** Why the version installed could not be handed over to; absent when it was. */
   error?: string;
 }
@@ -98,15 +100,20 @@ export const runUpdate: Handler = async (args, ctx) => {
     data: {
       ...outcome,
       refreshed: finished.refreshed,
+      ...(finished.forwarded !== undefined && { forwarded: finished.forwarded }),
       ...(finished.error !== undefined && { finishError: finished.error }),
     },
     text: describe(outcome, finished, wanted !== undefined ? `kioku update ${wanted}` : undefined),
   };
 };
 
-/** Every brain refreshed by the version this process runs (§6.4); its plugin is already beside it (§6.2). */
+/**
+ * What the version this process runs does on taking over (§6.4): what an older version left brought forward, the
+ * configuration and the person's own brain (§2.5, §3.2), then every brain refreshed; its plugin is already beside it (§6.2).
+ */
 export async function finishHere(ctx: Context): Promise<UpdateFinish> {
-  return { refreshed: await refreshBrains(ctx) };
+  const forwarded = await bringForward(ctx.home, ctx.now());
+  return { refreshed: await refreshBrains(ctx), forwarded };
 }
 
 /** `kioku update --finish` run from `bundle`, so that the version just installed does the finishing (§6.4). */
@@ -125,7 +132,10 @@ export function finishByBundle(bundle: string): Promise<UpdateFinish> {
           };
           // The answer of a version's `--finish` is what it refreshed; a later version may say more, read by no one here.
           if (typeof answer === "object" && answer !== null && "refreshed" in answer)
-            return resolve({ refreshed: answer.refreshed ?? null });
+            return resolve({
+              refreshed: answer.refreshed ?? null,
+              ...("forwarded" in answer && { forwarded: (answer as { forwarded: Forwarded }).forwarded }),
+            });
           const said =
             typeof answer.error === "object" && answer.error !== null
               ? (answer.error as { message?: unknown }).message
@@ -153,7 +163,19 @@ function describeFinish(f: UpdateFinish): string {
     Array.isArray((f.refreshed as { brains?: unknown }).brains)
       ? (f.refreshed as { brains: unknown[] }).brains.length
       : 0;
-  return brains > 0 ? ` Refreshed the files Kioku owns in ${brains} brain${brains === 1 ? "" : "s"}.` : "";
+  const parts: string[] = [];
+  const fw = f.forwarded;
+  if (fw?.rewrote) parts.push(" Rewrote the machine's configuration by the brains' names.");
+  for (const m of fw?.moved ?? []) parts.push(` Moved ${m.brain} to ${m.to}.`);
+  for (const k of fw?.kept ?? []) parts.push(` Left ${k.brain} at ${k.at}: ${k.why}.`);
+  if (fw?.raised !== undefined && fw.raised.from !== fw.raised.to)
+    parts.push(` Raised your brain ${fw.raised.brain} to format ${fw.raised.to}.`);
+  if ((fw?.behind.length ?? 0) > 0)
+    parts.push(
+      ` ${fw!.behind.join(", ")} ${fw!.behind.length === 1 ? "is" : "are"} of an older format, left as ${fw!.behind.length === 1 ? "it is" : "they are"} for teammates on an older version; kioku brain upgrade raises one once they have updated.`,
+    );
+  if (brains > 0) parts.push(` Refreshed the files Kioku owns in ${brains} brain${brains === 1 ? "" : "s"}.`);
+  return parts.join("");
 }
 
 /** `again`: the command that installs what the person named, a version or a bundle; undefined for the latest release. */

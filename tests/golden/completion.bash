@@ -5,9 +5,9 @@ _kioku() {
   if (( COMP_CWORD == 1 )); then COMPREPLY=( $(compgen -W "setup doctor update completion config init sync hook page brain namespace plugin help" -- "$cur") ); return; fi
   case "$verb" in
     page) if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W "search list show save update supersede forget confirm retire rename move link promote evolve" -- "$cur") ); return; fi; verb="page ${COMP_WORDS[2]}" ;;
-    brain) if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W "create clone sync publish list path trust remove log stats sources validate lint language refresh conflicts" -- "$cur") ); return; fi; verb="brain ${COMP_WORDS[2]}" ;;
+    brain) if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W "create clone sync publish list path remove log stats sources validate lint language upgrade refresh conflicts" -- "$cur") ); return; fi; verb="brain ${COMP_WORDS[2]}" ;;
     namespace) if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W "list add describe rename" -- "$cur") ); return; fi; verb="namespace ${COMP_WORDS[2]}" ;;
-    help) if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W "setup doctor update completion config init sync hook page brain namespace plugin" -- "$cur") ); elif (( COMP_CWORD == 3 )); then case "${COMP_WORDS[2]}" in page) COMPREPLY=( $(compgen -W "search list show save update supersede forget confirm retire rename move link promote evolve" -- "$cur") ) ;; brain) COMPREPLY=( $(compgen -W "create clone sync publish list path trust remove log stats sources validate lint language refresh conflicts" -- "$cur") ) ;; namespace) COMPREPLY=( $(compgen -W "list add describe rename" -- "$cur") ) ;; plugin) COMPREPLY=( $(compgen -W "claude-code claude" -- "$cur") ) ;; esac; elif (( COMP_CWORD == 4 )) && [[ "${COMP_WORDS[2]}" == plugin ]]; then COMPREPLY=( $(compgen -W "install uninstall" -- "$cur") ); fi; return ;;
+    help) if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W "setup doctor update completion config init sync hook page brain namespace plugin" -- "$cur") ); elif (( COMP_CWORD == 3 )); then case "${COMP_WORDS[2]}" in page) COMPREPLY=( $(compgen -W "search list show save update supersede forget confirm retire rename move link promote evolve" -- "$cur") ) ;; brain) COMPREPLY=( $(compgen -W "create clone sync publish list path remove log stats sources validate lint language upgrade refresh conflicts" -- "$cur") ) ;; namespace) COMPREPLY=( $(compgen -W "list add describe rename" -- "$cur") ) ;; plugin) COMPREPLY=( $(compgen -W "claude-code claude" -- "$cur") ) ;; esac; elif (( COMP_CWORD == 4 )) && [[ "${COMP_WORDS[2]}" == plugin ]]; then COMPREPLY=( $(compgen -W "install uninstall" -- "$cur") ); fi; return ;;
     plugin) if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W "claude-code claude" -- "$cur") ); elif (( COMP_CWORD == 3 )); then COMPREPLY=( $(compgen -W "install uninstall" -- "$cur") ); else COMPREPLY=( $(compgen -W "--dry-run --json" -- "$cur") ); fi; return ;;
   esac
   case "$verb" in
@@ -37,10 +37,8 @@ _kioku() {
       COMPREPLY=( $(compgen -W "--json" -- "$cur") ); return ;;
     init)
       case "$prev" in
-      --team) COMPREPLY=( $(compgen -W "$(kioku brain list --json 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | sort -u)" -- "$cur") ); return ;;
-      --dir) COMPREPLY=( $(compgen -f -- "$cur") ); return ;;
       esac
-      COMPREPLY=( $(compgen -W "--team --create --dir --json" -- "$cur") ); return ;;
+      COMPREPLY=( $(compgen -W "--json" -- "$cur") ); return ;;
     sync)
       case "$prev" in
       --cwd) COMPREPLY=( $(compgen -f -- "$cur") ); return ;;
@@ -49,14 +47,12 @@ _kioku() {
     "brain create")
       case "$prev" in
       --tier) COMPREPLY=( $(compgen -W "personal project team" -- "$cur") ); return ;;
-      --dir) COMPREPLY=( $(compgen -f -- "$cur") ); return ;;
       esac
-      COMPREPLY=( $(compgen -W "--tier --dir --language --json" -- "$cur") ); return ;;
+      COMPREPLY=( $(compgen -W "--tier --language --json" -- "$cur") ); return ;;
     "brain clone")
       case "$prev" in
-      --dir) COMPREPLY=( $(compgen -f -- "$cur") ); return ;;
       esac
-      COMPREPLY=( $(compgen -W "--url --dir --json" -- "$cur") ); return ;;
+      COMPREPLY=( $(compgen -W "--json" -- "$cur") ); return ;;
     "brain sync")
       case "$prev" in
       esac
@@ -66,7 +62,7 @@ _kioku() {
       case "$prev" in
       esac
       if (( COMP_CWORD == 3 )) && [[ "$cur" != -* ]]; then COMPREPLY=( $(compgen -W "$(kioku brain list --json 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | sort -u)" -- "$cur") ); return; fi
-      COMPREPLY=( $(compgen -W "--to --json" -- "$cur") ); return ;;
+      COMPREPLY=( $(compgen -W "--remote --json" -- "$cur") ); return ;;
     "brain list")
       case "$prev" in
       esac
@@ -76,10 +72,6 @@ _kioku() {
       esac
       if (( COMP_CWORD == 3 )) && [[ "$cur" != -* ]]; then COMPREPLY=( $(compgen -W "$(kioku brain list --json 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | sort -u)" -- "$cur") ); return; fi
       COMPREPLY=( $(compgen -W "--json" -- "$cur") ); return ;;
-    "brain trust")
-      case "$prev" in
-      esac
-      COMPREPLY=( $(compgen -W "--owner --json" -- "$cur") ); return ;;
     "brain remove")
       case "$prev" in
       esac
@@ -115,6 +107,11 @@ _kioku() {
       --brain) COMPREPLY=( $(compgen -W "$(kioku brain list --json 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | sort -u)" -- "$cur") ); return ;;
       esac
       COMPREPLY=( $(compgen -W "--brain --json" -- "$cur") ); return ;;
+    "brain upgrade")
+      case "$prev" in
+      esac
+      if (( COMP_CWORD == 3 )) && [[ "$cur" != -* ]]; then COMPREPLY=( $(compgen -W "$(kioku brain list --json 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | sort -u)" -- "$cur") ); return; fi
+      COMPREPLY=( $(compgen -W "--json" -- "$cur") ); return ;;
     "brain refresh")
       case "$prev" in
       esac

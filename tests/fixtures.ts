@@ -33,8 +33,16 @@ export const scratch =
 export const ulid = (n: number): string => `01J9QZ3M7X8K2V5B6N4P0R${String(n).padStart(4, "0")}`;
 
 /** A brain's `kioku.yaml`, with one namespace, `name` by default: a brain's name is its repository's, not the file's (§2.3). */
-export const brainYaml = (tier: string, name = "acme"): string =>
-  `format: 1\ntier: ${tier}\nnamespaces:\n  - ${name}\n`;
+/** A brain's `kioku.yaml` (§2.5): `format: 2`, with the brain's name, its tier and one namespace. */
+export const brainYaml = (tier: string, name = "acme", brain = "northwind/acme"): string =>
+  `format: 2\nname: ${brain}\ntier: ${tier}\nnamespaces:\n  - ${name}\n`;
+
+/** The name a brain in `root` takes: its folder's last two parts when they make one, as the managed folder lays it out (§2.5). */
+const nameAt = (root: string): string => {
+  const parts = root.replace(/\/+$/, "").split("/");
+  const name = `${parts.at(-2)}/${parts.at(-1)}`;
+  return /^[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(name) ? name : "northwind/acme";
+};
 
 export interface Made {
   path: string;
@@ -142,7 +150,7 @@ export function validPages(): Made[] {
 
 /** A brain of `tier` holding `pages`, with its front pages. */
 export function writeBrain(root: string, tier = "project", pages: Made[] = validPages(), name = "acme"): void {
-  put(root, "kioku.yaml", brainYaml(tier, name));
+  put(root, "kioku.yaml", brainYaml(tier, name, nameAt(root)));
   put(root, "BRAIN.md", `# ${name}\n`);
   for (const f of folderFiles(name, tier as Tier, "0.0.0-dev")) put(root, f.rel, f.text);
   put(root, `knowledge/${name}/INDEX.md`, `# ${name} knowledge\n`);

@@ -64,7 +64,7 @@ test("a call the host draws has its here-documents cut to an ellipsis, and a lin
 
 const line = (o: unknown) => `${JSON.stringify(o)}\n`;
 const page = {
-  brain: "github.com/sam/brain",
+  brain: "sam/brain",
   path: "memory/a.md",
   title: "A",
   kind: "memory",
@@ -86,7 +86,7 @@ const after = (w: World, command: string, stdout: string, id: string | null = "t
 test("the journal's entries hold the call that made them (§4.6)", () =>
   world(async (w) => {
     await after(w, "kioku page show memory/a.md", line(page));
-    await after(w, "kioku page search x", line({ hits: [{ brain: "github.com/sam/brain", title: "A" }] }), null);
+    await after(w, "kioku page search x", line({ hits: [{ brain: "sam/brain", title: "A" }] }), null);
     const [opened, searched] = readJournal(w.home, "s1");
     assert.equal(opened!.call, "toolu_1");
     assert.equal("call" in searched!, false);
@@ -101,7 +101,7 @@ test("a call gets no message, whatever its line runs or whether it made entries:
     };
     assert.equal(await said("kioku page show memory/a.md", line(page), "toolu_1"), "");
     assert.equal(
-      await said("kioku page search x", line({ hits: [{ brain: "github.com/sam/brain", title: "A" }] }), "toolu_2"),
+      await said("kioku page search x", line({ hits: [{ brain: "sam/brain", title: "A" }] }), "toolu_2"),
       "",
     );
     assert.equal(
@@ -109,7 +109,7 @@ test("a call gets no message, whatever its line runs or whether it made entries:
         "kioku page save --title A <<'EOF'\nbody; text\nEOF",
         line({
           status: "done",
-          brain: "github.com/sam/brain",
+          brain: "sam/brain",
           commit: "abc1234",
           publication: "local",
           path: "memory/a.md",

@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { brainRepoOfKey, cloneOf, parseRepo } from "../config/brain-ref.ts";
+import { brainFolder, brainRepoOfKey, parseName } from "../config/brain-ref.ts";
 import { readFolderConfig, type ConfigResult, type FolderConfig } from "../config/folder-config.ts";
 import { machineReader, readMachineConfig, type MachineConfig } from "../config/machine.ts";
 import { resolveChain, type ChainLink } from "../config/chain.ts";
@@ -9,8 +9,8 @@ import { onceByPath } from "./session-reads.ts";
 /**
  * How a message names a brain (§1.2): by its tier, which says who sees it and, since a session has one brain of each
  * tier (§2.1), which one: `project`, `team`, `personal`. A brain that is not one of the session's, reached by a
- * command run in another folder, is named by its tier and repository, `project · northwind/brain-acme`; one whose tier
- * cannot be read, by its repository alone.
+ * command run in another folder, is named by its tier and name, `project · northwind/brain-acme`; one whose tier
+ * cannot be read, by its name alone.
  */
 
 /** What a caller has already read, so that the labels do not read it again. */
@@ -40,10 +40,14 @@ function brainTiers(
     const found = readConfig(join(folder, "kioku.yaml"));
     if (found.ok && found.value.form === "brain") tiers.set(key, found.value.tier);
   };
-  for (const key of new Set([...(config.brain ? [config.brain] : []), ...Object.keys(config.repositories)])) {
-    const ref = parseRepo(key);
+  for (const key of new Set([
+    ...(config.brain ? [config.brain] : []),
+    ...(config.team ? [config.team] : []),
+    ...Object.keys(config.repositories),
+  ])) {
+    const ref = parseName(key);
     if (ref === undefined) continue;
-    const clone = cloneOf(config, ref, home);
+    const clone = brainFolder(home, ref);
     if (existsSync(join(clone, "kioku.yaml"))) read(clone, key);
   }
   return tiers;

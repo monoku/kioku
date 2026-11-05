@@ -10,12 +10,12 @@ Machine
   update      installs the latest release, or the one named, rewrites the agent integration and
               refreshes the brains
   completion  prints your shell's completion script, which setup makes the shell source
-  config      lists, reads and sets the machine's preferences
+  config      lists, reads and sets the machine's preferences, the owners it trusts and its team
   plugin      install or uninstall a host's integration (2 verbs)
 
 In a project folder
-  init        links a project folder to its project brain, its team brain, or both; alone, the ones
-              its kioku.yaml names
+  init        links a project folder to its project brain, cloned from an address or made by name;
+              alone, accepts and clones what its kioku.yaml names
   sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
 
 Brains, pages and namespaces
@@ -38,12 +38,12 @@ Machine
   update      installs the latest release, or the one named, rewrites the agent integration and
               refreshes the brains
   completion  prints your shell's completion script, which setup makes the shell source
-  config      lists, reads and sets the machine's preferences
+  config      lists, reads and sets the machine's preferences, the owners it trusts and its team
   plugin      install or uninstall a host's integration (2 verbs)
 
 In a project folder
-  init        links a project folder to its project brain, its team brain, or both; alone, the ones
-              its kioku.yaml names
+  init        links a project folder to its project brain, cloned from an address or made by name;
+              alone, accepts and clones what its kioku.yaml names
   sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
 
 Brains, pages and namespaces
@@ -66,12 +66,12 @@ Machine
   update      installs the latest release, or the one named, rewrites the agent integration and
               refreshes the brains
   completion  prints your shell's completion script, which setup makes the shell source
-  config      lists, reads and sets the machine's preferences
+  config      lists, reads and sets the machine's preferences, the owners it trusts and its team
   plugin      install or uninstall a host's integration (2 verbs)
 
 In a project folder
-  init        links a project folder to its project brain, its team brain, or both; alone, the ones
-              its kioku.yaml names
+  init        links a project folder to its project brain, cloned from an address or made by name;
+              alone, accepts and clones what its kioku.yaml names
   sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
 
 Brains, pages and namespaces
@@ -109,15 +109,14 @@ kioku brain <verb>
 
 Make, clone, sync, publish and check the brains of this machine.
 
-  create     makes a brain on this machine, with no remote and no network; alone, your personal
-             brain
-  clone      brings a brain you already have to this machine: your personal one, on a second machine
+  create     makes a brain on this machine with the name you give it, with no remote and no network;
+             personal unless --tier says
+  clone      brings a brain that exists to this machine from any address, under the name it holds
   sync       pulls and pushes a brain, or every brain, wherever you are
-  publish    pushes a brain that lives only on this machine to an empty repository, the one at --to
-             or the one its key says; the one this folder is inside, else yours
+  publish    pushes a brain that lives only on this machine to an empty repository at the address
+             you give; its name stays
   list       the brains this machine knows, and the chain of this folder
   path       prints a brain's folder
-  trust      lets this machine load a brain a repository names, or every brain of an owner
   remove     takes a brain off this machine, never off the git host: deletes its clone and forgets
              it; refuses what would lose work unless --force
   log        the writes of the chain's brains since today, or since when you say
@@ -127,6 +126,7 @@ Make, clone, sync, publish and check the brains of this machine.
   validate   checks a brain's files against the format
   lint       what to review: similar pages, quiet instincts, superseded decisions, and the rest
   language   declares the language a brain's pages are written in; the summary tells the agent
+  upgrade    raises a brain to the newest format, in one commit
   refresh    rewrites the files the tool owns in a brain, or in every brain
   conflicts  the changes kept aside after a conflict with the team's, and how to resolve them
 
@@ -183,15 +183,14 @@ kioku brain <verb>
 
 Make, clone, sync, publish and check the brains of this machine.
 
-  create     makes a brain on this machine, with no remote and no network; alone, your personal
-             brain
-  clone      brings a brain you already have to this machine: your personal one, on a second machine
+  create     makes a brain on this machine with the name you give it, with no remote and no network;
+             personal unless --tier says
+  clone      brings a brain that exists to this machine from any address, under the name it holds
   sync       pulls and pushes a brain, or every brain, wherever you are
-  publish    pushes a brain that lives only on this machine to an empty repository, the one at --to
-             or the one its key says; the one this folder is inside, else yours
+  publish    pushes a brain that lives only on this machine to an empty repository at the address
+             you give; its name stays
   list       the brains this machine knows, and the chain of this folder
   path       prints a brain's folder
-  trust      lets this machine load a brain a repository names, or every brain of an owner
   remove     takes a brain off this machine, never off the git host: deletes its clone and forgets
              it; refuses what would lose work unless --force
   log        the writes of the chain's brains since today, or since when you say
@@ -201,6 +200,7 @@ Make, clone, sync, publish and check the brains of this machine.
   validate   checks a brain's files against the format
   lint       what to review: similar pages, quiet instincts, superseded decisions, and the rest
   language   declares the language a brain's pages are written in; the summary tells the agent
+  upgrade    raises a brain to the newest format, in one commit
   refresh    rewrites the files the tool owns in a brain, or in every brain
   conflicts  the changes kept aside after a conflict with the team's, and how to resolve them
 
@@ -296,16 +296,16 @@ kioku config get <key>
 kioku config set <key> <value>
 kioku config unset <key>
 
-Lists, reads and sets the machine's preferences.
+Lists, reads and sets the machine's preferences, the owners it trusts and its team.
 
 More in the reference, under `kioku config`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-config
 
 $ kioku help init
-kioku init [<brain>] [--team <brain>] [--create] [--dir <folder>]
+kioku init [<brain>]
 
-Links a project folder to its project brain, its team brain, or both; alone, the ones its kioku.yaml
-names.
+Links a project folder to its project brain, cloned from an address or made by name; alone, accepts
+and clones what its kioku.yaml names.
 
 More in the reference, under `kioku init`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-init
@@ -319,17 +319,18 @@ More in the reference, under `kioku sync`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-sync
 
 $ kioku help brain create
-kioku brain create [<brain> --tier personal|project|team] [--dir <folder>] [--language <tag>]
+kioku brain create <owner>/<repo> [--tier personal|project|team] [--language <tag>]
 
-Makes a brain on this machine, with no remote and no network; alone, your personal brain.
+Makes a brain on this machine with the name you give it, with no remote and no network; personal
+unless --tier says.
 
 More in the reference, under `kioku brain create`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-create
 
 $ kioku help brain clone
-kioku brain clone <brain> [--url <url>] [--dir <folder>]
+kioku brain clone <address>
 
-Brings a brain you already have to this machine: your personal one, on a second machine.
+Brings a brain that exists to this machine from any address, under the name it holds.
 
 More in the reference, under `kioku brain clone`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-clone
@@ -344,10 +345,10 @@ More in the reference, under `kioku brain sync`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-sync
 
 $ kioku help brain publish
-kioku brain publish [<brain>] [--to <url>]
+kioku brain publish <brain> --remote <address>
 
-Pushes a brain that lives only on this machine to an empty repository, the one at --to or the one
-its key says; the one this folder is inside, else yours.
+Pushes a brain that lives only on this machine to an empty repository at the address you give; its
+name stays.
 
 More in the reference, under `kioku brain publish`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-publish
@@ -367,15 +368,6 @@ Prints a brain's folder.
 
 More in the reference, under `kioku brain path`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-path
-
-$ kioku help brain trust
-kioku brain trust <brain>
-kioku brain trust --owner <owner>
-
-Lets this machine load a brain a repository names, or every brain of an owner.
-
-More in the reference, under `kioku brain trust`:
-https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-trust
 
 $ kioku help brain remove
 kioku brain remove <brain> [--force] [--dry-run]
@@ -434,6 +426,14 @@ Declares the language a brain's pages are written in; the summary tells the agen
 
 More in the reference, under `kioku brain language`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-language
+
+$ kioku help brain upgrade
+kioku brain upgrade <brain>
+
+Raises a brain to the newest format, in one commit.
+
+More in the reference, under `kioku brain upgrade`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-upgrade
 
 $ kioku help brain refresh
 kioku brain refresh [<brain>] [--all]

@@ -2,17 +2,16 @@ import { existsSync, realpathSync } from "node:fs";
 import { dirname, join, parse as parsePath, relative, resolve, sep } from "node:path";
 import { gitQuiet } from "../git.ts";
 import {
-  cloneOf,
-  defaultUrl,
-  isSshAddress,
-  localPathOf,
+  brainFolder,
+  brainsFolder,
   managedRef,
-  ownerKey,
-  parseRepo,
+  ownerOfAddress,
+  parseName,
   repoKey,
+  sameRepository,
   type BrainRef,
 } from "./brain-ref.ts";
-import { readFolderConfig, type ConfigResult, type FolderConfig } from "./folder-config.ts";
+import { readFolderConfig, type ConfigResult, type FolderConfig, type Tier } from "./folder-config.ts";
 import { emptyConfig, type MachineConfig } from "./machine.ts";
 
 export type LinkTier = "personal" | "project" | "team";
@@ -20,22 +19,22 @@ export type LinkTier = "personal" | "project" | "team";
 export interface ChainLink {
   tier: LinkTier;
   ref: BrainRef;
-  /** Canonical key of the brain: `host/owner/repo`, plus `#path` for a folder inside a repository. */
+  /** The brain's name, `<owner>/<repo>` (§2.2). */
   key: string;
-  /** Where it is, or will be cloned, on this machine. */
+  /** Its folder on this machine, `~/.kioku/brains/<owner>/<repo>` (§2.5). */
   path: string;
   /** The folder exists and holds a `kioku.yaml`. */
   cloned: boolean;
-  /** For a link not trusted: the address the folder gives it that this machine does not know (§2.4). */
+  /** For a link not trusted: the address the folder gives it (§2.4). */
   address?: string;
 }
 
 export interface Chain {
   /** The folder holding the project folder's `kioku.yaml`, when the folder is in a linked repository. */
   root?: string;
-  /** The project brain's key, as the project folder's `kioku.yaml` names it, or the project brain the session is inside. */
+  /** The project brain's name, as the project folder's `kioku.yaml` names it, or the project brain the session is inside. */
   project?: string;
-  /** The key of the brain whose folder the session is in (§2.7): the session works on that brain. */
+  /** The name of the brain whose folder the session is in (§2.7): the session works on that brain. */
   inside?: string;
   /** Where the team link came from (§2.4): the project folder's `kioku.yaml`, or the machine configuration's `team`. */
   teamFrom?: "folder" | "machine";
@@ -53,41 +52,56 @@ export interface Chain {
    * so an unvetted repository cannot put its own brain's Rules in front of the agent.
    */
   untrusted: ChainLink[];
-  /** Things wrong with a `kioku.yaml` along the way; the validator and `doctor` say more. */
+  /** Links by name alone to a brain that has a remote: a teammate cannot clone them (`link-without-address`, §2.4). */
+  withoutAddress: ChainLink[];
+  /** Links by name alone to a brain this machine does not have: nothing to clone it from (`brain-not-here`, §2.4). */
+  notHere: ChainLink[];
+  /** Things wrong with a `kioku.yaml` along the way, or a brain of a tier its link does not take; `doctor` says more. */
   problems: string[];
 }
 
-/**
- * Whether the address a reference gives is one this machine knows for its repository (§2.4): none, the one its key
- * says, an ssh address of the same repository, or the one `repositories` records. A folder cannot send a trusted
- * brain's clone, or its pushes, anywhere else.
- */
-export function knownAddress(config: MachineConfig, ref: BrainRef): boolean {
-  const url = ref.url;
-  if (url === undefined || url === defaultUrl(ref)) return true;
-  const same = isSshAddress(url) ? parseRepo(url) : undefined;
-  if (same !== undefined && repoKey(same) === repoKey(ref)) return true;
-  return config.repositories[repoKey(ref)]?.url === url;
+/** What a link of the chain takes, by the tier a brain declares (§2.1): each its own, never the personal brain as a project. */
+export const ACCEPTS: Record<LinkTier, Tier[]> = { personal: ["personal"], project: ["project"], team: ["team"] };
+
+/** A brain of this machine: its folder holds a `kioku.yaml` (§2.5). */
+export const isHere = (home: string, ref: Pick<BrainRef, "owner" | "repo">): boolean =>
+  existsSync(join(brainFolder(home, ref), "kioku.yaml"));
+
+/** The address a brain of this machine is published at: the one `repositories` records, else its clone's `origin`. */
+export function addressOf(
+  config: MachineConfig,
+  home: string,
+  ref: Pick<BrainRef, "owner" | "repo">,
+): string | undefined {
+  const recorded = config.repositories[repoKey(ref)];
+  if (recorded !== undefined) return recorded;
+  const folder = brainFolder(home, ref);
+  // As written in the clone, not as git's `insteadOf` rewrites it: the address the person gave (§2.4).
+  return existsSync(join(folder, ".git")) ? gitQuiet(folder, ["config", "--get", "remote.origin.url"]) : undefined;
 }
 
 /**
- * Whether this machine lets a repository's `kioku.yaml` name this brain (§2.4): it is a repository the machine
- * already knows, or its owner is in `trusted`, and at an address the machine knows for it. A person makes a brain
- * trusted with `kioku init`, `kioku brain trust`, or `kioku brain clone --url` for an address.
+ * Whether this machine lets a repository's `kioku.yaml` name this brain (§2.4). A name alone is a brain of this machine
+ * and nothing else, trusted when it is here. An address is trusted when it is the one this machine knows for that name
+ * (recorded, or its clone's `origin`, in either of its https and ssh forms), or, for a name this machine does not know,
+ * when its owner, `host/owner`, is in `trust.owners`. Trust follows the address, never the name.
  */
-export function isTrusted(config: MachineConfig, ref: BrainRef): boolean {
-  return (
-    (config.repositories[repoKey(ref)] !== undefined ||
-      config.trust.owners.includes(ownerKey(ref)) ||
-      repoKey(ref) === config.brain ||
-      repoKey(ref) === config.team) &&
-    knownAddress(config, ref)
-  );
+export function isTrusted(config: MachineConfig, ref: BrainRef, home: string): boolean {
+  if (ref.url === undefined) return isHere(home, ref);
+  const known = addressOf(config, home, ref);
+  if (known !== undefined) return sameRepository(known, ref.url);
+  const owner = ownerOfAddress(ref.url);
+  return owner !== undefined && config.trust.owners.includes(owner);
 }
 
-/** The command that makes a link this machine did not trust trusted (§2.4): `brain clone --url` for an address it does not know. */
-export const trustCommand = (link: Pick<ChainLink, "key" | "address">): string =>
-  link.address === undefined ? `kioku brain trust ${link.key}` : `kioku brain clone ${link.key} --url ${link.address}`;
+/** The command that makes a link this machine did not trust trusted (§2.4): `kioku init`, run in the folder. */
+export const trustCommand = (_link: Pick<ChainLink, "key" | "address">): string => "kioku init";
+
+/** The command that trusts every brain of a link's owner (§2.4), when its address has one. */
+export const trustOwnerCommand = (link: Pick<ChainLink, "address">): string | undefined => {
+  const owner = link.address === undefined ? undefined : ownerOfAddress(link.address);
+  return owner === undefined ? undefined : `kioku config set trust.owners +${owner}`;
+};
 
 /** The nearest folder at or above `from` that holds a `kioku.yaml`. */
 export function findConfigRoot(from: string): string | undefined {
@@ -100,48 +114,34 @@ export function findConfigRoot(from: string): string | undefined {
   }
 }
 
-/**
- * The brain whose folder is `root`, as this machine knows it (§2.7): the clone of a known repository; a clone in the
- * managed folder, `~/.kioku/brains/<owner>/<repo>` (§2.5); else, for a clone made by
- * hand, the repository its `origin` names. Undefined for a brain nothing names.
- */
-function brainAt(root: string, config: MachineConfig, home: string): BrainRef | undefined {
-  // Compared as real paths: git reports them so, and a temporary folder may be a symlink.
-  const real = (p: string): string => {
-    try {
-      return realpathSync(p);
-    } catch {
-      return resolve(p);
-    }
-  };
-  const here = real(root);
-  const inside = (folder: string): string | undefined => {
-    const clone = real(folder);
-    return here === clone ? "" : here.startsWith(clone + sep) ? relative(clone, here).split(sep).join("/") : undefined;
-  };
-  for (const key of [...(config.brain === undefined ? [] : [config.brain]), ...Object.keys(config.repositories)]) {
-    const ref = parseRepo(key);
-    if (ref === undefined) continue;
-    // A brain is the whole clone: a folder inside one is no brain of its own.
-    const sub = inside(cloneOf(config, ref, home));
-    if (sub !== undefined) return sub === "" ? ref : undefined;
+/** A path as it really is, through any link the person made (§2.7); as given when it is not there. */
+const real = (p: string): string => {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
   }
-  const managed = inside(join(home, ".kioku", "brains"));
-  if (managed !== undefined) return managedRef(managed);
-  const top = gitQuiet(root, ["rev-parse", "--show-toplevel"]);
-  const origin = top === undefined ? undefined : gitQuiet(top, ["remote", "get-url", "origin"]);
-  const ref = origin === undefined ? undefined : parseRepo(origin);
-  if (ref === undefined || top === undefined) return undefined;
-  return inside(top) === "" ? ref : undefined;
+};
+
+/**
+ * The brain whose folder is `root` (§2.7): a folder under the managed folder, `~/.kioku/brains/<owner>/<repo>`, the path
+ * resolved through any link the person made to it. Undefined for any other folder, a git clone elsewhere included.
+ */
+function brainAt(root: string, home: string): BrainRef | undefined {
+  const here = real(root);
+  const managed = real(brainsFolder(home));
+  if (!here.startsWith(managed + sep)) return undefined;
+  return managedRef(relative(managed, here).split(sep).join("/"));
 }
 
 /**
  * The chain a session loads from `cwd` (§2.1, §2.3, §2.4, §2.7): the personal brain from the machine
  * configuration, the project and team brains from the project folder's `kioku.yaml`, `brain` and `team`, and, where
- * the folder names no team or there is no such file, the machine configuration's `team`; no brain names another. Inside a brain's own folder, that brain alone is the chain (§2.7). A folder with no `kioku.yaml`
- * resolves to the personal brain alone. A brain that is also another link appears once. Reads files on disk and,
- * inside a brain, local git: no network. `read` is how a `kioku.yaml` is read, for a caller that reads the same files
- * after it.
+ * the folder names no team or there is no such file, the machine configuration's `team`; no brain names another.
+ * Inside a brain's own folder, that brain alone is the chain (§2.7). A folder with no `kioku.yaml` resolves to the
+ * personal brain alone. A brain that is also another link appears once. A brain of a tier its link does not take is
+ * not loaded (§2.1). Reads files on disk and, for a brain's address, local git: no network. `read` is how a
+ * `kioku.yaml` is read, for a caller that reads the same files after it.
  */
 export function resolveChain(
   cwd: string,
@@ -155,91 +155,120 @@ export function resolveChain(
     notLoaded: [],
     missing: [],
     untrusted: [],
+    withoutAddress: [],
+    notHere: [],
     problems: [],
+  };
+  /** The tier a brain on disk declares, when its file can be read. */
+  const tierAt = (path: string): Tier | undefined => {
+    const found = read(join(path, "kioku.yaml"));
+    return found.ok && found.value.form === "brain" ? found.value.tier : undefined;
   };
   /**
    * `named` is a brain a project folder's `kioku.yaml` names, without the person's act: each is checked on its own
    * (§2.4). The personal brain, the machine's team and a brain the session is inside need no check.
    */
-  const add = (tier: LinkTier, ref: BrainRef, at?: string, named = false): ChainLink => {
+  const add = (tier: LinkTier, ref: BrainRef, at?: string, named = false): ChainLink | undefined => {
     const key = repoKey(ref);
     const existing = chain.links.find((l) => l.key === key) ?? chain.untrusted.find((l) => l.key === key);
-    if (existing) return existing;
-    const path = at ?? localPathOf(config, ref, home);
-    if (named && !isTrusted(config, ref)) {
-      const link: ChainLink = {
-        tier,
-        ref,
-        key,
-        path,
-        cloned: false,
-        ...(!knownAddress(config, ref) && { address: ref.url! }),
-      };
-      chain.untrusted.push(link);
-      return link;
+    // A brain is one tier: the personal brain, which loads in every folder, is never a folder's project (§2.1).
+    if (existing && existing.tier !== tier && !ACCEPTS[tier].includes(existing.tier)) {
+      chain.problems.push(
+        `${key} is a ${existing.tier} brain, and a ${tier} link takes only a ${ACCEPTS[tier].join(" or ")} brain, so it is not loaded as one`,
+      );
+      return undefined;
     }
-    const link: ChainLink = { tier, ref, key, path, cloned: existsSync(join(path, "kioku.yaml")) };
+    if (existing) return existing;
+    const path = at ?? brainFolder(home, ref);
+    const cloned = existsSync(join(path, "kioku.yaml"));
+    const link: ChainLink = { tier, ref, key, path, cloned };
+    if (named && ref.url === undefined) {
+      // A name alone is a brain of this machine and nothing else: there is no address to clone it from (§2.4).
+      if (!cloned) {
+        chain.notHere.push(link);
+        return undefined;
+      }
+      if (addressOf(config, home, ref) !== undefined) chain.withoutAddress.push(link);
+    } else if (named && !isTrusted(config, ref, home)) {
+      const untrusted = { ...link, cloned: false, address: ref.url! };
+      chain.untrusted.push(untrusted);
+      return untrusted;
+    }
+    if (cloned && at === undefined) {
+      const declared = tierAt(path);
+      if (declared !== undefined && !ACCEPTS[tier].includes(declared)) {
+        chain.problems.push(
+          `${key} is a ${declared} brain, and a ${tier} link takes only a ${ACCEPTS[tier].join(" or ")} brain, so it is not loaded`,
+        );
+        return undefined;
+      }
+    }
     chain.links.push(link);
     if (!link.cloned) chain.missing.push(link);
     return link;
   };
 
+  const own = (name: string | undefined): BrainRef | undefined => (name === undefined ? undefined : parseName(name));
   const addPersonal = (): void => {
-    if (config.brain !== undefined) add("personal", parseRepo(config.brain)!);
+    const ref = own(config.brain);
+    if (ref !== undefined)
+      add("personal", {
+        ...ref,
+        ...(config.repositories[config.brain!] && { url: config.repositories[config.brain!] }),
+      });
   };
   /** The person's own team, where no project folder names one (§2.4). */
   const addMachineTeam = (): void => {
-    if (config.team === undefined) return;
-    add("team", parseRepo(config.team)!);
-    chain.teamFrom = "machine";
+    const ref = own(config.team);
+    if (ref === undefined) return;
+    if (add("team", { ...ref, ...(config.repositories[config.team!] && { url: config.repositories[config.team!] }) }))
+      chain.teamFrom = "machine";
   };
 
   const root = findConfigRoot(cwd);
-  const own = root === undefined ? undefined : read(join(root, "kioku.yaml"));
+  const found = root === undefined ? undefined : read(join(root, "kioku.yaml"));
   // The nearest file is a brain's own: the session is inside a brain and loads that brain alone (§2.7).
-  if (root !== undefined && own?.ok && own.value.form === "brain") {
-    const ref = brainAt(root, config, home);
+  if (root !== undefined && found?.ok && found.value.form === "brain") {
+    const ref = brainAt(root, home);
     if (ref === undefined) {
       addPersonal();
       chain.problems.push(
-        `${root} is a brain this machine does not know (no known repository is cloned there and it has no origin); only the personal brain is loaded`,
+        `${root} is a brain outside ~/.kioku/brains, where this machine keeps its brains; only the personal brain is loaded`,
       );
       return chain;
     }
-    const link = add(own.value.tier, ref, root);
+    const link = add(found.value.tier, ref, root)!;
     chain.inside = link.key;
-    if (own.value.tier === "project") chain.project = link.key;
-    const others = [
+    if (found.value.tier === "project") chain.project = link.key;
+    for (const o of [
       { tier: "personal" as const, key: config.brain },
       { tier: "team" as const, key: config.team },
-    ];
-    for (const o of others) {
-      const key = o.key === undefined ? undefined : repoKey(parseRepo(o.key)!);
-      if (key !== undefined && key !== link.key && !chain.notLoaded.some((n) => n.key === key))
-        chain.notLoaded.push({ tier: o.tier, key });
+    ]) {
+      if (o.key !== undefined && o.key !== link.key && !chain.notLoaded.some((n) => n.key === o.key))
+        chain.notLoaded.push({ tier: o.tier, key: o.key });
     }
     return chain;
   }
 
   addPersonal();
-  if (root === undefined || own === undefined) {
+  if (root === undefined || found === undefined) {
     addMachineTeam();
     return chain;
   }
-  if (!own.ok) {
+  if (!found.ok) {
     chain.root = root;
-    chain.problems.push(own.reason);
+    chain.problems.push(found.reason);
     return chain;
   }
-  if (own.value.form === "brain") return chain;
+  if (found.value.form === "brain") return chain;
 
   chain.root = root;
-  const code = own.value;
-  if (code.brain !== undefined) chain.project = add("project", code.brain, undefined, true).key;
-  if (code.team === undefined) addMachineTeam();
-  else {
-    add("team", code.team, undefined, true);
-    chain.teamFrom = "folder";
+  const code = found.value;
+  if (code.brain !== undefined) {
+    const link = add("project", code.brain, undefined, true);
+    if (link !== undefined) chain.project = link.key;
   }
+  if (code.team === undefined) addMachineTeam();
+  else if (add("team", code.team, undefined, true) !== undefined) chain.teamFrom = "folder";
   return chain;
 }

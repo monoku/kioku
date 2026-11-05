@@ -11,8 +11,8 @@ the verbs by `pnpm docs:cli`, and a test fails when they fall behind.
 ## Conventions
 
 A body comes on standard input, usually a heredoc. `--json` goes anywhere on
-the line. Flags are long, but for `-h` (`--help`) and `-v` (`--version`). `--brain <b>` takes a brain's tier, key
-(`github.com/owner/repo`) or repository (`owner/repo`); where a `brain` verb
+the line. Flags are long, but for `-h` (`--help`) and `-v` (`--version`). `--brain <b>` takes a brain's tier or its
+name (`owner/repo`); where a `brain` verb
 takes `[<brain>]` and none is given, it acts on the brain the folder is inside,
 else on every brain of the chain on the machine.
 
@@ -163,21 +163,23 @@ kioku config set <key> <value>
 kioku config unset <key>
 ```
 
-Lists, reads and sets the machine's preferences.
+Lists, reads and sets the machine's preferences, the owners it trusts and its team.
 <!-- /generated -->
 
 | Key | Value | Default |
 |---|---|---|
-| `team` | a team brain this machine has cloned, by key or repository: it loads where a project folder names no team (spec §2.4) | none |
+| `team` | a team brain this machine has, by name: it loads where a project folder names no team (spec §2.4) | none |
 | `display.color` | `auto`, `always` or `never` | `auto` |
 | `display.mute` | the notices you do not want (spec §1.2): a list, `update-available,unpublished`, or one at a time, `+unpublished`, `-unpublished` | none |
+| `trust.owners` | the owners of addresses whose brains a project folder may name without being asked, `host/owner` (spec §2.4): a list, or one at a time, `+github.com/northwind`, `-github.com/northwind` | none |
 | `search.mode` | `hybrid` or `full-text` | `hybrid` |
 
 Alone it lists each key with its value, set or default; `get display.mute`
-also names the notices. `set team` refuses a brain this machine has not cloned
+also names the notices. `set team` refuses a brain this machine does not have
 (`brain_unknown`, `brain_not_cloned`, with the command that brings it) and one
-that is not a team brain. `brain`, `repositories` and `trust.owners` are listed and
-read, but `set` refuses them (`config_key_readonly`). Errors:
+that is not a team brain. Trusting an owner trusts every brain at its
+addresses, those it publishes later included. `brain` and `repositories` are
+listed and read, but `set` refuses them (`config_key_readonly`). Errors:
 `config_key_unknown`, `config_value_invalid` (with what is allowed and the
 default); a file holding a key it does not know is `config_invalid`.
 
@@ -186,22 +188,31 @@ default); a file holding a key it does not know is `config_invalid`.
 ### `kioku init`
 
 ```text
-kioku init [<brain>] [--team <brain>] [--create] [--dir <folder>]
+kioku init [<brain>]
 ```
 
-Links a project folder to its project brain, its team brain, or both; alone, the ones its kioku.yaml names.
+Links a project folder to its project brain, cloned from an address or made by name; alone, accepts and clones what its kioku.yaml names.
 <!-- /generated -->
 
-Writes `kioku.yaml` in the folder, or at the root of the repository it is
-inside; commit it with the code. Refuses inside a brain (`is_a_brain`). With no
-brain named, it trusts and clones the ones the file names. A brain it cannot
-clone undoes the call (`clone_failed`, exit 3) unless `--create`, which makes
-it here as `brain create` does, in `--dir` when given; publish it with
-`kioku brain publish`. Registering a brain new to the machine needs a terminal.
+Writes the project brain into `kioku.yaml` in the folder, or at the root of
+the repository it is inside, keeping the `team` the file holds; commit it with
+the code. A folder's team is written by hand, `team: northwind/team-brain` or
+`team: { name: northwind/team-brain, url: … }` (spec §2.4). `<brain>` is an
+address, cloned when this machine does not have the brain, or a name, made
+here as a project brain when this machine has none of it. The file holds the
+brain's name, and its address once it has one: a name alone links the
+machines that have that brain and no others. Alone, where the file exists, it
+accepts the addresses the file gives, clones what the chain is missing, and
+writes the address of a brain named without one once it has a remote, so the
+person who published it commits the link a teammate can clone. Refuses inside
+a brain (`is_a_brain`), a brain of another tier (`brain_other_tier`), and a
+different project brain than the file names (`kioku_yaml_exists`). Accepting
+an address this machine does not know, or making a brain, needs a terminal.
 
 ```bash
-kioku init github.com/northwind/acme-brain
-kioku init northwind/acme-brain --create --team northwind/team-brain
+kioku init github.com/northwind/acme-brain   # clone it and link it
+kioku init northwind/acme-brain              # make it here and link it by name
+kioku init                                   # accept and clone what kioku.yaml names
 ```
 
 ### `kioku sync`
@@ -223,47 +234,50 @@ waited for.
 ### `kioku brain create`
 
 ```text
-kioku brain create [<brain> --tier personal|project|team] [--dir <folder>] [--language <tag>]
+kioku brain create <owner>/<repo> [--tier personal|project|team] [--language <tag>]
 ```
 
-Makes a brain on this machine, with no remote and no network; alone, your personal brain.
+Makes a brain on this machine with the name you give it, with no remote and no network; personal unless --tier says.
 <!-- /generated -->
 
-Alone, it makes your personal brain, `<name>/brain`: `<name>` is the one git
-on this machine knows (`github.user`, else `user.name`, else the part of
-`user.email` before the `@`), else the system user, and it says which; `git
-config --global github.user <handle>` sets it. Else `<brain>` is the name it
-has once published, `owner/repo` (on GitHub) or `host/owner/repo`, with
-`--tier`. A brain has no name: the tool names it by its repository, `owner/repo`
-or `host/owner/repo` (spec §2.3), and by its tier in a session. A brain names no other brain: the
-project folder's `kioku.yaml` names its team (`kioku init --team`). `--dir`
-keeps the repository in a folder of yours, recorded as its `path`;
+`<owner>/<repo>` is the brain's name, which you choose and which never
+changes: two segments of letters, digits, `-` and `_`, such as `sam/memoria`
+(spec §2.2). Kioku chooses none and asks nothing of git or of the system for
+it. The brain lives in `~/.kioku/brains/<owner>/<repo>/`, with its name in its
+`kioku.yaml`; it is personal unless `--tier` says project or team. A brain
+names no other brain: a project folder's `kioku.yaml` names its team.
 `--language` writes the tag `brain language` takes. Errors: `brain_exists`
-(the folder is a repository already), `personal_exists`.
+(this machine has a brain of that name), `personal_exists`, `usage` (not a
+name; an address is for `brain publish --remote`).
 
 ```bash
-kioku brain create
+kioku brain create sam/memoria
 kioku brain create northwind/acme-brain --tier project
 ```
 
 ### `kioku brain clone`
 
 ```text
-kioku brain clone <brain> [--url <url>] [--dir <folder>]
+kioku brain clone <address>
 ```
 
-Brings a brain you already have to this machine: your personal one, on a second machine.
+Brings a brain that exists to this machine from any address, under the name it holds.
 <!-- /generated -->
 
-`<brain>` is `owner/repo`, `host/owner/repo` or an https or ssh address.
-`--url` clones from any address git clones from, a folder on disk included,
-recorded as the repository's `url`. A personal brain becomes the machine's
-(`personal_exists` when there is one); a shared one is trusted. Refuses a
-repository that is not a brain (`not_a_brain`).
+`<address>` is any address git clones from: `host/path` (read as
+`https://<host>/<path>.git`), an https or ssh address, `git@host:path`, or a
+folder. The brain comes under the name it holds, in its `kioku.yaml` (or, in a
+brain of format 1, the last two segments of the address), into
+`~/.kioku/brains/<owner>/<repo>/`, and its address is recorded. A personal
+brain becomes the machine's (`personal_exists` when there is one); a shared
+one is trusted. Refuses a repository that is not a brain (`not_a_brain`), a
+name this machine has already or an address that is a brain's here
+(`brain_exists`; when the brain here has no remote, it says to publish it
+there instead), and a name with no host (`brain_url_invalid`).
 
 ```bash
-kioku brain clone sam/brain
-kioku brain clone sam/brain --url /Volumes/shared/brains/sam.git
+kioku brain clone github.com/sam/memoria
+kioku brain clone /Volumes/shared/brains/sam.git
 ```
 
 ### `kioku brain sync`
@@ -279,23 +293,26 @@ Pulls and pushes a brain, or every brain, wherever you are.
 ### `kioku brain publish`
 
 ```text
-kioku brain publish [<brain>] [--to <url>]
+kioku brain publish <brain> --remote <address>
 ```
 
-Pushes a brain that lives only on this machine to an empty repository, the one at --to or the one its key says; the one this folder is inside, else yours.
+Pushes a brain that lives only on this machine to an empty repository at the address you give; its name stays.
 <!-- /generated -->
 
-With `--to`, the repository there, which must exist (`git init --bare` makes
-one on a disk); without, the repository the brain's key says. What it holds
-decides: empty, it takes the brain; the same brain, or one of the same tier
-while this copy has no page, it connects; pages on both sides is
-`remote_diverged`, with the commands to merge by hand; anything else,
-`remote_not_a_brain` or `remote_other_tier`. Nothing at the address is
-`remote_absent`.
+The brain and the destination are always named. The repository at the address
+must exist (`git init --bare` makes one on a disk); the brain's name and folder
+do not change, and the address is recorded under its name. What the
+repository holds decides: empty, it takes the brain; the same brain while this
+copy has no page, it connects; pages on both sides is `remote_diverged`, with
+the commands to merge by hand; anything else, `remote_not_a_brain`,
+`remote_other_name` or `remote_other_tier`. Nothing at the address is
+`remote_absent`; an address that is another brain's here, `brain_exists`. It
+ends by saying that a project folder linking the brain by name needs
+`kioku init` to write its address.
 
 ```bash
-kioku brain publish
-kioku brain publish acme --to git@git.example.com:northwind/acme-brain.git
+kioku brain publish sam/memoria --remote github.com/sam/memoria
+kioku brain publish northwind/acme-brain --remote git@git.example.com:northwind/acme-brain.git
 ```
 
 ### `kioku brain list`
@@ -321,21 +338,6 @@ Works anywhere, for any brain of the machine.
 ```bash
 cd (kioku brain path acme)    # fish
 cd "$(kioku brain path acme)" # bash, zsh
-```
-
-### `kioku brain trust`
-
-```text
-kioku brain trust <brain>
-kioku brain trust --owner <owner>
-```
-
-Lets this machine load a brain a repository names, or every brain of an owner.
-<!-- /generated -->
-
-```bash
-kioku brain trust northwind/acme-brain
-kioku brain trust --owner gitlab.com/acme
 ```
 
 ### `kioku brain remove`
@@ -418,6 +420,22 @@ Declares the language a brain's pages are written in; the summary tells the agen
 
 A tag is `en`, `es`, `es-419`, `pt-BR` and the like. Refused when the brain
 says it already (`unchanged`).
+
+### `kioku brain upgrade`
+
+```text
+kioku brain upgrade <brain>
+```
+
+Raises a brain to the newest format, in one commit.
+<!-- /generated -->
+
+From format 1, which 0.1.0 made, it writes the brain's name into its
+`kioku.yaml` (spec §3.2), and pushes when the brain has a remote. A brain in
+the newest format is left as it is. Teammates on an older version still read a
+raised brain but no longer write to it until they update (`format_newer`), so
+a project or team brain is yours to raise once they have; `kioku update`
+raises your personal brain by itself. Needs a terminal.
 
 ### `kioku brain refresh`
 

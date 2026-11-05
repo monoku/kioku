@@ -165,16 +165,16 @@ breaks(
 breaks(
   "a format newer than the tool reads",
   10,
-  (r) => edit(r, "kioku.yaml", (t) => t.replace("format: 1", "format: 4")),
+  (r) => edit(r, "kioku.yaml", (t) => t.replace("format: 2", "format: 4")),
   "kioku.yaml",
 );
 
 test("rule 10 names both numbers", () =>
   withBrain((root) => {
-    edit(root, "kioku.yaml", (t) => t.replace("format: 1", "format: 7"));
+    edit(root, "kioku.yaml", (t) => t.replace("format: 2", "format: 7"));
     const f = validateBrain(root).findings;
     assert.equal(f.length, 1);
-    assert.match(f[0]!.message, /format 7.*newest this tool reads \(1\)/);
+    assert.match(f[0]!.message, /format 7.*newest this tool reads \(2\)/);
   }));
 
 test("a folder that is no brain is an environment error, not a finding", () => {

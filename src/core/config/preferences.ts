@@ -1,5 +1,5 @@
 import { userError } from "../errors.ts";
-import { parseRepo, repoKey } from "./brain-ref.ts";
+import { ownerKey, parseName, parseOwner, repoKey } from "./brain-ref.ts";
 import { DISPLAY_COLORS, NOTICE_NAMES, SEARCH_MODES, type MachineConfig, type NoticeName } from "./machine.ts";
 import { listWords } from "../util.ts";
 
@@ -57,17 +57,40 @@ function applyMute(c: MachineConfig, text: string): void {
   tidy(c);
 }
 
+/**
+ * What `set trust.owners` takes (§2.4, §2.5): a list of owners of addresses, `host/owner`, `a,b`, or one to add, `+a`,
+ * or to take out, `-a`, as `display.mute` takes its names.
+ */
+const ownersText = (text: string): PreferenceValue | { bad: string } => {
+  const owners = /^[+-]/.test(text) ? [text.slice(1)] : text.split(",").map((n) => n.trim());
+  return owners.every((o) => parseOwner(o) !== undefined)
+    ? text
+    : bad("a list of owners of addresses, host/owner such as github.com/northwind, or one of them after + or -");
+};
+
+function applyOwners(c: MachineConfig, text: string): void {
+  const key = (o: string): string => ownerKey(parseOwner(o)!);
+  const now = new Set<string>(c.trust.owners);
+  if (text.startsWith("+")) now.add(key(text.slice(1)));
+  else if (text.startsWith("-")) now.delete(key(text.slice(1)));
+  else {
+    now.clear();
+    for (const o of text.split(",")) now.add(key(o.trim()));
+  }
+  c.trust.owners = [...now];
+}
+
 /** The keys `kioku config set` takes, in the order the list shows them (§2.5). */
 export const PREFERENCES: Preference[] = [
   {
     // The person's own team, where a project folder names none (§2.4). The command line turns a name into the brain's
     // key, having checked that this machine has it and that it is a team brain; here it is a key.
     key: "team",
-    allowed: "a team brain this machine has, by key or repository",
+    allowed: "a team brain this machine has, by name",
     whenAbsent: "none where a project names none",
     parse: (text) => {
-      const ref = parseRepo(text);
-      return ref === undefined ? bad("a team brain this machine has, such as owner/repo") : repoKey(ref);
+      const ref = parseName(text);
+      return ref === undefined ? bad("a team brain this machine has, such as northwind/team-brain") : repoKey(ref);
     },
     get: (c) => c.team,
     set: (c, v) => void (c.team = String(v)),
@@ -98,6 +121,17 @@ export const PREFERENCES: Preference[] = [
     },
   },
   {
+    // Every address of an owner a project folder may name without being asked (§2.4). Trusting is the person's: `set`
+    // asks for a terminal, as every `set` does.
+    key: "trust.owners",
+    allowed: "owners of addresses, host/owner, such as github.com/northwind",
+    default: [],
+    parse: ownersText,
+    get: (c) => (c.trust.owners.length ? [...c.trust.owners] : undefined),
+    set: (c, v) => applyOwners(c, String(v)),
+    unset: (c) => void (c.trust.owners = []),
+  },
+  {
     key: "search.mode",
     allowed: SEARCH_MODES.join(" or "),
     default: "hybrid",
@@ -114,8 +148,7 @@ export const PREFERENCES: Preference[] = [
 /** Keys `set` leaves to the verbs that guard them, and the verb for each. */
 export const READ_ONLY_KEYS: Record<string, string> = {
   brain: "kioku brain create or kioku brain clone",
-  repositories: "kioku init, kioku brain create, kioku brain clone or kioku brain trust",
-  "trust.owners": "kioku brain trust --owner",
+  repositories: "kioku init, kioku brain clone or kioku brain publish",
 };
 
 export interface PreferenceState {
@@ -143,12 +176,7 @@ export function preferenceByKey(key: string): Preference {
 /** The state of one key: for `get` and the list. Read-only keys are readable too. */
 export function stateOf(config: MachineConfig, key: string): PreferenceState {
   if (key in READ_ONLY_KEYS) {
-    const value =
-      key === "brain"
-        ? (config.brain ?? null)
-        : key === "repositories"
-          ? Object.keys(config.repositories)
-          : config.trust.owners;
+    const value = key === "brain" ? (config.brain ?? null) : Object.keys(config.repositories);
     const set = Array.isArray(value) ? value.length > 0 : value !== null;
     return { key, value, default: null, source: set ? "file" : "default", editable: false };
   }
