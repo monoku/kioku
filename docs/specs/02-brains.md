@@ -46,8 +46,9 @@ branches. A reference to a brain, in `brain` and `team` of a project folder's
 `kioku.yaml`, is its name, `brain: northwind/app-brain`, or its name and its
 address, `brain: { name: northwind/app-brain, url: https://github.com/northwind/app-brain.git }`
 (§2.4); an address alone, `brain: github.com/northwind/app-brain`, as 0.1.0 wrote
-it, is read as the address and the name the brain there holds, and `kioku init`
-alone rewrites it in one of the two forms; unknown keys are an error in these files and in `~/.kioku/config.yaml`,
+it, is read as that address and the name the last two segments of its path say,
+a brain there that holds another name being refused, and `kioku init` alone
+rewrites it in one of the two forms; unknown keys are an error in these files and in `~/.kioku/config.yaml`,
 a `path` in a reference among them.
 
 **A brain has a name of its own**, `<owner>/<repo>`, how every machine and every
