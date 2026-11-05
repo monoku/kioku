@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.3.0
 
 - **A session's start says Kioku's version**, on a line of its own, and under
   it the history's `summary` row, `↓ summary   session summary · 316 pages
