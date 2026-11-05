@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.3.1
 
 - **Releases are built with the pnpm setup action pinned to a commit**, not to
   a tag its owner could move, and the release notes are found in
