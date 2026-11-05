@@ -119,7 +119,6 @@ test("a match in an alias outranks one in the summary, which outranks the body",
     const page = (n: number, title: string, summary: string, aliases: string[], body: string) => {
       const m = made({ n, type: CONTEXT, title, summary, sections: {} });
       return m.text
-        .replace("aliases:", "aliases:")
         .replace(/^(summary: .*)$/m, `$1${aliases.length ? `\naliases: [${aliases.join(", ")}]` : ""}`)
         .replace("## Changelog", `${body}\n\n## Changelog`);
     };
