@@ -336,17 +336,34 @@ function settleModelNotice(home: string, config: MachineConfig): void {
 }
 
 /**
- * The message of a session's start (§1.2, §4.1): the history's entry, the arrow, the word and the title it gives a
- * summary, with each brain's pages in the line itself, so that it is one line and has nothing under it.
+ * The widest word of the history's rows, `confirmed`: the history pads every word to it, and the summary's line is
+ * laid out as the history's row is, so that the two read alike (§1.2). A test holds it to the mod's words.
+ */
+export const HISTORY_WORD_WIDTH = 9;
+
+/**
+ * The message of a session's start (§1.2, §4.1): the brand with the tool's version, and under it the history's
+ * `summary` row, in its words and its columns: the arrow, the word padded, why it was loaded, its pages and its
+ * brains.
  */
 export function loadedRow(
-  loaded: { brains: string[]; pages: number; counts: number[] },
+  loaded: { brains: string[]; pages: number },
   label: (brain: string) => string,
+  version: string,
   source?: string,
 ): Message {
   const why = source === "resume" ? "resumed" : source === "compact" ? "after /compact" : "session summary";
-  const brains = loaded.brains.map((b, i) => `${label(b)} ${loaded.counts[i] ?? 0}`).join(" · ");
   return {
-    head: [read("↓"), " ", dim("summary"), `  ${why} · ${plural(loaded.pages, "page")}`, dim(`  (${brains})`)],
+    version,
+    head: [],
+    details: [
+      [
+        read("↓"),
+        " ",
+        dim(`${"summary".padEnd(HISTORY_WORD_WIDTH)} `),
+        `${why} · ${plural(loaded.pages, "page")}`,
+        dim(` (${loaded.brains.map(label).join(", ")})`),
+      ],
+    ],
   };
 }

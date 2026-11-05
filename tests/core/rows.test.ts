@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { HISTORY_WORD_WIDTH } from "../../src/core/session/start.ts";
 import { readJournal } from "../../src/core/session/journal.ts";
 import { plainKiokuCall, runsTool } from "../../src/core/shell-words.ts";
 import {
@@ -144,12 +147,19 @@ const plainText = (t: unknown): string => String(t ?? "").replace(/\x1b\[[0-9;]*
 const start = (w: World, source = "startup") =>
   w.kioku(["hook", "session-start"], { stdin: JSON.stringify({ cwd: w.repo, source, session_id: "s2" }) });
 
-test("the session's start is told as the history's summary, in one line, and says why it loaded again (§1.2)", () =>
+test("the session's start is told as the history's summary row, under the version, and says why it loaded again (§1.2)", () =>
   world(async (w) => {
     const on = plainText((await start(w)).out.systemMessage);
-    assert.match(on, /⬢ kioku\.md · ↓ summary {2}session summary · \d+ pages? {2}\(.* \d+\)/);
+    assert.match(on, /⬢ kioku\.md [\d.]+(?:-dev)?\n {2}⎿ ↓ summary {3}session summary · \d+ pages? \([^)]+\)$/m);
     assert.doesNotMatch(on, /loaded \d+ brains/);
-    assert.doesNotMatch(on, /⎿ [a-z]+ \d+ · /);
-    assert.match(plainText((await start(w, "resume")).out.systemMessage), /↓ summary {2}resumed · \d+ pages?/);
-    assert.match(plainText((await start(w, "compact")).out.systemMessage), /↓ summary {2}after \/compact · \d+ pages?/);
+    assert.doesNotMatch(on, /[a-z]+ \d+ · /, "the brains by name alone, with no pages of their own");
+    assert.match(plainText((await start(w, "resume")).out.systemMessage), /↓ summary {3}resumed · \d+ pages?/);
+    assert.match(plainText((await start(w, "compact")).out.systemMessage), /↓ summary {3}after \/compact · \d+ pages?/);
   }));
+
+test("the start's summary pads its word as the history does: to the widest of the history's words (§1.2)", () => {
+  const mod = readFileSync(join(import.meta.dirname, "../../plugins/claude-code/hooks/history.tsx"), "utf8");
+  const words = mod.slice(mod.indexOf("const WORDS"), mod.indexOf("};", mod.indexOf("const WORDS")));
+  const widest = Math.max(...[...words.matchAll(/: "([^"]+)",/g)].map((m) => m[1]!.length));
+  assert.equal(HISTORY_WORD_WIDTH, widest);
+});

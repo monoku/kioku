@@ -26,19 +26,19 @@ test("a brain is named by its tier in the session's chain, with its name too whe
     assert.equal(labelsFor(w.home, undefined).label("northwind/brain-acme"), "project · northwind/brain-acme");
   }));
 
-test("the start's line counts each brain under its tier, and the journal names the page's brain by it (§1.2, §4.6)", () =>
+test("the start's summary names each brain by its tier, as the history's row does, and the journal names the page's brain by it (§1.2, §4.6)", () =>
   world(async (w) => {
     assert.equal(
       render(
-        loadedRow({ brains: ["sam", "acme"], pages: 5, counts: [2, 3] }, (b) => (b === "sam" ? "personal" : "project")),
+        loadedRow({ brains: ["sam", "acme"], pages: 5 }, (b) => (b === "sam" ? "personal" : "project"), "0.2.1"),
         { color: false },
       ),
-      "⬢ kioku.md · ↓ summary  session summary · 5 pages  (personal 2 · project 3)",
-      "one line, with nothing under it",
+      "⬢ kioku.md 0.2.1\n  ⎿ ↓ summary   session summary · 5 pages (personal, project)",
+      "the brand with the version, and under it the history's row",
     );
     const started = await hook(w, "session-start", { source: "startup" });
-    assert.match(started.out.systemMessage, /personal \d+ · project \d+/);
-    assert.doesNotMatch(started.out.systemMessage, /\bacme \d/);
+    assert.match(started.out.systemMessage, /\(personal, project/);
+    assert.doesNotMatch(started.out.systemMessage, /\bacme\b/);
     // The cwd of the session names the chain; from another folder the brain is named by tier and name.
     const shown = (cwd: string) =>
       hook(w, "post-tool-use", {

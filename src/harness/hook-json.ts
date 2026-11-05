@@ -33,13 +33,14 @@ export function parseSessionId(raw: string): string | undefined {
 
 export function sessionStartAnswer(summary: string | undefined, messages: string[]): HookAnswer | undefined {
   if (summary === undefined && messages.length === 0) return undefined;
-  // One message a line: a session start can say a few things at once.
-  const systemMessage = messages.join("\n");
+  // A session start can say a few things at once: a blank line between them (§1.2).
+  const said = messages.join("\n\n");
   const data = {
     ...(summary !== undefined && { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: summary } }),
-    ...(messages.length > 0 && { systemMessage }),
+    // On a line of its own, under the words the host puts before it (§1.2).
+    ...(messages.length > 0 && { systemMessage: `\n${said}` }),
   };
-  return { data, text: [systemMessage, summary].filter(Boolean).join("\n\n") };
+  return { data, text: [said, summary].filter(Boolean).join("\n\n") };
 }
 
 /**
