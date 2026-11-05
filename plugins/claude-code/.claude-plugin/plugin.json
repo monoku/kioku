@@ -1,7 +1,7 @@
 {
   "name": "kioku",
   "displayName": "kioku.md",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Claude Code plugin for Kioku, memory for coding agents",
   "author": {
     "name": "Monoku"
