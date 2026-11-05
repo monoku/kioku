@@ -22,6 +22,25 @@ export interface Forwarded {
   behind: string[];
 }
 
+/** What bringing forward did, a sentence each, and whether each is done or left for the person; none when nothing. */
+export function describeForwarded(f: Forwarded | undefined): { done: boolean; text: string }[] {
+  if (f === undefined) return [];
+  const out: { done: boolean; text: string }[] = [];
+  if (f.rewrote) out.push({ done: true, text: "Rewrote the machine's configuration by the brains' names." });
+  for (const m of f.moved) out.push({ done: true, text: `Moved ${m.brain} to ${m.to}.` });
+  for (const k of f.kept) out.push({ done: false, text: `Left ${k.brain} at ${k.at}: ${k.why}.` });
+  if (f.raised !== undefined && f.raised.from !== f.raised.to)
+    out.push({ done: true, text: `Raised your brain ${f.raised.brain} to format ${f.raised.to}.` });
+  if (f.behind.length > 0) {
+    const one = f.behind.length === 1;
+    out.push({
+      done: true,
+      text: `${f.behind.join(", ")} ${one ? "is" : "are"} of an older format, left as ${one ? "it is" : "they are"} for teammates on an older version; kioku brain upgrade raises one once they have updated.`,
+    });
+  }
+  return out;
+}
+
 /** Remove the folders `folder` leaves empty, up to the managed folder. */
 function tidyUp(folder: string, top: string): void {
   for (let dir = dirname(folder); dir.startsWith(top) && dir !== top; dir = dirname(dir)) {
@@ -35,7 +54,8 @@ function tidyUp(folder: string, top: string): void {
 }
 
 /**
- * Bring forward what an older version left (§2.5, §3.2), in the hand-over of `kioku update` (§6.4): a configuration 0.1.0
+ * Bring forward what an older version left (§2.5, §3.2), in `kioku setup` (§6.3) and in the hand-over of `kioku update`
+ * (§6.4): a configuration 0.1.0
  * wrote is rewritten by name, each brain kept elsewhere, in a `path` of the person's or under its host, moved to its
  * folder under that name with its files unchanged, and the address of each brain with a remote recorded; two keys that
  * give one name are left as they were, and said. Then the person's own brain is raised to the newest format; a project

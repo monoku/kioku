@@ -160,7 +160,7 @@ test("a machine configuration holds the addresses the person accepted, by name, 
     assert.throws(() => readMachineConfig(home), /not a brain's name/);
   }));
 
-test("a configuration 0.1.0 wrote is read by name, its addresses and paths kept for the hand-over of update (§2.5)", () =>
+test("a configuration 0.1.0 wrote is read by name, its addresses and paths kept until it is brought forward (§2.5)", () =>
   scratch(async (home) => {
     mkdirSync(join(home, ".kioku"), { recursive: true });
     writeFileSync(
@@ -182,11 +182,20 @@ test("a configuration 0.1.0 wrote is read by name, its addresses and paths kept 
         ["github.com/northwind/brain-acme", "northwind/brain-acme", undefined, "/srv/acme.git"],
       ],
     );
-    assert.doesNotMatch(
+    // Written before it is brought forward: each entry as 0.1.0 wrote it, and no address its key only suggests.
+    assert.match(
       stringifyMachineConfig(c),
-      /^ *github\.com\/|path:/m,
-      "written back by name, never in the old form",
+      /^repositories:\n {2}github\.com\/sam\/brain:\n {4}path: ~\/code\/sam\/brain\n {2}git\.example\.com\/northwind\/brain: \{\}\n {2}github\.com\/northwind\/brain-acme:\n {4}url: \/srv\/acme\.git\n/m,
     );
+    assert.doesNotMatch(stringifyMachineConfig(c), /https:/);
+    // An address a verb sets is kept as the entry's `url`; a brain a verb removes is left out.
+    c.repositories["sam/brain"] = "git@github.com:sam/brain.git";
+    Reflect.deleteProperty(c.repositories, "northwind/brain");
+    assert.match(stringifyMachineConfig(c), /github\.com\/sam\/brain:\n {4}path: ~\/code\/sam\/brain\n {4}url: git@/);
+    assert.doesNotMatch(stringifyMachineConfig(c), /git\.example\.com/);
+    // Brought forward, it is written by name, never in the old form.
+    delete c.legacy;
+    assert.doesNotMatch(stringifyMachineConfig(c), /^ *github\.com\/|path:/m);
   }));
 
 test("code repository form of kioku.yaml (§2.5)", () => {

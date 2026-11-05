@@ -253,12 +253,15 @@ repositories:
 
 A configuration 0.1.0 wrote, by `host/owner/repo` and with a `path` or `url` for
 each repository, is rewritten in this form by the version that first reads it,
-in the hand-over of `kioku update` (§6.4), saying so: each brain takes the name
+in `kioku setup` (§6.3), which the installer runs, or in the hand-over of `kioku
+update` (§6.4), saying so: each brain takes the name
 its key gave it, `github.com/sam/brain` is `sam/brain`, and one kept elsewhere,
 in a `path` of the person's or under its host, moves to its folder under that
 name, its files unchanged. Two brains whose keys give one name, from two hosts,
-are left as they were, and the hand-over and `doctor` say so and how to remove
-one.
+are left as they were, and `setup`, the hand-over and `doctor` say so and how
+to remove one. Until then, a verb that writes the file keeps each of those
+entries as 0.1.0 wrote it, for the rewrite to bring forward, and records no
+address the key only suggests.
 
 `kioku config` reads and sets the preferences (§6.1), `trust.owners`, and `team`,
 which it sets only to a team brain this machine has, `kioku config set team
@@ -325,11 +328,11 @@ of one line importing `AGENTS.md` and `.claude/commands/ingest.md`, the
 `/ingest` command of §1.7. `brain create` writes them; the validator warns when
 one is missing (§5.1). `kioku brain refresh` rewrites them to the current
 version's text; `--all` does it for every brain on the machine, which `kioku
-update` runs (§6.4). In a project or team brain they only move forward: `brain
-refresh` rewrites them only when the running version is the one `AGENTS.md`
-names or a later one (the same version writes back a file a person edited); a
-version below it leaves them and says which version holds them, so two versions
-never undo each other's commits. `--all` leaves shared brains to a build that
+setup` and `kioku update` run (§6.3, §6.4). In a project or team brain they
+only move forward: `brain refresh` rewrites them only when the running version
+is the one `AGENTS.md` names or a later one (the same version writes back a
+file a person edited); a version below it leaves them and says which version
+holds them, so two versions never undo each other's commits. `--all` leaves shared brains to a build that
 is not a release, whose version has a pre-release part, such as one run from a
 checkout (§6.4): only `kioku brain refresh <brain>`, naming the brain, writes
 such a build's files into it. A file whose version cannot be read names none,
