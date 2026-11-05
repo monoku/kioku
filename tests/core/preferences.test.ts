@@ -20,10 +20,10 @@ test("kioku config lists every key with its value and where it comes from, to an
       "team",
       "display.color",
       "display.mute",
+      "trust.owners",
       "search.mode",
       "brain",
       "repositories",
-      "trust.owners",
     ]);
     assert.deepEqual(
       [byKey.team.value, byKey.team.source, byKey.team.editable, byKey.team.whenAbsent],
@@ -39,15 +39,15 @@ test("kioku config lists every key with its value and where it comes from, to an
     );
     assert.match(
       byKey["display.mute"].allowed,
-      /^not-set-up, update-available, .*unpublished$/,
+      /^not-set-up, update-available, .*unpublished, link-without-address, brain-not-here, format-behind$/,
       "the JSON names the notices",
     );
     assert.equal(byKey.brain.editable, false);
-    assert.equal(byKey.brain.value, "github.com/sam/brain");
+    assert.equal(byKey.brain.value, "sam/brain");
 
     const text = await w.kioku(["config"], { tty: true });
     assert.match(text.raw, /^display\.color\s+auto\s+default$/m);
-    assert.match(text.raw, /^brain\s+github\.com\/sam\/brain\s+read only here$/m);
+    assert.match(text.raw, /^brain\s+sam\/brain\s+read only here$/m);
     assert.match(text.raw, /^team\s+\(not set\)\s+none where a project names none$/m);
     assert.match(text.raw, /^display\.mute\s+\(none\)\s+default$/m, "the list has no room for the names (§6.1)");
   }));
@@ -55,10 +55,10 @@ test("kioku config lists every key with its value and where it comes from, to an
 test("config get answers one key, a read only key too, and display.mute names what it takes", () =>
   world(async (w) => {
     assert.equal((await w.kioku(["config", "get", "display.color"])).out.value, "auto");
-    assert.equal((await w.kioku(["config", "get", "brain"])).out.value, "github.com/sam/brain");
+    assert.equal((await w.kioku(["config", "get", "brain"])).out.value, "sam/brain");
     assert.deepEqual((await w.kioku(["config", "get", "repositories"])).out.value, [
-      "github.com/northwind/brain-acme",
-      "github.com/northwind/brain",
+      "northwind/brain-acme",
+      "northwind/brain",
     ]);
     assert.equal((await w.kioku(["config", "get", "display.color"], { tty: true })).raw.trim(), "auto");
     assert.match(
@@ -85,7 +85,7 @@ test("config set writes each key with a value that is valid, and the file reads 
     assert.deepEqual(c.display, { color: "never" });
     assert.deepEqual(
       Object.keys(c.repositories),
-      ["github.com/northwind/brain-acme", "github.com/northwind/brain"],
+      ["northwind/brain-acme", "northwind/brain"],
       "what it does not own is kept",
     );
     assert.match(file(w.home), /^brain: \S+\ndisplay:\n  color: never\nsearch:/m, "the keys keep the order of §2.5");
@@ -105,7 +105,7 @@ test("display.mute is set to a list, or changed one name at a time with + and -,
     assert.match(file(w.home), /^display:\n  mute:\n    - cloning\n    - unpublished$/m);
     const bad = await set("+marks");
     assert.equal(bad.error.code, "config_value_invalid");
-    assert.match(bad.error.message, /not-set-up, update-available, .*unpublished, or one of them after \+ or -/);
+    assert.match(bad.error.message, /not-set-up, update-available, .*format-behind, or one of them after \+ or -/);
     assert.deepEqual(readMachineConfig(w.home)!.display?.mute, ["cloning", "unpublished"], "nothing written");
     await set("-cloning");
     await set("-unpublished");
@@ -140,16 +140,41 @@ test("a key of an older version is an unknown key to set, and a file holding one
     assert.throws(() => readMachineConfig(w.home), /unknown key `session`/);
   }));
 
-test("brain, repositories and trust.owners are not set with kioku config, and the refusal names the verb that owns them", () =>
+test("trust.owners is set to a list of owners of addresses, or changed one at a time with + and -, in a terminal (§2.4, §2.5)", () =>
+  world(async (w) => {
+    const set = async (value: string, k: object = terminal) =>
+      (await w.kioku(["config", "set", "trust.owners", value], k)).out;
+    assert.equal((await set("+github.com/northwind", {})).error.code, "needs_terminal", "the person's act");
+    assert.deepEqual((await set("+github.com/northwind")).value, ["github.com/northwind"]);
+    assert.deepEqual(
+      (await set("+GitLab.com/acme")).value,
+      ["github.com/northwind", "gitlab.com/acme"],
+      "a host in lower case",
+    );
+    assert.deepEqual(
+      (await set("+github.com/northwind")).value,
+      ["github.com/northwind", "gitlab.com/acme"],
+      "twice is once",
+    );
+    assert.deepEqual((await set("-gitlab.com/acme")).value, ["github.com/northwind"]);
+    assert.match(file(w.home), /^trust:\n  owners:\n    - github.com\/northwind$/m);
+    const bad = await set("+northwind");
+    assert.equal(bad.error.code, "config_value_invalid", "an owner names its host");
+    assert.match(bad.error.message, /host\/owner/);
+    assert.deepEqual(readMachineConfig(w.home)!.trust.owners, ["github.com/northwind"], "nothing written");
+    await set("-github.com/northwind");
+    assert.doesNotMatch(file(w.home), /trust/, "an empty list leaves no group behind");
+  }));
+
+test("brain and repositories are not set with kioku config, and the refusal names the verb that owns them", () =>
   world(async (w) => {
     const before = file(w.home);
     for (const [key, owner] of [
       ["brain", /kioku brain create or kioku brain clone/],
-      ["repositories", /kioku brain trust/],
-      ["trust.owners", /kioku brain trust --owner/],
+      ["repositories", /kioku init, kioku brain clone or kioku brain publish/],
     ] as const) {
       for (const argv of [
-        ["config", "set", key, "github.com/evil/brain"],
+        ["config", "set", key, "evil/brain"],
         ["config", "unset", key],
       ]) {
         const r = await w.kioku(argv, terminal);
@@ -169,19 +194,19 @@ test("config set team takes a team brain this machine has, by name or repository
 
     const unknown = await w.kioku(["config", "set", "team", "org/brain-team"], terminal);
     assert.equal(unknown.out.error.code, "brain_unknown");
-    assert.match(unknown.out.error.message, /kioku brain clone org\/brain-team/);
+    assert.match(unknown.out.error.message, /kioku brain clone <its address>/);
     const project = await w.kioku(["config", "set", "team", "northwind/brain-acme"], terminal);
     assert.equal(project.out.error.code, "config_value_invalid");
     assert.match(project.out.error.message, /`team` is a team brain, and northwind\/brain-acme is a project brain/);
     assert.equal(file(w.home), before, "nothing written");
 
-    for (const name of ["northwind/brain", "github.com/northwind/brain"]) {
+    for (const name of ["northwind/brain", "northwind/brain"]) {
       const r = await w.kioku(["config", "set", "team", name], terminal);
       assert.equal(r.code, 0, r.raw);
-      assert.deepEqual([r.out.value, r.out.source], ["github.com/northwind/brain", "file"], name);
+      assert.deepEqual([r.out.value, r.out.source], ["northwind/brain", "file"], name);
     }
-    assert.match(file(w.home), /^brain: github\.com\/sam\/brain\nteam: github\.com\/northwind\/brain\nrepositories:/m);
-    assert.equal((await w.kioku(["config", "get", "team"])).out.value, "github.com/northwind/brain");
+    assert.match(file(w.home), /^brain: sam\/brain\nteam: northwind\/brain\nrepositories:/m);
+    assert.equal((await w.kioku(["config", "get", "team"])).out.value, "northwind/brain");
 
     const unset = await w.kioku(["config", "unset", "team"], terminal);
     assert.equal(unset.code, 0, unset.raw);
@@ -192,9 +217,9 @@ test("config set team takes a team brain this machine has, by name or repository
 test("config set team refuses a brain the machine knows but has not cloned, with the command that brings it", () =>
   world(
     async (w) => {
-      const r = await w.kioku(["config", "set", "team", "github.com/northwind/brain"], terminal);
+      const r = await w.kioku(["config", "set", "team", "northwind/brain"], terminal);
       assert.equal(r.out.error.code, "brain_not_cloned");
-      assert.match(r.out.error.message, /kioku brain clone github\.com\/northwind\/brain brings it/);
+      assert.match(r.out.error.message, /kioku brain clone <address> brings it/);
     },
     { cloned: { team: false } },
   ));

@@ -28,7 +28,7 @@ test("evolve lists the chain's instincts with three Evidence lines and not those
       {
         candidates: [
           {
-            brain: "github.com/northwind/brain-acme",
+            brain: "northwind/brain-acme",
             path: INSTINCT_PATH,
             title: "Run database tests serially",
             when: "Tests touch the database.",
@@ -118,7 +118,7 @@ test("evolve <path> writes a valid Skill and links the instinct to it in one com
     assert.equal(r.code, 0, r.raw);
     assert.deepEqual(Object.keys(r.out).slice(0, 5), SHAPE);
     assert.equal(r.out.status, "done");
-    assert.equal(r.out.brain, "github.com/northwind/brain-acme");
+    assert.equal(r.out.brain, "northwind/brain-acme");
     assert.equal(r.out.path, SKILL_PATH);
     assert.equal(r.out.instinct, INSTINCT_PATH);
     assert.equal(r.out.publication, "pushed");
@@ -259,7 +259,7 @@ test("with the remote unreachable evolve commits and is pending; in the personal
     assert.equal(r.out.status, "done", r.raw);
     assert.equal(r.out.publication, "pending");
     assert.ok(existsSync(join(w.acme, SKILL_PATH)));
-    assert.deepEqual(Object.keys(readPending(w.home)), ["github.com/northwind/brain-acme"]);
+    assert.deepEqual(Object.keys(readPending(w.home)), ["northwind/brain-acme"]);
     renameSync(away, w.bare.acme);
 
     await w.kioku([

@@ -32,7 +32,7 @@ const has = (value: Record<string, unknown>, keys: string[], what: string, ancho
 };
 
 test("the verbs are data a program can list or mount, and the contract has a number", () => {
-  assert.equal(CLI_CONTRACT, 1);
+  assert.equal(CLI_CONTRACT, 2);
   assert.deepEqual(Object.keys(commands).sort(), [
     "brain",
     "completion",

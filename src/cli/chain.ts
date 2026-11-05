@@ -1,7 +1,7 @@
 import { existsSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { brainRel, readBrainConfig } from "../core/brain/brain.ts";
-import { brainRepoOfKey, cloneOf, parseRepo } from "../core/config/brain-ref.ts";
+import { brainFolder, brainRepoOfKey, parseName } from "../core/config/brain-ref.ts";
 import { resolveChain, type Chain, type ChainLink } from "../core/config/chain.ts";
 import { readFolderConfig, type BrainConfig } from "../core/config/folder-config.ts";
 import { readMachineConfig } from "../core/config/machine.ts";
@@ -13,7 +13,7 @@ import { personHome } from "./home.ts";
 /** A brain of the current chain, as the verbs that read brains see it. */
 export interface ChainBrain {
   tier: ChainLink["tier"];
-  /** Canonical key: `host/owner/repo`, plus `#path` for a folder inside a repository. */
+  /** The brain's name, `<owner>/<repo>` (§2.2). */
   key: string;
   root: string;
   cloned: boolean;
@@ -44,10 +44,9 @@ export function folderArg(ctx: Context, dir: string): string {
 
 /** The brains of the chain a session inside a brain leaves out (§2.7). */
 export function notLoadedBrains(ctx: Context): ChainBrain[] {
-  const config = readMachineConfig(ctx.home);
   return chainOf(ctx).notLoaded.map((n) => {
-    const ref = parseRepo(n.key);
-    const root = ref === undefined || config === undefined ? "" : cloneOf(config, ref, ctx.home);
+    const ref = parseName(n.key);
+    const root = ref === undefined ? "" : brainFolder(ctx.home, ref);
     const found = root === "" ? undefined : readFolderConfig(`${root}/kioku.yaml`);
     return { tier: n.tier, key: n.key, root, cloned: found?.ok === true };
   });

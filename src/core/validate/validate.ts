@@ -49,7 +49,7 @@ export const PAGE_LINE_LIMIT = 500;
 
 export interface Finding {
   severity: "error" | "warning";
-  /** The rule of §5.1 an error breaks, 1 to 12. */
+  /** The rule of §5.1 an error breaks, 1 to 13. */
   rule?: number;
   /** The warning of §5.1. */
   warning?: WarningId;
@@ -129,7 +129,8 @@ function configOf(root: string, sink: Sink): BrainConfig | undefined {
   }
   const parsed = parseFolderConfig(readFileSync(path, "utf8"));
   if (!parsed.ok) {
-    sink.error(parsed.syntax ? 1 : 2, parsed.reason, "kioku.yaml");
+    // A brain of `format: 2` with no name, or a name that is not `<owner>/<repo>`, breaks rule 13 (§2.2, §3.2).
+    sink.error(parsed.syntax ? 1 : parsed.reason.startsWith("`name`") ? 13 : 2, parsed.reason, "kioku.yaml");
     return undefined;
   }
   if (parsed.value.form !== "brain") {

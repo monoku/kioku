@@ -168,7 +168,7 @@ test("a session inside a brain's folder loads that brain alone and names the cha
     );
     assert.deepEqual(
       [saved.out.status, saved.out.brain],
-      ["done", "github.com/northwind/brain-acme"],
+      ["done", "northwind/brain-acme"],
       "inside the brain, `project` is that brain",
     );
 
@@ -320,11 +320,11 @@ test("the hook answers in under a second with the network unavailable and a brai
       assert.ok(took < 1000, `${Math.round(took)} ms`);
       assert.match(
         summaryOf(r),
-        /project github\.com\/northwind\/brain-acme is not on this machine yet; it is being cloned in the background/,
+        /project northwind\/brain-acme is not on this machine yet; it is being cloned in the background/,
       );
       assert.match(
         summaryOf(r),
-        /team github\.com\/northwind\/brain is not on this machine yet; it is being cloned in the background/,
+        /team northwind\/brain is not on this machine yet; it is being cloned in the background/,
         "the folder names the team, so it is known before the project brain is here (§2.4)",
       );
       assert.match(
@@ -337,7 +337,7 @@ test("the hook answers in under a second with the network unavailable and a brai
       assert.equal(failed.code, 1);
       assert.equal(failed.out.outcomes.find((o: { tier: string }) => o.tier === "project").status, "failed");
       assert.equal(existsSync(w.acme), false, "a failed clone leaves nothing behind");
-      assert.match(summaryOf(await start(w)), /The last sync of github\.com\/northwind\/brain-acme failed/);
+      assert.match(summaryOf(await start(w)), /The last sync of northwind\/brain-acme failed/);
 
       assert.ok(existsSync(join(w.team, "kioku.yaml")), "the team the folder names is reached on its own");
 
@@ -349,7 +349,7 @@ test("the hook answers in under a second with the network unavailable and a brai
         ["project"],
       );
       assert.ok(
-        readMachineConfig(w.home)!.repositories["github.com/northwind/brain-acme"] !== undefined,
+        readMachineConfig(w.home)!.repositories["northwind/brain-acme"] !== undefined,
         "the clone is registered",
       );
       const next = summaryOf(await start(w));
@@ -559,17 +559,14 @@ test("a pending publication is pushed by sync, and the summary mentions it until
     );
     assert.equal(saved.out.publication, "pending");
     const during = await start(w);
-    assert.match(
-      summaryOf(during),
-      /A change to github\.com\/northwind\/brain-acme is committed but not published yet/,
-    );
+    assert.match(summaryOf(during), /A change to northwind\/brain-acme is committed but not published yet/);
     assert.match(
       during.out.systemMessage,
       /⬢ kioku\.md · changes not published yet\n  ⎿ brain-acme · committed\n  ⎿ they will be retried/,
     );
     const still = await w.kioku(["sync", "--cwd", w.repo]);
     assert.equal(still.out.outcomes.find((o: { tier: string }) => o.tier === "project").status, "failed");
-    assert.ok(readPending(w.home)["github.com/northwind/brain-acme"]);
+    assert.ok(readPending(w.home)["northwind/brain-acme"]);
 
     renameSync(`${w.bare.acme}.away`, w.bare.acme);
     const r = await w.kioku(["sync", "--cwd", w.repo]);
@@ -606,12 +603,12 @@ test("sync pushes the personal brain when it has a remote, keeps local commits t
     sh(w.sam, "remote", "add", "origin", "https://github.com/sam/brain.git");
     const r = await w.kioku(["sync", "--cwd", w.repo], { tty: true });
     assert.equal(r.code, 0, r.raw);
-    assert.match(r.out, /^github\.com\/sam\/brain +pushed$/m);
-    assert.match(r.out, /^github\.com\/northwind\/brain-acme +up-to-date$/m);
+    assert.match(r.out, /^sam\/brain +pushed$/m);
+    assert.match(r.out, /^northwind\/brain-acme +up-to-date$/m);
     assert.match(r.out, /^index: \d+ reindexed, 0 removed, \d+ unchanged$/m);
     assert.equal(sh(personalBare, "rev-parse", "main"), sh(w.sam, "rev-parse", "HEAD"));
     const state = JSON.parse(readFileSync(syncStatePath(w.home), "utf8"));
-    assert.equal(state.brains["github.com/sam/brain"].status, "pushed");
+    assert.equal(state.brains["sam/brain"].status, "pushed");
 
     // A teammate's commit and a local one meet: the local one is rebased on top and pushed.
     const other = join(w.dir, "teammate");
@@ -680,14 +677,14 @@ test("a sync that finds another running leaves its folder, and the next sync clo
       assert.equal(next.code, 0, next.raw);
       assert.ok(
         next.out.outcomes.some(
-          (o: { key: string; status: string }) => o.key === "github.com/northwind/brain-acme" && o.status === "cloned",
+          (o: { key: string; status: string }) => o.key === "northwind/brain-acme" && o.status === "cloned",
         ),
         next.raw,
       );
       assert.ok(existsSync(w.acme));
       const after = await w.kioku(["sync", "--cwd", w.dir]);
       assert.ok(
-        !after.out.outcomes.some((o: { key: string }) => o.key === "github.com/northwind/brain-acme"),
+        !after.out.outcomes.some((o: { key: string }) => o.key === "northwind/brain-acme"),
         "a folder is taken once",
       );
     },
@@ -719,7 +716,7 @@ test("the composer leaves out superseded decisions named only by `supersedes`, a
     const s = composeSummary({
       brains: loadSummaryBrains([
         {
-          link: { tier: "project", key: "k", path: w.acme, cloned: true, ref: { host: "h", owner: "o", repo: "r" } },
+          link: { tier: "project", key: "k", path: w.acme, cloned: true, ref: { owner: "o", repo: "r" } },
           isProject: true,
         },
       ]),
@@ -784,7 +781,7 @@ test("a folder that names its project brain alone loads personal and project, wi
 test("the machine's team loads where the folder names none, and the summary and brain list say it is the machine's (§2.4, §4.1)", () =>
   world(async (w) => {
     writeFileSync(join(w.repo, "kioku.yaml"), "brain: github.com/northwind/brain-acme\n");
-    await updateMachineConfig((c) => void (c.team = "github.com/northwind/brain"), w.home);
+    await updateMachineConfig((c) => void (c.team = "northwind/brain"), w.home);
     const LINE =
       "- team: northwind/brain (this machine's team, as this folder names none: teammates here may not have it)";
     const s = summaryOf(await start(w));

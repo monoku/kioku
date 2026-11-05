@@ -80,14 +80,14 @@ export const runConfig: Handler = async (args, ctx) => {
 };
 
 /**
- * The brain `config set team` names, as its key: one this machine has cloned, by key or repository, and a team
+ * The brain `config set team` names, by its name: one this machine has, and a team
  * brain (§2.5). One it does not have is refused with the command that brings it.
  */
 function teamKey(ctx: Context, text: string): string {
   const brain = pickKnown(knownBrains(ctx.home), text);
   if (!brain.onDisk)
     throw userError(
-      `the brain ${brain.key} is not on this machine yet; kioku brain clone ${brain.key} brings it`,
+      `the brain ${brain.key} is not on this machine yet; kioku brain clone <address> brings it`,
       "brain_not_cloned",
     );
   if (brain.tier !== "team")

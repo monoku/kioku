@@ -194,7 +194,7 @@ test("harnessFor knows claude-code and refuses anything else", () => {
 });
 
 test("a write is an entry of the journal for the writing verbs only, however the command is spelled (§4.6)", () => {
-  const done = `${JSON.stringify({ status: "done", publication: "pushed", brain: "github.com/northwind/brain-acme", path: "p.md" })}\n`;
+  const done = `${JSON.stringify({ status: "done", publication: "pushed", brain: "northwind/brain-acme", path: "p.md" })}\n`;
   for (const c of [
     "kioku page save --brain a",
     "cd x && kioku page update p.md",

@@ -1,10 +1,10 @@
 import { basename } from "node:path";
 import { knownBrains, type KnownBrain } from "../core/brains/list.ts";
-import { parseRepoShort, brainRepoOfKey } from "../core/config/brain-ref.ts";
+import { brainRepoOfKey, parseName } from "../core/config/brain-ref.ts";
 import { userError } from "../core/errors.ts";
 import type { Context, Outcome } from "./run.ts";
 
-/** A brain of this machine, by tier, key or repository; two that answer equally well are an error that lists them. */
+/** A brain of this machine, by its name or its tier; two that answer equally well are an error that lists them. */
 export function pickKnown(brains: KnownBrain[], wanted: string): KnownBrain {
   const levels: ((b: KnownBrain) => boolean)[] = [
     (b) => b.key === wanted,
@@ -23,19 +23,18 @@ export function pickKnown(brains: KnownBrain[], wanted: string): KnownBrain {
     }
   }
   const known = brains.map((b) => brainRepoOfKey(b.key)).join(", ") || "none";
-  // A repository is a brain that may only be elsewhere yet: say how to bring it (§2.3), not only that it is missing.
-  const repo = parseRepoShort(wanted);
+  // A name is a brain that may only be elsewhere yet: say how to bring it (§2.3), not only that it is missing.
   const bring =
-    repo !== undefined
-      ? `To bring it: kioku brain clone ${wanted}, or, to make it when it does not exist, kioku brain create ${wanted} --tier personal|project|team`
-      : "To bring a brain: kioku brain clone <owner>/<repo>, or kioku brain create <owner>/<repo> --tier personal|project|team";
+    parseName(wanted) !== undefined
+      ? `To bring it: kioku brain clone <its address>, or, to make it, kioku brain create ${wanted} --tier personal|project|team`
+      : "To bring a brain: kioku brain clone <address>, or kioku brain create <owner>/<repo> --tier personal|project|team";
   throw userError(`no brain called "${wanted}" on this machine (${known}). ${bring}`, "brain_unknown");
 }
 
 /** A brain of this machine that is on disk, for the verbs that take one wherever the person is. */
 export function located(ctx: Context, wanted: string | undefined, verb: string): KnownBrain {
   if (wanted === undefined || wanted.startsWith("-"))
-    throw userError(`brain ${verb} takes a brain: a name, a tier, a key or a repository`, "usage");
+    throw userError(`brain ${verb} takes a brain: its name, <owner>/<repo>, or its tier`, "usage");
   const brain = pickKnown(knownBrains(ctx.home), wanted);
   // On disk but refused is not "not cloned": the person is told what to fix in the file (§2.5).
   if (brain.problem !== undefined)

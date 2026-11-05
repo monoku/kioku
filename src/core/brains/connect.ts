@@ -80,6 +80,19 @@ export function connectRepository(brain: { key: string; folder: string; name?: s
         "remote_not_a_brain",
       );
     }
+    // A repository holding a brain of another name is another brain (§2.2, §2.3).
+    if (
+      ours.ok &&
+      ours.value.form === "brain" &&
+      theirs.value.name !== undefined &&
+      ours.value.name !== undefined &&
+      theirs.value.name !== ours.value.name
+    ) {
+      throw userError(
+        `${url} holds the brain ${theirs.value.name}, and this one is ${ours.value.name}; nothing was changed`,
+        "remote_other_name",
+      );
+    }
     if (ours.ok && ours.value.form === "brain" && theirs.value.tier !== ours.value.tier) {
       throw userError(
         `${url} holds a ${theirs.value.tier} brain and this one is a ${ours.value.tier} brain; nothing was changed`,

@@ -103,8 +103,8 @@ finds the launcher by `KIOKU_BIN`, then the `PATH`, then `KIOKU_BIN_DIR` or
 |---|---|---|
 | a brain's folder | the memory and its history | yes, through git |
 | `<project folder>/kioku.yaml` | the folder's project and team brains | yes, with the code |
-| `~/.kioku/config.yaml` | the machine's brains and preferences | no |
-| `~/.kioku/brains/<owner>/<repo>/` | the clones the tool manages | no |
+| `~/.kioku/config.yaml` | the machine's brains, the addresses it accepted and its preferences | no |
+| `~/.kioku/brains/<owner>/<repo>/` | every brain of the machine, by its name, made here or cloned | no |
 | `~/.kioku/` (index, model, `pending.json`, `sessions/`) | derived state and each session's journal, dropped two days after its last entry | no |
 | `~/.local/share/kioku/versions/<v>/` | the tool and its `plugin/`; `current` points at the active one, and Claude Code reads `current/plugin` | no |
 | `~/.local/bin/kioku` | the launcher | no |

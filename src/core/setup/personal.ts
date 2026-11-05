@@ -12,13 +12,14 @@ const slug = (s: string): string =>
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^[-._]+|[-._]+$/g, "");
 
-/** Where the name the person goes by came from (§2.3): git on this machine, or the system user. */
+/** Where the name the person goes by came from (§2.5): git on this machine, or the system user. */
 export type UserSource = "git" | "system";
 
 /**
- * The name the person goes by (§2.3), with where it came from: what git on this machine knows (`github.user`, the
- * name, the part of the email before the `@`), else the system user. No git host is asked, and nothing is recorded:
- * `git config --global github.user <handle>` is where a person says it.
+ * The name the person goes by (§2.5), with where it came from: what git on this machine knows (`github.user`, the
+ * name, the part of the email before the `@`), else the system user. It is who confirms a page (§3.3) and, where git
+ * knows no one, the author of the tool's commits; it names no brain (§2.3). No git host is asked, and nothing is
+ * recorded.
  */
 export function findUser(cwd: string = tmpdir()): { name: string; from: UserSource } {
   // One key at a time, the first that gives a name ending the search: most machines answer the first or the second.

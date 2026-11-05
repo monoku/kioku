@@ -5,17 +5,17 @@
  * `<dir>/.home`; the real `~/.kioku` is never touched. `--force` throws it all away and rebuilds; the seed is fixed,
  * so the story is the same each time, and whatever a trial session wrote is gone.
  *
- * What comes out: the three brains under `<dir>/brains/<owner>/<repo>`, laid out as a machine keeps them, one git
- * repository each, and `<dir>/app`, Northwind's code repository linked to the project brain and the team's, where a
- * session loads all three.
+ * What comes out: the three brains under `<dir>/brains/<owner>/<repo>`, a link to the demo machine's own
+ * `~/.kioku/brains`, where every brain lives (§2.5), one git repository each, and `<dir>/app`, Northwind's code
+ * repository linked to the project brain and the team's by name and address, where a session loads all three.
  */
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, posix, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { Context } from "../../src/cli/run.ts";
 import { answerOf, runTool } from "../tool.ts";
-import { stringifyFolderConfig } from "../../src/core/config/folder-config.ts";
-import { writeMachineConfig } from "../../src/core/config/machine.ts";
+import { CURRENT_FORMAT, stringifyFolderConfig } from "../../src/core/config/folder-config.ts";
+import { emptyConfig, updateMachineConfig, writeMachineConfig } from "../../src/core/config/machine.ts";
 import { git } from "../../src/core/git.ts";
 import { DEMO_USER, prepareSession } from "../dev/prepare.ts";
 import { BRAINS, LOAD_FIRST, NAMESPACE_SUMMARIES, TODAY, plan, type BrainName, type PagePlan } from "./seed.ts";
@@ -29,9 +29,11 @@ const out = resolve(values.out ?? join(root, ".demo"));
 const home = join(out, ".home");
 const remotes = join(out, ".remotes");
 const app = join(out, "app");
-/** Where a brain of the seed is kept: as `~/.kioku/brains` keeps one, by its repository. */
-const folderOf = (brain: BrainName): string => join(out, "brains", BRAINS[brain].repo);
-/** How the demo names a brain to the tool: by its repository, as a person types it (§2.3). */
+/** Where a brain of the seed is kept: the demo machine's `~/.kioku/brains`, by its name (§2.5). */
+const folderOf = (brain: BrainName): string => join(home, ".kioku", "brains", BRAINS[brain].repo);
+/** The bare repository a shared brain of the seed is published to, standing in for its git host. */
+const bareOf = (brain: BrainName): string => join(remotes, `${BRAINS[brain].repo}.git`);
+/** How the demo names a brain to the tool: by its name (§2.2). */
 const ref = (brain: BrainName): string => BRAINS[brain].repo;
 
 if (existsSync(out)) {
@@ -139,17 +141,10 @@ interface Event {
 
 async function main(): Promise<void> {
   const oldest = dayOf(440);
-  // The machine: brains kept under the demo folder through path overrides (§2.5).
-  const config = {
-    trust: { owners: [] as string[] },
-    repositories: Object.fromEntries(
-      (Object.entries(BRAINS) as [BrainName, (typeof BRAINS)[BrainName]][]).map(([name, b]) => [
-        `github.com/${b.repo}`,
-        { path: folderOf(name) },
-      ]),
-    ),
-  };
-  await writeMachineConfig(config, home);
+  // The machine: every brain lives in its own `~/.kioku/brains` (§2.5), which `<dir>/brains` links to.
+  await writeMachineConfig(emptyConfig(), home);
+  mkdirSync(join(home, ".kioku", "brains"), { recursive: true });
+  symlinkSync(join(".home", ".kioku", "brains"), join(out, "brains"));
 
   // The demo's GitHub is a folder that does not exist, so nothing reaches the network; and the person the demo is about is
   // sam, as git says who a person is (§2.3): who confirms a page.
@@ -167,18 +162,21 @@ async function main(): Promise<void> {
     const folder = r.path as string;
     // A shared brain publishes to a bare repository under the demo folder: a git host that is yours to throw away.
     if (b.tier !== "personal") {
-      const bare = join(remotes, `${b.repo}.git`);
+      const bare = bareOf(name);
       mkdirSync(join(bare, ".."), { recursive: true });
       git(undefined, ["init", "-q", "--bare", "-b", "main", bare]);
       git(folder, ["remote", "add", "origin", bare]);
       git(folder, ["push", "-q", "-u", "origin", "main"]);
+      // The address the person accepted, as `kioku brain publish` records it (§2.5).
+      await updateMachineConfig((c) => void (c.repositories[b.repo] = bare), home);
     }
     // The namespaces of the seed (§3.2): the configuration and one front page each.
     writeFileSync(
       join(folder, "kioku.yaml"),
       stringifyFolderConfig({
         form: "brain",
-        format: 1,
+        format: CURRENT_FORMAT,
+        name: b.repo,
         tier: b.tier,
         namespaces: b.namespaces,
       }),
@@ -195,11 +193,16 @@ async function main(): Promise<void> {
     git(folder, ["commit", "-q", "-m", "Set the namespaces"]);
     if (b.tier !== "personal") git(folder, ["push", "-q", "origin", "main"]);
   }
-  // The code repository the sessions open: its kioku.yaml names the project brain and the team (§2.4).
+  // The code repository the sessions open: its kioku.yaml names the project brain and the team, each by its name and
+  // address (§2.4).
   mkdirSync(app, { recursive: true });
   writeFileSync(
     join(app, "kioku.yaml"),
-    `brain: github.com/${BRAINS.app.repo}\nteam: github.com/${BRAINS.team.repo}\n`,
+    stringifyFolderConfig({
+      form: "code",
+      brain: { owner: BRAINS.app.repo.split("/")[0]!, repo: BRAINS.app.repo.split("/")[1]!, url: bareOf("app") },
+      team: { owner: BRAINS.team.repo.split("/")[0]!, repo: BRAINS.team.repo.split("/")[1]!, url: bareOf("team") },
+    }),
   );
   writeFileSync(
     join(app, "README.md"),

@@ -16,10 +16,11 @@ away what a trial session wrote; `--out <dir>` builds elsewhere.
 
 | Path in `.demo/` | Is |
 |---|---|
+| `brains/` | a link to `.home/.kioku/brains/`, where the demo machine keeps every brain by its name |
 | `brains/sam/brain/` | sam's personal brain, about 67 pages in five namespaces |
 | `brains/northwind/team-brain/` | Northwind's team brain, about 174 pages in sixteen namespaces, one three deep |
 | `brains/northwind/app-brain/` | the app's project brain, about 80 pages in four namespaces |
-| `app/` | the app's code repository, linked to the project brain and the team's: a session here loads all three |
+| `app/` | the app's code repository, linked to the project brain and the team's by name and address: a session here loads all three |
 | `.home/` | the machine's state, standing in for `~/.kioku` |
 | `.remotes/` | bare repositories standing in for the git host |
 

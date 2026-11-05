@@ -51,7 +51,7 @@ export function takesOf(hint: string): Takes {
 const str = (hint: string, takes: Takes = takesOf(hint)) => ({ type: "string", hint, takes }) as const;
 /** A flag that takes a value and may be given more than once. */
 const many = (hint: string) => ({ type: "string", hint, takes: takesOf(hint), multiple: true }) as const;
-/** A flag that takes no value; `brain trust --owner <owner>` shows the word that follows it, a positional. */
+/** A flag that takes no value. */
 const bool = (hint = "") => ({ type: "boolean", hint, takes: takesOf(hint) }) as const;
 const hidden = <F extends Flag>(flag: F) => ({ ...flag, hidden: true }) as const;
 /** One of a few words, kept as literal types: what a verb's first word takes can then be read back as a type (`HookVerb`). */
@@ -113,7 +113,7 @@ export const SECTIONS = [
       { "dry-run": bool() },
     ),
     config: v(
-      "lists, reads and sets the machine's preferences",
+      "lists, reads and sets the machine's preferences, the owners it trusts and its team",
       ["kioku config", "kioku config get <key>", "kioku config set <key> <value>", "kioku config unset <key>"],
       {},
       choices("get", "set", "unset"),
@@ -121,10 +121,10 @@ export const SECTIONS = [
   }),
   section("In a project folder", {
     init: v(
-      "links a project folder to its project brain, its team brain, or both; alone, the ones its kioku.yaml names",
-      "kioku init [<brain>] [--team <brain>] [--create] [--dir <folder>]",
-      { team: str("<brain>"), create: bool(), dir: str("<folder>") },
-      // A repository, which may not be on the machine yet: no list here knows it.
+      "links a project folder to its project brain, cloned from an address or made by name; alone, accepts and clones what its kioku.yaml names",
+      "kioku init [<brain>]",
+      {},
+      // An address or a name, which may not be on the machine yet: no list here knows it.
       "free",
     ),
     sync: v(
@@ -135,19 +135,18 @@ export const SECTIONS = [
   }),
   section("Brains", {
     "brain create": v(
-      "makes a brain on this machine, with no remote and no network; alone, your personal brain",
-      "kioku brain create [<brain> --tier personal|project|team] [--dir <folder>] [--language <tag>]",
+      "makes a brain on this machine with the name you give it, with no remote and no network; personal unless --tier says",
+      "kioku brain create <owner>/<repo> [--tier personal|project|team] [--language <tag>]",
       {
         tier: str("personal|project|team"),
-        dir: str("<folder>"),
         language: str("<tag>"),
       },
       "free",
     ),
     "brain clone": v(
-      "brings a brain you already have to this machine: your personal one, on a second machine",
-      "kioku brain clone <brain> [--url <url>] [--dir <folder>]",
-      { url: str("<url>"), dir: str("<folder>") },
+      "brings a brain that exists to this machine from any address, under the name it holds",
+      "kioku brain clone <address>",
+      {},
       "free",
     ),
     "brain sync": v(
@@ -157,19 +156,13 @@ export const SECTIONS = [
       "brain",
     ),
     "brain publish": v(
-      "pushes a brain that lives only on this machine to an empty repository, the one at --to or the one its key says; the one this folder is inside, else yours",
-      "kioku brain publish [<brain>] [--to <url>]",
-      { to: str("<url>") },
+      "pushes a brain that lives only on this machine to an empty repository at the address you give; its name stays",
+      "kioku brain publish <brain> --remote <address>",
+      { remote: str("<address>") },
       "brain",
     ),
     "brain list": v("the brains this machine knows, and the chain of this folder", "kioku brain list", {}),
     "brain path": v("prints a brain's folder", "kioku brain path <brain>", {}, "brain"),
-    "brain trust": v(
-      "lets this machine load a brain a repository names, or every brain of an owner",
-      ["kioku brain trust <brain>", "kioku brain trust --owner <owner>"],
-      { owner: bool("<owner>") },
-      "free",
-    ),
     "brain remove": v(
       "takes a brain off this machine, never off the git host: deletes its clone and forgets it; refuses what would lose work unless --force",
       "kioku brain remove <brain> [--force] [--dry-run]",
@@ -204,6 +197,12 @@ export const SECTIONS = [
       "kioku brain language <tag> [--brain <b>]",
       BRAIN,
       "free",
+    ),
+    "brain upgrade": v(
+      "raises a brain to the newest format, in one commit",
+      "kioku brain upgrade <brain>",
+      {},
+      "brain",
     ),
     "brain refresh": v(
       "rewrites the files the tool owns in a brain, or in every brain",

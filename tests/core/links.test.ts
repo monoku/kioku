@@ -129,7 +129,7 @@ test("kioku page link: each page under the other's See also, a Changelog line wh
     assert.equal(r.code, 0, r.raw);
     assert.deepEqual(
       [r.out.status, r.out.brain, r.out.path, r.out.to, r.out.publication],
-      ["done", "github.com/northwind/brain-acme", DECISION, MIGRATE, "pushed"],
+      ["done", "northwind/brain-acme", DECISION, MIGRATE, "pushed"],
     );
     assert.equal(Number(sh(w.acme, "rev-list", "--count", "HEAD")), before + 1);
     assert.equal(sh(w.acme, "log", "-1", "--format=%s"), "link: Run migrations before the deploy <-> Migrate");
@@ -276,11 +276,11 @@ test("brain refresh writes the files the tool owns where they are missing or old
     const inside = await w.kioku(["brain", "refresh"], "", false, { cwd: join(w.sam, "memory") });
     assert.deepEqual(
       [inside.out.brains.length, inside.out.brains[0].brain],
-      [1, "github.com/sam/brain"],
+      [1, "sam/brain"],
       "with no argument, the brain the folder is in",
     );
     const list = await w.kioku(["brain", "list"], "", false, { cwd: join(w.sam, "memory") });
-    assert.equal(list.out.inside, "github.com/sam/brain");
+    assert.equal(list.out.inside, "sam/brain");
     assert.equal((await w.kioku(["brain", "list"])).out.inside, null);
 
     // --all: every brain the machine knows and has on disk, as after an update of the tool. The tests run a build
@@ -294,16 +294,13 @@ test("brain refresh writes the files the tool owns where they are missing or old
         .map((b: { brain: string; written: string[]; left?: string }) => [b.brain, b.written, b.left])
         .sort(),
       [
-        ["github.com/northwind/brain", [], "build"],
-        ["github.com/northwind/brain-acme", [], "build"],
-        ["github.com/sam/brain", ["CLAUDE.md"], undefined],
+        ["northwind/brain", [], "build"],
+        ["northwind/brain-acme", [], "build"],
+        ["sam/brain", ["CLAUDE.md"], undefined],
       ],
       "the three brains the configuration knows; the personal one is the person's alone",
     );
-    assert.equal(
-      all.out.brains.find((b: { brain: string }) => b.brain === "github.com/sam/brain").publication,
-      "local",
-    );
+    assert.equal(all.out.brains.find((b: { brain: string }) => b.brain === "sam/brain").publication, "local");
     assert.equal((await w.kioku(["brain", "refresh", "northwind/brain-acme", "--all"])).out.error.code, "usage");
   }));
 
@@ -314,7 +311,7 @@ test("in a shared brain the files the tool owns only move forward, and a build t
       assert.equal(r.code, 0, r.raw);
       const text = await w.kioku(["brain", "refresh", ...argv], "", true, { version });
       return {
-        acme: r.out.brains.find((b: { brain: string }) => b.brain === "github.com/northwind/brain-acme"),
+        acme: r.out.brains.find((b: { brain: string }) => b.brain === "northwind/brain-acme"),
         raw: text.raw,
       };
     };
@@ -384,11 +381,7 @@ test("kioku page list lists every page with its fields, last touch and links bot
     const all = await w.kioku(["page", "list"]);
     assert.equal(all.code, 0, all.raw);
     const brains = new Set(all.out.pages.map((p: { brain: string }) => p.brain));
-    assert.deepEqual([...brains].sort(), [
-      "github.com/northwind/brain",
-      "github.com/northwind/brain-acme",
-      "github.com/sam/brain",
-    ]);
+    assert.deepEqual([...brains].sort(), ["northwind/brain", "northwind/brain-acme", "sam/brain"]);
     assert.ok(
       !all.out.pages.some((p: { path: string }) => p.path === "BRAIN.md" || p.path === "CLAUDE.md"),
       "front pages and CLAUDE.md are not pages",

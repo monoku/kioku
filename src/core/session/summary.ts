@@ -67,6 +67,8 @@ export interface SummaryInput {
   missing: ChainLink[];
   /** Brains the repository names that this machine does not trust: not loaded (§2.4). */
   untrusted?: ChainLink[];
+  /** Links by name alone to a brain this machine does not have (§2.4). */
+  notHere?: ChainLink[];
   /** The brain whose folder the session is in (§2.7), by key: the session works on it. */
   inside?: string;
   /** Where the team came from: the machine's when the folder names none (§2.4), which the team's line says. */
@@ -364,9 +366,13 @@ export function composeSummaryOffering(input: SummaryInput): {
     );
   for (const u of input.untrusted ?? []) {
     opening.push(
-      `- This repository names ${u.key} as its ${u.tier} brain${u.address === undefined ? "" : ` at ${u.address}, an address this machine does not know for it`}, but this machine does not trust it, so nothing from it is loaded. Tell the person; \`${trustCommand(u)}\` is theirs to run in a terminal, never yours.`,
+      `- This repository names ${u.key} as its ${u.tier} brain${u.address === undefined ? "" : ` at ${u.address}, an address this machine does not know for it`}, but this machine does not trust it, so nothing from it is loaded. Tell the person; \`${trustCommand(u)}\` in this folder is theirs to run in a terminal, never yours.`,
     );
   }
+  for (const n of input.notHere ?? [])
+    opening.push(
+      `- This repository names ${n.key} as its ${n.tier} brain by name alone, and this machine does not have it, so nothing from it is loaded. Tell the person: a teammate who has it gives its address, and \`kioku init <address>\` links it.`,
+    );
   for (const p of input.problems) opening.push(`- ${clip(p, 200)}`);
   for (const [key, reason] of Object.entries(input.pending))
     opening.push(`- A change to ${key} is committed but not published yet (${clip(reason, 120)}); sync retries it.`);

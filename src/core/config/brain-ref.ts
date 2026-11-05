@@ -1,166 +1,227 @@
 import { isAbsolute, join } from "node:path";
 import { userError } from "../errors.ts";
-import type { MachineConfig } from "./machine.ts";
 
-/** A brain: a repository on a git host, the whole of it (§2.2). */
+/**
+ * A brain (§2.2): its name, `<owner>/<repo>`, the same on every machine, and, apart from it, the address of its
+ * repository when the reference gives one. The name says nothing of where the brain is.
+ */
 export interface BrainRef {
-  host: string;
   owner: string;
   repo: string;
-  /** Where the repository is when that is not `https://<host>/<owner>/<repo>.git` (§2.2): an ssh address, a folder on disk. */
+  /** Where the repository is: any address git clones from (§2.2). A name alone is a brain of this machine (§2.4). */
   url?: string;
 }
 
-/** The address a repository is cloned from when nothing says otherwise: the one its key names (§2.2). */
-export const defaultUrl = (r: Pick<BrainRef, "host" | "owner" | "repo">): string =>
-  `https://${r.host}/${r.owner}/${r.repo}.git`;
+/** One segment of a name: letters, digits, `-` and `_`, never a dot, so that no name reads as a host (§2.2). */
+const SEGMENT = /^[A-Za-z0-9_-]+$/;
 
-/** An ssh address of a repository, `git@host:owner/repo.git` or `ssh://…`: one that says both a brain's key and where it is (§2.2). */
-export const isSshAddress = (input: string): boolean =>
-  /^[\w.-]+@[\w.-]+:/.test(input.trim()) || /^ssh:\/\//i.test(input.trim());
+/** Whether `input` is a name, `<owner>/<repo>` (§2.2). */
+export const isName = (input: string): boolean => parseName(input) !== undefined;
 
-/** The canonical key of the repository, `host/owner/repo`: how the machine configuration names a clone (§2.5). */
-/**
- * A brain as a person types and reads it (§2.3, §6.1): `owner/repo` on github.com, `host/owner/repo` on another host.
- * A brain has no name of its own; programs read its key (`repoKey`).
- */
-export const brainRepo = (r: Pick<BrainRef, "host" | "owner" | "repo">): string =>
-  r.host === "github.com" ? `${r.owner}/${r.repo}` : `${r.host}/${r.owner}/${r.repo}`;
+/** A name, `<owner>/<repo>`; undefined for anything else, an address included. */
+export function parseName(input: string): BrainRef | undefined {
+  const parts = input.trim().split("/");
+  if (parts.length !== 2 || !parts.every((p) => SEGMENT.test(p))) return undefined;
+  return { owner: parts[0]!, repo: parts[1]! };
+}
 
-/** A brain known by its key, as a person reads it (§2.3); the key itself when it is not one. */
-export const brainRepoOfKey = (key: string): string => {
-  const ref = parseRepo(key);
-  return ref === undefined ? key : brainRepo(ref);
-};
+/** A brain's name, `<owner>/<repo>`: its key on this machine and for programs (§2.2, §2.3). */
+export const repoKey = (r: Pick<BrainRef, "owner" | "repo">): string => `${r.owner}/${r.repo}`;
 
-/** A brain known only by its folder: its last two parts as `<owner>/<repo>`, as a managed clone is laid out. */
+/** A brain as a person reads it: its name (§2.3). */
+export const brainRepo = repoKey;
+
+/** A brain known by its key, as a person reads it: the key is its name (§2.3). */
+export const brainRepoOfKey = (key: string): string => key;
+
+/** A brain known only by its folder: its last two parts as `<owner>/<repo>`, as the managed folder lays it out (§2.5). */
 export const brainRepoOfFolder = (root: string): string => {
   const parts = root.replace(/\/+$/, "").split(/[\\/]/);
   return `${parts.at(-2) ?? ""}/${parts.at(-1) ?? ""}`;
 };
 
-export const repoKey = (r: BrainRef): string => `${r.host}/${r.owner}/${r.repo}`;
+/** An address git would read as one of its own options, `--upload-pack=…` say: refused wherever an address is taken (§2.2). */
+export const looksLikeOption = (address: string): boolean => address.trim().startsWith("-");
 
-/** The canonical key of the owner of a repository, `host/owner`: what the configuration's `trusted` list names (§2.4). */
-export const ownerKey = (r: Pick<BrainRef, "host" | "owner">): string => `${r.host}/${r.owner}`;
+/** A folder, written as a path: what begins with `/`, `./`, `../` or `~` (§2.2). */
+const isFolder = (s: string): boolean => /^(\/|\.{1,2}(\/|$)|~(\/|$))/.test(s);
 
-/** An owner as a person types it: `owner` (on github.com) or `host/owner`. Undefined for anything else, a repository included. */
+/** `user@host:path`, git's short ssh form. */
+const SCP = /^[\w.-]+@([\w.-]+):(.+)$/;
+
+/**
+ * Whether `input` is an address (§2.2): a URL (`https://`, `ssh://`, `file://` …), git's `user@host:path`, a folder, or
+ * `host/path` whose first segment has a dot. A name never is one: it has two segments, no dot and no leading `/`, `.` or `~`.
+ */
+export function isAddress(input: string): boolean {
+  const s = input.trim();
+  if (s === "" || looksLikeOption(s)) return false;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s) || SCP.test(s) || isFolder(s)) return true;
+  const parts = s.split("/");
+  return parts.length >= 3 && parts[0]!.includes(".") && parts.every((p) => p !== "");
+}
+
+/** The address git is given for `input`: `host/path` is `https://<host>/<path>.git` (§2.2); anything else, as written. */
+export function addressUrl(input: string): string {
+  const s = input.trim();
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s) || SCP.test(s) || isFolder(s)) return s;
+  return `https://${s.replace(/\/+$/, "").replace(/\.git$/, "")}.git`;
+}
+
+/** The host and the path of a repository's address; undefined for a folder or `file://`, which have no host. */
+export function addressParts(url: string): { host: string; path: string } | undefined {
+  const s = url.trim();
+  const scp = SCP.exec(s);
+  let host: string;
+  let path: string;
+  if (scp) {
+    host = scp[1]!;
+    path = scp[2]!;
+  } else {
+    const m = /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/(.+)$/i.exec(s);
+    if (!m) {
+      if (isFolder(s) || /^file:\/\//i.test(s) || /:\/\//.test(s)) return undefined;
+      const parts = s.split("/");
+      if (parts.length < 3 || !parts[0]!.includes(".")) return undefined;
+      host = parts[0]!;
+      path = parts.slice(1).join("/");
+    } else {
+      host = m[1]!;
+      path = m[2]!;
+    }
+  }
+  path = path
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\.git$/, "")
+    .replace(/^~[^/]*\//, "");
+  return path === "" ? undefined : { host: host.toLowerCase(), path };
+}
+
+/**
+ * The name an address says when its brain carries none (§3.2, a brain of `format: 1`): the last two segments of its
+ * path, `https://github.com/northwind/app-brain.git` is `northwind/app-brain`; a folder's last two folders.
+ */
+export function nameOfAddress(url: string): BrainRef | undefined {
+  const path = addressParts(url)?.path ?? url.trim().replace(/^file:\/\//i, "");
+  const parts = path
+    .replace(/\/+$/, "")
+    .replace(/\.git$/, "")
+    .split("/")
+    .filter((p) => p !== "");
+  return parts.length >= 2 ? parseName(`${parts.at(-2)}/${parts.at(-1)}`) : undefined;
+}
+
+/** The owner of an address, `host/owner`, the host and the first segment of its path (§2.4); undefined for a folder. */
+export function ownerOfAddress(url: string): string | undefined {
+  const parts = addressParts(url);
+  const first = parts?.path.split("/")[0];
+  return parts === undefined || first === undefined || first === "" ? undefined : `${parts.host}/${first}`;
+}
+
+/** Whether two addresses are one repository: the same text, or the https and ssh forms of one host and path (§2.4). */
+export function sameRepository(a: string, b: string): boolean {
+  if (a.trim() === b.trim()) return true;
+  const x = addressParts(a);
+  const y = addressParts(b);
+  return x !== undefined && y !== undefined && x.host === y.host && x.path === y.path;
+}
+
+/** The canonical key of an owner of addresses, `host/owner`: what `trust.owners` holds (§2.4). */
+export const ownerKey = (r: { host: string; owner: string }): string => `${r.host}/${r.owner}`;
+
+/** An owner of addresses as a person types it, `host/owner`, the host with a dot (§2.4); undefined for anything else. */
 export function parseOwner(input: string): { host: string; owner: string } | undefined {
   const t = input.trim().replace(/\/+$/, "");
-  const one = /^[\w.-]+$/.exec(t);
-  if (one) return { host: "github.com", owner: t };
-  const two = /^([\w.-]+\.[\w-]+)\/([\w.-]+)$/.exec(t);
-  return two ? { host: two[1]!.toLowerCase(), owner: two[2]! } : undefined;
+  const m = /^([\w-]+(?:\.[\w-]+)+)\/([\w.-]+)$/.exec(t);
+  return m ? { host: m[1]!.toLowerCase(), owner: m[2]! } : undefined;
 }
 
 export type RefResult = { ok: true; ref: BrainRef } | { ok: false; reason: string };
 
-/** Accepts `host/owner/repo`, `https://host/owner/repo(.git)` and `git@host:owner/repo(.git)`. */
-export function parseRepo(input: string): BrainRef | undefined {
-  let s = input.trim();
-  const scp = /^[\w.-]+@([\w.-]+):(.+)$/.exec(s);
-  if (scp) s = `${scp[1]}/${scp[2]}`;
-  s = s
-    .replace(/^[a-z+]+:\/\/(?:[^@/]+@)?/i, "")
-    .replace(/\/+$/, "")
-    .replace(/\.git$/, "");
-  const m = /^([\w.-]+)\/([\w.-]+)\/([\w.-]+)$/.exec(s);
-  return m ? { host: m[1]!.toLowerCase(), owner: m[2]!, repo: m[3]! } : undefined;
+/** An address checked for what git would misread: one that begins with `-`. */
+function addressOf(value: string, field: string): RefResult | string {
+  if (looksLikeOption(value))
+    return { ok: false, reason: `\`${field}\` begins with -, which git would read as an option: ${value}` };
+  return addressUrl(value);
 }
-
-/** Like `parseRepo`, and `owner/repo` alone means a repository on github.com (§6.1). */
-export function parseRepoShort(input: string): BrainRef | undefined {
-  const t = input.trim();
-  return /^[\w.-]+\/[\w.-]+$/.test(t) ? parseRepo(`github.com/${t}`) : parseRepo(t);
-}
-
-/** A brain as a person or a file writes it: its name, and its ssh address kept as its `url` when it was given as one (§2.2). */
-export function parseNamed(input: string, short = false): BrainRef | undefined {
-  const ref = short ? parseRepoShort(input) : parseRepo(input);
-  return ref !== undefined && isSshAddress(input) ? { ...ref, url: input.trim() } : ref;
-}
-
-/** An address git would read as one of its own options, `--upload-pack=…` say: refused wherever an address is taken (§2.2). */
-export const looksLikeOption = (address: string): boolean => address.trim().startsWith("-");
 
 /**
- * A brain reference as a `kioku.yaml` writes it (§2.4, §2.5): `github.com/owner/repo`, its ssh address, or
- * `{ repo: github.com/owner/repo, url: address }`. `field` names the key in messages.
+ * A brain reference as a project folder's `kioku.yaml` writes it (§2.2, §2.4): a name, `northwind/app-brain`; a name
+ * and its address, `{ name, url }`; or an address alone, as 0.1.0 wrote it, read with the name its path says. `field`
+ * names the key in messages.
  */
 export function parseBrainReference(value: unknown, field: string): RefResult {
   if (typeof value === "string") {
-    const ref = parseNamed(value);
-    return ref
-      ? { ok: true, ref }
-      : { ok: false, reason: `\`${field}\` is not a brain URL such as github.com/owner/repo: ${value}` };
+    const named = parseName(value);
+    if (named !== undefined) return { ok: true, ref: named };
+    if (isAddress(value)) {
+      const url = addressOf(value, field);
+      if (typeof url !== "string") return url;
+      const name = nameOfAddress(url);
+      return name === undefined
+        ? {
+            ok: false,
+            reason: `\`${field}\` is an address that says no name; write \`{ name: <owner>/<repo>, url: ${value} }\``,
+          }
+        : { ok: true, ref: { ...name, url } };
+    }
+    return { ok: false, reason: `\`${field}\` is not a brain's name, such as northwind/app-brain: ${value}` };
   }
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     const obj = value as Record<string, unknown>;
     for (const k of Object.keys(obj)) {
-      if (k !== "repo" && k !== "url")
-        return {
-          ok: false,
-          reason: `unknown key \`${field}.${k}\`; a brain reference holds \`repo\` and \`url\`, and a brain is a whole repository`,
-        };
+      if (k !== "name" && k !== "url")
+        return { ok: false, reason: `unknown key \`${field}.${k}\`; a brain reference holds \`name\` and \`url\`` };
     }
-    if (typeof obj.repo !== "string")
-      return { ok: false, reason: `\`${field}.repo\` must be a brain URL such as github.com/owner/repo` };
-    const named = parseNamed(obj.repo);
-    if (!named) return { ok: false, reason: `\`${field}.repo\` is not a brain URL: ${obj.repo}` };
-    if (obj.url !== undefined && (typeof obj.url !== "string" || obj.url.trim() === ""))
+    const named = typeof obj.name === "string" ? parseName(obj.name) : undefined;
+    if (named === undefined)
+      return { ok: false, reason: `\`${field}.name\` must be a brain's name, such as northwind/app-brain` };
+    if (obj.url === undefined) return { ok: true, ref: named };
+    if (typeof obj.url !== "string" || obj.url.trim() === "")
       return { ok: false, reason: `\`${field}.url\` must be the address of a git repository` };
-    if (typeof obj.url === "string" && looksLikeOption(obj.url))
-      return { ok: false, reason: `\`${field}.url\` begins with -, which git would read as an option: ${obj.url}` };
-    return { ok: true, ref: obj.url === undefined ? named : { ...named, url: (obj.url as string).trim() } };
+    const url = addressOf(obj.url, `${field}.url`);
+    if (typeof url !== "string") return url;
+    return { ok: true, ref: { ...named, url } };
   }
-  return { ok: false, reason: `\`${field}\` must be a brain URL such as github.com/owner/repo, or { repo, url }` };
+  return {
+    ok: false,
+    reason: `\`${field}\` must be a brain's name, such as northwind/app-brain, or { name, url }`,
+  };
 }
 
-/**
- * The value a `kioku.yaml` holds for this reference: the short string, or the ssh address it was given as; else
- * `{ repo, url }` for an address of its own (§2.2).
- */
-export function referenceValue(ref: BrainRef): string | { repo: string; url: string } {
-  if (ref.url === undefined) return repoKey(ref);
-  // An ssh address says both the name and where the repository is, so it stands alone (§2.2).
-  if (isSshAddress(ref.url) && parseRepo(ref.url) !== undefined && repoKey(parseRepo(ref.url)!) === repoKey(ref))
-    return ref.url;
-  return { repo: repoKey(ref), url: ref.url };
+/** The value a `kioku.yaml` holds for this reference: the name alone, or `{ name, url }` once it has an address (§2.2). */
+export function referenceValue(ref: BrainRef): string | { name: string; url: string } {
+  return ref.url === undefined ? repoKey(ref) : { name: repoKey(ref), url: ref.url };
 }
 
-/** The host whose managed clones are not under a folder of their host's name: every clone before other hosts were (§2.5). */
-const BARE_HOST = "github.com";
+/** The managed folder, where every brain lives (§2.5). */
+export const brainsFolder = (home: string): string => join(home, ".kioku", "brains");
 
-/** The managed clone of a repository (§2.5): `~/.kioku/brains/<owner>/<repo>/` on github.com, `~/.kioku/brains/<host>/<owner>/<repo>/` elsewhere. */
-export const managedPath = (home: string, ref: BrainRef): string =>
-  ref.host === BARE_HOST
-    ? join(home, ".kioku", "brains", ref.owner, ref.repo)
-    : join(home, ".kioku", "brains", ref.host, ref.owner, ref.repo);
+/** A brain's folder, its name under the managed folder: `sam/memoria` is `~/.kioku/brains/sam/memoria/` (§2.5). */
+export const brainFolder = (home: string, ref: Pick<BrainRef, "owner" | "repo">): string =>
+  join(brainsFolder(home), ref.owner, ref.repo);
 
-/**
- * The reverse of `managedPath`: the brain whose clone is a folder under `~/.kioku/brains/`; undefined for any other
- * folder there, a folder inside a clone included. A first folder with a dot is a host: an owner on github.com has none.
- */
+/** The reverse of `brainFolder`: the brain whose folder is `sub` under the managed folder; undefined for any other folder. */
 export function managedRef(sub: string): BrainRef | undefined {
-  const parts = sub.split("/");
-  const [host, rest] = parts[0]?.includes(".") ? [parts[0], parts.slice(1)] : [BARE_HOST, parts];
-  const [owner, repo, ...inside] = rest;
-  return owner && repo && inside.length === 0 ? { host: host!.toLowerCase(), owner, repo } : undefined;
+  return parseName(sub);
 }
 
 /** `~` and `~/x` mean the home folder; a relative path is not allowed. */
 export function expandPath(p: string, home: string): string {
   if (p === "~") return home;
   if (p.startsWith("~/")) return join(home, p.slice(2));
-  if (!isAbsolute(p)) throw userError(`a brain path must be absolute or start with ~: ${p}`, "path_invalid");
+  if (!isAbsolute(p)) throw userError(`a path must be absolute or start with ~: ${p}`, "path_invalid");
   return p;
 }
 
-/** The clone of a brain's repository: its override, else the managed location (§2.5). */
-export function cloneOf(config: MachineConfig, ref: BrainRef, home: string): string {
-  const override = config.repositories[repoKey(ref)]?.path;
-  return override === undefined ? managedPath(home, ref) : expandPath(override, home);
+/** A key of a configuration 0.1.0 wrote, `host/owner/repo` (§2.5): read only to bring that configuration forward. */
+export function parseLegacyKey(input: string): { host: string; owner: string; repo: string } | undefined {
+  const m = /^([\w-]+(?:\.[\w-]+)+)\/([\w.-]+)\/([\w.-]+)$/.exec(input.trim());
+  return m ? { host: m[1]!.toLowerCase(), owner: m[2]!, repo: m[3]! } : undefined;
 }
 
-/** Where a brain is, or will be cloned: its repository's clone. */
-export const localPathOf = (config: MachineConfig, ref: BrainRef, home: string): string => cloneOf(config, ref, home);
+/** Where 0.1.0 kept a brain it managed: `<owner>/<repo>` on github.com, `<host>/<owner>/<repo>` elsewhere. */
+export const legacyManagedPath = (home: string, k: { host: string; owner: string; repo: string }): string =>
+  k.host === "github.com"
+    ? join(brainsFolder(home), k.owner, k.repo)
+    : join(brainsFolder(home), k.host, k.owner, k.repo);

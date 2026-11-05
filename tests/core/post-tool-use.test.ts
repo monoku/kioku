@@ -26,7 +26,7 @@ const input = (command: string, stdout: string, extra: Record<string, unknown> =
 const SAVE =
   "kioku page save --brain northwind/brain-acme --kind knowledge --sub decision --title 'Run migrations before the deploy' --source 'Session 2026-10-07 in acme-api' <<'EOF'\n## Decision\n\nBefore.\nEOF";
 const result = (o: Record<string, unknown>) =>
-  `${JSON.stringify({ status: "done", brain: "github.com/northwind/brain-acme", path: "knowledge/acme/decisions/run-migrations-before-the-deploy.md", commit: "3f2a9c1", publication: "pushed", id: "01J9QZ3M7X8K2V5B6N4P0R1S2T", ...o })}\n`;
+  `${JSON.stringify({ status: "done", brain: "northwind/brain-acme", path: "knowledge/acme/decisions/run-migrations-before-the-deploy.md", commit: "3f2a9c1", publication: "pushed", id: "01J9QZ3M7X8K2V5B6N4P0R1S2T", ...o })}\n`;
 
 /** The hook's answer, and what it wrote into the session's journal. */
 async function hook(stdin: string): Promise<{ code: number; out: string; entries: string[] }> {
@@ -59,8 +59,8 @@ test("a write's hook answers nothing and keeps it in the journal, pushed, local 
 });
 
 test("similar, error, empty output and output that is not JSON keep nothing and say nothing", async () => {
-  const similar = `${JSON.stringify({ status: "similar", brain: "github.com/northwind/brain-acme", path: null, commit: null, publication: null, similar: [] })}\n`;
-  const error = `${JSON.stringify({ status: "error", brain: "github.com/northwind/brain-acme", path: null, commit: null, publication: null, error: { code: "invalid_page", message: "x" } })}\n`;
+  const similar = `${JSON.stringify({ status: "similar", brain: "northwind/brain-acme", path: null, commit: null, publication: null, similar: [] })}\n`;
+  const error = `${JSON.stringify({ status: "error", brain: "northwind/brain-acme", path: null, commit: null, publication: null, error: { code: "invalid_page", message: "x" } })}\n`;
   const list = `${JSON.stringify({ candidates: [] })}\n`;
   for (const stdout of [
     similar,

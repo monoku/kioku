@@ -4,7 +4,7 @@ import { cappedReport, LINT_LISTS, type LintReport } from "../../src/core/lint.t
 import { DEFAULT_LIMIT, nextOf, windowing } from "../../src/core/limit.ts";
 
 const report = (n: number): LintReport => ({
-  brain: "github.com/northwind/brain-acme",
+  brain: "northwind/brain-acme",
   root: "/x",
   similar: [],
   staleInstincts: [],

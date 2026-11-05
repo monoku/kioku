@@ -16,7 +16,7 @@ opening that is never cut, the tool adds, in this order, until the cap:
    agent to read a Skill with `kioku page show` before a task it fits;
 5. the current decisions of the project brain, one line each, newest first,
    those that name what the session is about (the repository's folder, the
-   project brain's repository) before the rest;
+   project brain's name) before the rest;
 6. the instincts with evidence in the last 90 days, personal then project, the
    relevant ones first within a brain;
 7. what is new in the shared brains since this machine's last session that
