@@ -260,9 +260,10 @@ interface may change, with the meaning semantic versioning gives `0.x`: a change
 to a verb, a flag, a message or the JSON contract that breaks what worked raises
 the minor, as new behaviour does, and a fix raises the patch; each is said in
 the CHANGELOG. The brains' files are promised from the first release (§3.2). A
-tag `v<version>` on the product repository builds the release: the bundle, the
-host's plugin as a marketplace of its own, and a checksum for each; the plugin
-is released with the tool at the same version (§6.2). A brain's `format` is a
+release is what the product repository's main branch holds when its version
+moves, and it is tagged `v<version>` there: the bundle, the host's plugin as a
+marketplace of its own, and a checksum for each; the plugin is released with the
+tool at the same version (§6.2). A brain's `format` is a
 separate counter that moves only when brain files change incompatibly. Versions
 are ordered as semantic versioning orders them.
 
