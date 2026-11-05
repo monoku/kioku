@@ -63,7 +63,10 @@ export interface MachineConfig {
    * it until it is published.
    */
   repositories: Record<string, string>;
-  /** Read from a file 0.1.0 wrote: what the hand-over of `kioku update` brings forward (§2.5, §6.4). Never written. */
+  /**
+   * Read from a file 0.1.0 wrote: what `kioku setup` and the hand-over of `kioku update` bring forward (§2.5, §6.3,
+   * §6.4). Written back as it was read, so that a write before then loses nothing and guesses no address.
+   */
   legacy?: LegacyBrain[];
 }
 
@@ -193,9 +196,9 @@ function fromRaw(raw: Record<string, unknown>, path: string): MachineConfig {
         ...(typeof entry.path === "string" && { path: entry.path }),
         ...(url !== undefined && { url }),
       });
-      // 0.1.0 trusted the repository at the address its key said: so does this reading, until the hand-over of
-      // `update` records the clone's own address, or none for a brain that had no remote (§2.5).
-      config.repositories[name] = url ?? `https://${k}.git`;
+      // 0.1.0 trusted the repository at the address its key said: so does this reading, until bringing forward
+      // records the clone's own address, or none for a brain that had no remote (§2.5). Never written as such.
+      config.repositories[name] = url ?? keyAddress(k);
       continue;
     }
     const named = parseName(k);
@@ -209,6 +212,9 @@ function fromRaw(raw: Record<string, unknown>, path: string): MachineConfig {
   }
   return config;
 }
+
+/** The address a 0.1.0 key suggests, `github.com/sam/brain` is `https://github.com/sam/brain.git`: read, never written. */
+const keyAddress = (k: string): string => `https://${k}.git`;
 
 /** The name a 0.1.0 key gives its brain: its owner and repository, `github.com/sam/brain` is `sam/brain` (§2.5). */
 function legacyName(k: string): string {
@@ -281,9 +287,32 @@ export function stringifyMachineConfig(config: MachineConfig): string {
   const search = some({ mode: config.search?.mode });
   if (search !== undefined) out.search = search;
   if (config.trust.owners.length > 0) out.trust = { owners: config.trust.owners };
-  if (Object.keys(config.repositories).length > 0) out.repositories = { ...config.repositories };
+  const repositories = repositoriesOf(config);
+  if (Object.keys(repositories).length > 0) out.repositories = repositories;
   // One comment line opens the file, for whoever opens it by hand: the keys are `kioku config`'s to list (§2.5).
   return `${CONFIG_HEADER}\n${stringify(out, { lineWidth: 0, flowCollectionPadding: false })}`;
+}
+
+/**
+ * `repositories` as the file holds it. A brain read from a 0.1.0 entry is written back under its key, with its `path`
+ * and `url` as they were, until it is brought forward (§2.5): the address the reading gave it is the one its key
+ * suggests, never written; one a verb set since is its `url`. A brain a verb removed is left out.
+ */
+function repositoriesOf(config: MachineConfig): Record<string, unknown> {
+  const read = new Map<string, string>();
+  for (const l of config.legacy ?? []) read.set(l.name, l.url ?? keyAddress(l.key));
+  const out: Record<string, unknown> = {};
+  for (const [name, address] of Object.entries(config.repositories)) {
+    if (!read.has(name)) {
+      out[name] = address;
+      continue;
+    }
+    for (const l of config.legacy!.filter((x) => x.name === name)) {
+      const url = address === read.get(name) ? l.url : address;
+      out[l.key] = { ...(l.path !== undefined && { path: l.path }), ...(url !== undefined && { url }) };
+    }
+  }
+  return out;
 }
 
 /** Atomic and locked: the lock is the configuration folder's `lock`, so two kioku processes never interleave. */

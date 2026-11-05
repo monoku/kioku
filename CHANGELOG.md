@@ -4,6 +4,18 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **The installer now leaves a machine as `kioku update` does.** `kioku setup`,
+  which the installer runs, brings forward what an older version left and
+  refreshes the files Kioku owns in every brain, and says what it did; run
+  again, it does nothing. From 0.1.0, that means `config.yaml` rewritten by
+  the brains' names, each brain moved to its folder with the address of its
+  remote, and your own brain raised to format 2.
+- **A `config.yaml` that 0.1.0 wrote keeps its entries until it is brought
+  forward**: `kioku config set` and the other verbs that write it no longer
+  drop a brain's `path`, nor record an address for a brain with no remote.
+
 ## 0.2.0
 
 - **A brain has a name of its own**, `<owner>/<repo>`, chosen when it is made

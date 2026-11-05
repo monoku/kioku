@@ -12,7 +12,7 @@ import {
   type UpdateOutcome,
 } from "../core/setup/update.ts";
 import { runBrain } from "./brain.ts";
-import { bringForward, type Forwarded } from "../core/setup/forward.ts";
+import { bringForward, describeForwarded, type Forwarded } from "../core/setup/forward.ts";
 import type { Context, Handler } from "./run.ts";
 import { personHome } from "./home.ts";
 import { requireTerminal } from "./terminal.ts";
@@ -149,8 +149,8 @@ export function finishByBundle(bundle: string): Promise<UpdateFinish> {
   });
 }
 
-/** `kioku brain refresh --all`, when there is a configuration to find the brains in; what it answered. */
-async function refreshBrains(ctx: Context): Promise<unknown> {
+/** `kioku brain refresh --all`, when there is a configuration to find the brains in; what it answered (§2.7). */
+export async function refreshBrains(ctx: Context): Promise<unknown> {
   if (readMachineConfig(ctx.home) === undefined) return null;
   return (await runBrain(["refresh", "--all"], ctx))?.data ?? null;
 }
@@ -163,17 +163,7 @@ function describeFinish(f: UpdateFinish): string {
     Array.isArray((f.refreshed as { brains?: unknown }).brains)
       ? (f.refreshed as { brains: unknown[] }).brains.length
       : 0;
-  const parts: string[] = [];
-  const fw = f.forwarded;
-  if (fw?.rewrote) parts.push(" Rewrote the machine's configuration by the brains' names.");
-  for (const m of fw?.moved ?? []) parts.push(` Moved ${m.brain} to ${m.to}.`);
-  for (const k of fw?.kept ?? []) parts.push(` Left ${k.brain} at ${k.at}: ${k.why}.`);
-  if (fw?.raised !== undefined && fw.raised.from !== fw.raised.to)
-    parts.push(` Raised your brain ${fw.raised.brain} to format ${fw.raised.to}.`);
-  if ((fw?.behind.length ?? 0) > 0)
-    parts.push(
-      ` ${fw!.behind.join(", ")} ${fw!.behind.length === 1 ? "is" : "are"} of an older format, left as ${fw!.behind.length === 1 ? "it is" : "they are"} for teammates on an older version; kioku brain upgrade raises one once they have updated.`,
-    );
+  const parts = describeForwarded(f.forwarded).map((s) => ` ${s.text}`);
   if (brains > 0) parts.push(` Refreshed the files Kioku owns in ${brains} brain${brains === 1 ? "" : "s"}.`);
   return parts.join("");
 }
