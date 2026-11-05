@@ -26,7 +26,7 @@ const gitIn =
 
 /** What the release page says: the CHANGELOG's section for the version. */
 export function releaseNotes(changelog, version) {
-  const start = changelog.search(new RegExp(`^## ${version.replace(/\./g, "\\.")}[ \\t]*$`, "m"));
+  const start = changelog.search(new RegExp(`^## ${version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[ \\t]*$`, "m"));
   if (start === -1) throw new Error(`CHANGELOG.md has no section "## ${version}"`);
   const body = changelog.slice(changelog.indexOf("\n", start) + 1);
   const end = body.search(/^## /m);
