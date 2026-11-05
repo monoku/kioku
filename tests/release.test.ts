@@ -9,7 +9,7 @@ import { dirname, join } from "node:path";
 // @ts-expect-error: a plain script, without types
 import { tagProblem } from "../scripts/check-tag.mjs";
 // @ts-expect-error: a plain script, without types
-import { releaseIn, releaseNotes, releaseOfTag } from "../scripts/publish-release.mjs";
+import { githubApi, publishRelease, releaseIn, releaseNotes } from "../.github/scripts/publish-release.mjs";
 // @ts-expect-error: a plain script, without types
 import { withVersion } from "../scripts/json-version.mjs";
 import { launcherScript } from "../src/core/setup/install.ts";
@@ -101,7 +101,10 @@ test("this repository's tag for its version would be accepted", () => {
 const CHANGES =
   "# Changelog\n\n## Unreleased\n\n- Later.\n\n## 1.2.0\n\n- Added this.\n\n- And that.\n\n## 1.1.0\n\n- Older.\n";
 
-/** A repository with a main that a release pull request is merged into with a merge commit, as the how-to says. */
+/**
+ * A repository with a main that a release branch is merged into with a merge commit, as git flow and the how-to have it:
+ * the branch moves the version, and a fix follows it there.
+ */
 function released(version: string, dir = mkdtempSync(join(tmpdir(), "kioku-publish-"))) {
   const git = (...args: string[]) =>
     execFileSync(
@@ -121,22 +124,25 @@ function released(version: string, dir = mkdtempSync(join(tmpdir(), "kioku-publi
   git("switch", "-qc", `release/${version}`);
   files(version);
   git("add", ".");
-  git("commit", "-qm", `Release ${version}`);
+  git("commit", "-qm", `Bump version to ${version}`);
   const commit = git("rev-parse", "HEAD");
+  writeFileSync(join(dir, "fix.txt"), "found on the release branch\n");
+  git("add", ".");
+  git("commit", "-qm", "Fix what the release branch found");
   git("switch", "-q", "main");
-  git("merge", "-q", "--no-ff", "-m", `Merge pull request #1 from release/${version}`, `release/${version}`);
+  git("merge", "-q", "--no-ff", "-m", `Merge pull request #1 from release/v${version}`, `release/${version}`);
   return { dir, git, before, commit, after: git("rev-parse", "HEAD") };
 }
 
 const NEVER = () => false;
 
-test("merging a release's pull request publishes its commit, though a merge commit ends the push (§6.4)", () => {
+test("merging a release branch publishes what main is then at, the merge, with what followed the version on the branch (§6.4)", async () => {
   const r = released("1.2.0");
   try {
-    const found = releaseIn(r.before, r.after, { cwd: r.dir, released: NEVER });
+    const found = await releaseIn(r.before, r.after, { cwd: r.dir, released: NEVER });
     assert.deepEqual(found, {
       tag: "v1.2.0",
-      sha: r.commit,
+      sha: r.after,
       version: "1.2.0",
       notes: "- Added this.\n\n- And that.\n",
     });
@@ -145,39 +151,31 @@ test("merging a release's pull request publishes its commit, though a merge comm
   }
 });
 
-test("a push with no release commit publishes nothing, and one already out is not published again", () => {
+test("a push that does not move the version publishes nothing, and one already out is not published again", async () => {
   const r = released("1.2.0");
   try {
-    assert.equal(releaseIn(r.commit, r.after, { cwd: r.dir, released: NEVER }), undefined);
-    r.git("tag", "v1.2.0", r.commit);
-    assert.equal(releaseIn(r.before, r.after, { cwd: r.dir, released: () => true }), undefined);
+    assert.equal(await releaseIn(r.commit, r.after, { cwd: r.dir, released: NEVER }), undefined);
+    r.git("tag", "v1.2.0", r.after);
+    assert.equal(await releaseIn(r.before, r.after, { cwd: r.dir, released: () => true }), undefined);
   } finally {
     rmSync(r.dir, { recursive: true, force: true });
   }
 });
 
-test("a tag on a commit outside main publishes nothing, and one on main publishes that commit (§6.4)", () => {
+test("a tag standing where the release would put its own is refused, and a commit off main publishes nothing (§6.4)", async () => {
   const r = released("1.2.0");
   try {
-    r.git("tag", "v1.2.0", r.commit);
-    const found = releaseOfTag("v1.2.0", { cwd: r.dir, released: NEVER, main: "main" });
-    assert.equal(found.sha, r.commit);
-    assert.equal(found.notes, "- Added this.\n\n- And that.\n");
-    assert.equal(releaseOfTag("v1.2.0", { cwd: r.dir, released: () => true, main: "main" }), undefined);
-    r.git("tag", "-d", "v1.2.0");
-
     r.git("switch", "-qc", "stray", r.before);
     r.git("commit", "-q", "--allow-empty", "-m", "Stray");
     r.git("tag", "v1.2.0");
     r.git("switch", "-q", "main");
-    assert.throws(() => releaseOfTag("v1.2.0", { cwd: r.dir, released: NEVER, main: "main" }), /not on main/);
-    // Then the release's merge finds that tag standing, and says so rather than taking it for its own.
-    assert.throws(
+    // The release's merge finds that tag standing, and says so rather than taking it for its own.
+    await assert.rejects(
       () => releaseIn(r.before, r.after, { cwd: r.dir, released: NEVER }),
       /the tag v1\.2\.0 exists with no release/,
     );
     r.git("tag", "-d", "v1.2.0");
-    assert.throws(
+    await assert.rejects(
       () => releaseIn(r.before, r.commit, { cwd: r.dir, released: NEVER, main: r.before }),
       /is not on main/,
     );
@@ -186,15 +184,12 @@ test("a tag on a commit outside main publishes nothing, and one on main publishe
   }
 });
 
-test("a commit named for another version than it sets publishes nothing", () => {
+test("a commit's subject means nothing: only the version in package.json makes a release", async () => {
   const r = released("1.2.0");
   try {
     r.git("switch", "-qc", "wrong", r.before);
     r.git("commit", "-q", "--allow-empty", "-m", "Release 9.9.9");
-    assert.throws(
-      () => releaseIn(r.before, r.git("rev-parse", "HEAD"), { cwd: r.dir, released: NEVER }),
-      /sets the version 1\.1\.0, not 9\.9\.9/,
-    );
+    assert.equal(await releaseIn(r.before, r.git("rev-parse", "HEAD"), { cwd: r.dir, released: NEVER }), undefined);
   } finally {
     rmSync(r.dir, { recursive: true, force: true });
   }
@@ -208,29 +203,18 @@ test("a release's notes are its CHANGELOG section, and a version without one is 
 
 test("the release publishes the asset a brain's workflow fetches at its pinned version", () => {
   const release = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
-  assert.match(release, /"lib\/kioku\.mjs#kioku\.mjs"/);
   assert.match(release, /sha256sum lib\/kioku\.mjs/);
-  assert.match(
-    release,
-    /"kioku\.mjs\.sha256#kioku\.mjs\.sha256"/,
-    "the checksum the installer and `kioku update` check against (§6.4)",
-  );
   assert.match(release, /sha256sum lib\/kioku-plugin\.tar\.gz/);
   assert.match(
     release,
-    /"lib\/kioku-plugin\.tar\.gz#kioku-plugin\.tar\.gz" "kioku-plugin\.tar\.gz\.sha256#kioku-plugin\.tar\.gz\.sha256"/,
-    "the plugin travels beside the bundle, with its own checksum (§6.2, §6.4)",
+    /publish-release\.mjs publish "\$TAG" "\$SHA" "[^"]*notes\.md" lib\/kioku\.mjs kioku\.mjs\.sha256 lib\/kioku-plugin\.tar\.gz kioku-plugin\.tar\.gz\.sha256$/m,
+    "the bundle and the checksum the installer and `kioku update` check against, and the plugin beside it with its own (§6.2, §6.4)",
   );
   assert.ok(
-    release.indexOf("check-tag.mjs") < release.indexOf("gh release create"),
+    release.indexOf("check-tag.mjs") < release.indexOf("publish-release.mjs publish"),
     "the tag is checked before anything is published",
   );
-  assert.match(
-    release,
-    /gh release create [^\n]* --target "\$SHA" [^\n]*--notes-file [^\n]* --latest$/m,
-    "every release is the latest when it is published (§6.4)",
-  );
-  assert.doesNotMatch(release, /prerelease/);
+  assert.doesNotMatch(release, /\bgh |GH_TOKEN|prerelease/, "GitHub's API through the script, no other tool");
   assert.deepEqual(
     [PRODUCT_REPO, INSTALL_URL],
     [REPO, `https://raw.githubusercontent.com/${OWNER_REPO}/main/install.sh`],
@@ -417,9 +401,10 @@ test("in a terminal the installer runs setup with its own arguments, and a setup
   }
 });
 
-test("the tag is v<version> and nothing else: a prefix in package.json is not read, and the release runs on v* only (§6.4)", () => {
+test("the tag is v<version> and nothing else: a prefix in package.json is not read, and only a push to main releases, never a tag (§6.4)", () => {
   const release = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
-  assert.match(release, /^ {4}tags: \["v\*"\]$/m);
+  assert.match(release, /^on:\n {2}push:\n(?: {4}#[^\n]*\n)* {4}branches: \[main\]\npermissions:/m);
+  assert.doesNotMatch(release, /^ {4}tags:/m, "a tag pushed by hand runs no code with the token that writes");
 
   const dir = mkdtempSync(join(tmpdir(), "kioku-tag-"));
   try {
@@ -431,4 +416,56 @@ test("the tag is v<version> and nothing else: a prefix in package.json is not re
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+/** A GitHub that answers the release API as it does, and keeps what it was asked; `failOn` makes one call fail. */
+function fakeGitHub(failOn?: RegExp) {
+  const calls: { method: string; url: string; body: unknown; type?: string }[] = [];
+  const fetch = async (url: string, init: { method: string; headers: Record<string, string>; body?: unknown }) => {
+    calls.push({ method: init.method, url, body: init.body, type: init.headers["content-type"] });
+    const said = `${init.method} ${url}`;
+    if (failOn?.test(said)) return new Response("no", { status: 500 });
+    if (init.method === "GET") return new Response("", { status: 404 });
+    if (init.method === "DELETE") return new Response(null, { status: 204 });
+    return Response.json({ id: 7, html_url: "https://github.com/o/r/releases/tag/v1.2.0" });
+  };
+  return { calls, call: githubApi({ repo: "o/r", token: "t", fetch }) };
+}
+
+const ASSETS = [
+  { name: "kioku.mjs", bytes: Buffer.from("bundle") },
+  { name: "kioku.mjs.sha256", bytes: Buffer.from("sum") },
+];
+
+test("a release is made a draft, given its assets, then published as the latest, its tag on the commit (§6.4)", async () => {
+  const github = fakeGitHub();
+  await publishRelease(github.call, { tag: "v1.2.0", sha: "abc", notes: "- Added this.\n", assets: ASSETS });
+  assert.deepEqual(
+    github.calls.map((c) => `${c.method} ${c.url}`),
+    [
+      "POST https://api.github.com/repos/o/r/releases",
+      "POST https://uploads.github.com/repos/o/r/releases/7/assets?name=kioku.mjs",
+      "POST https://uploads.github.com/repos/o/r/releases/7/assets?name=kioku.mjs.sha256",
+      "PATCH https://api.github.com/repos/o/r/releases/7",
+    ],
+  );
+  assert.deepEqual(JSON.parse(github.calls[0]!.body as string), {
+    tag_name: "v1.2.0",
+    target_commitish: "abc",
+    name: "v1.2.0",
+    body: "- Added this.\n",
+    draft: true,
+  });
+  assert.equal(github.calls[1]!.type, "application/octet-stream");
+  assert.deepEqual(JSON.parse(github.calls[3]!.body as string), { draft: false, make_latest: "true" });
+});
+
+test("a release whose asset fails to upload is taken away, draft and all, and says what GitHub answered", async () => {
+  const github = fakeGitHub(/assets\?name=kioku\.mjs\.sha256/);
+  await assert.rejects(
+    publishRelease(github.call, { tag: "v1.2.0", sha: "abc", notes: "n", assets: ASSETS }),
+    /GitHub answered 500 to POST \/releases\/7\/assets\?name=kioku\.mjs\.sha256: no/,
+  );
+  assert.equal(github.calls.at(-1)!.method, "DELETE");
+  assert.ok(!github.calls.some((c) => c.method === "PATCH"), "never published");
 });

@@ -50,8 +50,10 @@ exact; milliseconds compare on one machine). Tests never touch the real home.
   principle moves), "Say …", then the implementation, citing `§` sections.
 - Ask before committing; never push without being asked. Every change is its
   own branch off `develop`, merged with `git merge --no-ff` once the checks
-  pass; `develop` reaches `main` by a pull request, and `main` comes back into
-  `develop` after each release. Never commit to `main`.
+  pass. Releases follow git flow: `develop` reaches `main` only through a
+  branch `release/v<version>` off it (a fix that cannot wait, `hotfix/v<version>`
+  off `main`) and its pull request, and `main` comes back into `develop` after
+  each release. Never commit to `main`.
 - Every commit that changes what a person or a machine sees adds its line under
   `## Unreleased` in `CHANGELOG.md`, above the last version's section.
 - The skill is capped at 1,500 words and names no paths or ids; a test enforces
@@ -61,9 +63,9 @@ exact; milliseconds compare on one machine). Tests never touch the real home.
 
 ## Releasing
 
-A release is merging the pull request of the commit `Release <version>` that
-`node scripts/release.mjs prepare <version>` makes on `main`; never move a
-published tag. The procedure is `docs/how-to/release.md`, and the `release`
+A release is merging into `main` the branch `release/v<version>` that
+`node scripts/release.mjs prepare <version>` makes from `develop`, which moves
+the version; never move a published tag. The procedure is `docs/how-to/release.md`, and the `release`
 skill walks it.
 
 ## Things that bite
