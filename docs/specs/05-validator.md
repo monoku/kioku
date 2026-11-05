@@ -2,8 +2,8 @@
 
 One command in the tool, `kioku brain validate`, applies these rules; no brain
 carries a copy of them. Each brain's `kioku.yaml` declares the `format` the
-validator applies, its `tier`, `namespaces` and `language` (§2.5); any other
-key, `name` or `team` among them, is refused naming it.
+validator applies, its `name`, `tier`, `namespaces` and `language` (§2.5);
+any other key, `team` among them, is refused naming it.
 
 ## 5.1 Rules
 
@@ -23,6 +23,8 @@ key, `name` or `team` among them, is refused naming it.
     `..` or holding a `\`) (§3.2).
 12. A symbolic link anywhere in the brain, outside `.git`: the tool reads
     nothing through one (§3.1).
+13. A `name` in `kioku.yaml` missing from a brain of `format: 2`, or not
+    `<owner>/<repo>` (§2.2, §3.2).
 
 Warnings do not block, and each has a name: `summary` missing
 (`summary-missing`); `## Changelog` missing on a kind that has one

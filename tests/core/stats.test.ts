@@ -83,7 +83,7 @@ test("kioku brain stats: per brain, 30d by default, no author; --since and --bra
     assert.equal(r.code, 0, r.raw);
     assert.deepEqual(Object.keys(r.out), ["since", "brains"]);
     const [acme] = r.out.brains;
-    assert.equal(acme.brain, "github.com/northwind/brain-acme");
+    assert.equal(acme.brain, "northwind/brain-acme");
     assert.equal(acme.saved, 2);
     assert.equal(acme.reverted, 1);
     assert.equal(acme.revert_rate, 0.5);

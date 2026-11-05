@@ -5,7 +5,7 @@ import { publishBrain } from "../core/brains/publish.ts";
 import { removeBrain } from "../core/brains/remove.ts";
 import { linkOf, syncBrains } from "../core/sync.ts";
 import { looksLikeOption, brainRepoOfKey } from "../core/config/brain-ref.ts";
-import { trustCommand, type LinkTier } from "../core/config/chain.ts";
+import { trustCommand, trustOwnerCommand, type LinkTier } from "../core/config/chain.ts";
 import { knownBrains, type KnownBrain } from "../core/brains/list.ts";
 import { VERSION } from "../version.ts";
 import { viaOf } from "./via.ts";
@@ -22,7 +22,7 @@ import { runLog } from "./log.ts";
 import { runSources } from "./sources.ts";
 import { runStats } from "./stats.ts";
 import { requireTerminal } from "./terminal.ts";
-import { runTrust } from "./trust.ts";
+import { upgradeBrain } from "../core/brains/upgrade.ts";
 import { chainBrains, chainOf, folderArg, notLoadedBrains } from "./chain.ts";
 import { checklist, PLAIN, paint, plural, shortRemote, table, tilde, type Mark } from "./render.ts";
 import type { Context, Handler, Outcome } from "./run.ts";
@@ -37,7 +37,6 @@ const verbs: Record<GroupVerb<"brain">, Handler> = {
   publish,
   list,
   path: brainPath,
-  trust: runTrust,
   remove,
   log: runLog,
   stats: runStats,
@@ -46,6 +45,7 @@ const verbs: Record<GroupVerb<"brain">, Handler> = {
   lint: runBrainLint,
   language: runBrainLanguage,
   refresh: runBrainRefresh,
+  upgrade,
   conflicts: runBrainConflicts,
 };
 
@@ -78,61 +78,55 @@ function describe(r: Report): string {
 }
 
 /**
- * `kioku brain create [<brain> --tier <tier>]` (§2.3, §6.1): a brain made on this machine, asking no git host anything;
- * alone, the person's personal brain. `kioku brain clone` brings one that exists; `kioku brain publish` gives one made
- * here its repository.
+ * `kioku brain create <owner>/<repo> [--tier <tier>]` (§2.3, §6.1): a brain made on this machine with the name given,
+ * asking no git host anything; personal unless `--tier` says. `kioku brain clone` brings one that exists; `kioku brain
+ * publish` gives one made here its repository.
  */
 async function create(args: string[], ctx: Context): Promise<Outcome> {
   const parsed = parseVerb("brain create", args);
-  if (parsed.positionals.length > 1) throw userError("brain create takes one brain at most", "usage");
+  if (parsed.positionals.length !== 1)
+    throw userError(
+      "brain create takes the brain's name, <owner>/<repo>, such as sam/memoria; Kioku chooses none",
+      "usage",
+    );
   const r = await createBrain(ctx.home, VERSION, {
     ...(parsed.values.tier !== undefined && { tier: parsed.values.tier }),
-    ...(parsed.positionals[0] !== undefined && { repo: parsed.positionals[0] }),
+    repo: parsed.positionals[0]!,
     ...(parsed.values.language !== undefined && { language: parsed.values.language }),
-    ...(parsed.values.dir !== undefined && { dir: folderArg(ctx, parsed.values.dir) }),
     via: viaOf(ctx),
   });
   const items: [Mark, string][] = [
     ["done", `Created the ${r.tier} brain ${brainRepoOfKey(r.brain)} at ${r.path} (commit ${r.commit})`],
   ];
   const then: string[] = [];
-  if (r.userFrom !== undefined)
-    items.push([
-      "done",
-      `Named it ${brainRepoOfKey(r.brain)} after ${r.userFrom === "git" ? "the name git on this machine knows" : "this machine's system user"}; git config --global github.user is where you say yours`,
-    ]);
   if (r.language)
     items.push(["done", `Wrote its pages' language, ${r.language}; the summary tells the agent to write in it`]);
   if (remindsUnpublished(readMachineConfig(ctx.home)))
     then.push(
-      `It lives on this machine, with no remote; kioku brain publish ${brainRepoOfKey(r.brain)} puts it in a repository you make, when you want one.`,
+      `It lives on this machine, with no remote; kioku brain publish ${brainRepoOfKey(r.brain)} --remote <address> puts it in a repository you make, when you want one.`,
     );
   return { data: r, text: checklist(ctx.ui ?? PLAIN, items, then) };
 }
 
 /**
- * `kioku brain clone <brain>` (§2.3, §6.1): a brain that already exists, cloned and registered as its `kioku.yaml` says.
- * It asks for a terminal: which brain is the person's, and which the machine trusts, is theirs to say.
+ * `kioku brain clone <address>` (§2.3, §6.1): a brain that already exists, cloned from any address and registered
+ * under the name it holds, as its `kioku.yaml` says. It asks for a terminal: which brain is the person's, and which
+ * the machine trusts, is theirs to say.
  */
 async function clone(args: string[], ctx: Context): Promise<Outcome> {
   const parsed = parseVerb("brain clone", args);
   if (parsed.positionals.length !== 1)
-    throw userError("brain clone takes one brain, such as github.com/owner/repo or owner/repo", "usage");
+    throw userError(
+      "brain clone takes one address, such as github.com/owner/repo, https://…, git@host:path or a folder",
+      "usage",
+    );
   requireTerminal(
     ctx,
     "kioku brain clone",
     "which brain is yours, and which this machine loads, is yours to say, so the agent does not do it",
   );
-  const r = await cloneBrain(
-    ctx.home,
-    parsed.positionals[0]!,
-    parsed.values.dir === undefined ? undefined : folderArg(ctx, parsed.values.dir),
-    parsed.values.url === undefined ? undefined : addressArg(ctx, parsed.values.url),
-  );
-  const done =
-    r.action === "cloned"
-      ? `Cloned the ${r.tier} brain ${brainRepoOfKey(r.brain)} to ${r.path}`
-      : `Registered the ${r.tier} brain ${brainRepoOfKey(r.brain)} already at ${r.path}`;
+  const r = await cloneBrain(ctx.home, addressArg(ctx, parsed.positionals[0]!));
+  const done = `Cloned the ${r.tier} brain ${brainRepoOfKey(r.brain)} from ${r.url} to ${r.path}`;
   const role = r.tier === "personal" ? "it is your personal brain on this machine" : "this machine trusts it";
   return { data: r, text: `${done}; ${role}.` };
 }
@@ -166,25 +160,29 @@ async function syncNamed(args: string[], ctx: Context): Promise<Outcome> {
 }
 
 /**
- * `kioku brain publish [<brain>] [--to <url>]` (§2.3, §6.1): a brain that lives only on this machine pushed to a
- * repository that must exist and be empty or hold it: the one at `--to`, else the one its key says. With none named, the brain the current folder is inside, as the other
- * verbs take it, else the personal one. It asks for a terminal: what goes to a git host is the person's to say.
+ * `kioku brain publish <brain> --remote <address>` (§2.3, §6.1): a brain that lives only on this machine pushed to a
+ * repository that must exist and be empty or hold it, the brain and the destination always named; its name and folder
+ * stay. It asks for a terminal: what goes to a git host is the person's to say.
  */
 async function publish(args: string[], ctx: Context): Promise<Outcome> {
   const parsed = parseVerb("brain publish", args);
-  if (parsed.positionals.length > 1) throw userError("brain publish takes one brain at most", "usage");
+  if (parsed.positionals.length !== 1)
+    throw userError(
+      "brain publish takes one brain, named, and --remote <address>: kioku brain publish <brain> --remote <address>",
+      "usage",
+    );
   requireTerminal(
     ctx,
     "kioku brain publish",
     "it puts a brain on a git host, which is yours to decide, so the agent does not do it",
   );
-  const brain = located(ctx, parsed.positionals[0] ?? chainOf(ctx).inside ?? "personal", "publish");
+  const brain = located(ctx, parsed.positionals[0], "publish");
   const r = await publishBrain(
     brain,
     ctx.home,
-    parsed.values.to === undefined ? undefined : addressArg(ctx, parsed.values.to),
+    parsed.values.remote === undefined ? undefined : addressArg(ctx, parsed.values.remote),
   );
-  const name = brain.key ?? brain.key;
+  const name = brain.key;
   const lines = [
     r.status === "pushed"
       ? `Pushed ${name} to ${r.remote}, which was empty; kioku sync keeps it current.`
@@ -192,14 +190,42 @@ async function publish(args: string[], ctx: Context): Promise<Outcome> {
         ? `${r.remote} already held ${name}: this machine's copy, which had no page, is now that one, and kioku sync keeps it current.`
         : `${name} already has a remote (${r.remote}); nothing to do.`,
   ];
+  // A project folder that links the brain by name alone needs its address, for a teammate to clone it (§2.4).
+  if (r.status !== "exists")
+    lines.push(
+      `A project folder whose kioku.yaml names ${name} without its address: run kioku init there, which writes it.`,
+    );
   return { data: r, text: lines.join("\n") };
 }
 
-/** An address given to `--to` or `--url`: a folder, relative or with `~`, made absolute; anything else, an ssh or https address, as written. */
-function addressArg(ctx: Context, value: string): string {
+/**
+ * `kioku brain upgrade <brain>` (§3.2, §6.1): a brain raised to the newest format, in one commit, pushed when it has a
+ * remote. It asks for a terminal: a shared brain raised is one teammates on an older version no longer write to.
+ */
+async function upgrade(args: string[], ctx: Context): Promise<Outcome> {
+  const parsed = parseVerb("brain upgrade", args);
+  if (parsed.positionals.length !== 1) throw userError("brain upgrade takes one brain", "usage");
+  requireTerminal(
+    ctx,
+    "kioku brain upgrade",
+    "a shared brain raised is one teammates on an older version can no longer write to, which is yours to decide",
+  );
+  const brain = located(ctx, parsed.positionals[0], "upgrade");
+  const r = await upgradeBrain(ctx.home, brain, ctx.now());
+  return {
+    data: r,
+    text:
+      r.from === r.to
+        ? `${r.brain} is in format ${r.to} already; nothing to do.`
+        : `Raised ${r.brain} from format ${r.from} to ${r.to} (commit ${r.commit})${r.published === "pushed" ? ", and pushed it" : ""}.`,
+  };
+}
+
+/** An address given to `brain clone` or `--remote`: a folder, relative or with `~`, made absolute; anything else, as written. */
+export function addressArg(ctx: Context, value: string, orName = false): string {
   if (looksLikeOption(value))
     throw userError(
-      `"${value}" begins with -, which git would read as an option; give the repository's address`,
+      `"${value}" begins with -, which git would read as an option; give the repository's address${orName ? " or the brain's name" : ""}`,
       "usage",
     );
   return /^(\.{1,2}(\/|$)|~(\/|$)|\/)/.test(value) ? folderArg(ctx, value) : value;
@@ -225,7 +251,7 @@ async function remove(args: string[], ctx: Context): Promise<Outcome> {
   const name = brain.key ?? brain.key;
   const notes = [
     r.published
-      ? `The repository ${r.brain} on the git host is untouched; kioku brain clone ${r.brain} brings it back.`
+      ? `Its repository on the git host is untouched; kioku brain clone ${r.remote ?? "<address>"} brings it back.`
       : r.removed === "folder"
         ? `It had no remote, so ${r.dryRun ? "that would be" : "that was"} its only copy.`
         : `It had no remote; its files are only in ${r.folder}.`,
@@ -331,7 +357,7 @@ function list(args: string[], ctx: Context): Outcome {
   for (const n of notLoaded) lines.push(`In the chain, not loaded: the ${n.tier} brain ${brainRepoOfKey(n.key)}.`);
   for (const u of untrusted)
     lines.push(
-      `Not trusted, so not loaded: the ${u.tier} brain ${u.key}${u.address === undefined ? "" : ` at ${u.address}`}. To trust it: ${trustCommand(u)}`,
+      `Not trusted, so not loaded: the ${u.tier} brain ${u.key}${u.address === undefined ? "" : ` at ${u.address}`}. To trust it: ${trustCommand(u)}${trustOwnerCommand(u) === undefined ? "" : `, or ${trustOwnerCommand(u)} for every brain of that owner`}`,
     );
   return { data: { brains, chain, inside, notLoaded, untrusted }, text: lines.join("\n") };
 }

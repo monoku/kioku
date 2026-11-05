@@ -2,8 +2,7 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { cloneMissing, type SyncOutcome, type SyncStatus } from "./brains/clone.ts";
 import { resolveChain, type ChainLink, type LinkTier } from "./config/chain.ts";
-import { readMachineConfig, updateMachineConfig } from "./config/machine.ts";
-import { repoKey } from "./config/brain-ref.ts";
+import { readMachineConfig } from "./config/machine.ts";
 import { firstLine, KiokuError } from "./errors.ts";
 import { writeAtomic } from "./fs/atomic.ts";
 import { acquireLock } from "./fs/lock.ts";
@@ -130,7 +129,7 @@ export const linkOf = (tier: LinkTier, key: string, path: string): ChainLink => 
   key,
   path,
   cloned: true,
-  ref: { host: "", owner: "", repo: key },
+  ref: { owner: key.split("/")[0] ?? "", repo: key.split("/")[1] ?? "" },
 });
 
 /** What `kioku brain sync` did: each brain's pull and push, and the full-text index of those brains. */
@@ -235,16 +234,7 @@ async function syncOnce(opts: SyncOptions): Promise<SyncResult> {
 
   outcomes.push(...(await cloneMissing(cwd, home)));
 
-  // Every brain the chain uses is known to this machine (§2.5), however it arrived.
   const chain = resolveChain(cwd, readMachineConfig(home), home);
-  const unknown = chain.links.filter(
-    (l) => l.cloned && readMachineConfig(home)?.repositories[repoKey(l.ref)] === undefined,
-  );
-  if (unknown.length > 0 && readMachineConfig(home) !== undefined) {
-    await updateMachineConfig((c) => {
-      for (const l of unknown) c.repositories[repoKey(l.ref)] ??= {};
-    }, home);
-  }
 
   // Pull and push each brain of the chain once: each is a clone of its own.
   const done = new Set(outcomes.map((o) => o.key));

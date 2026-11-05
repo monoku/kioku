@@ -53,7 +53,9 @@ test("the demo builds, every brain validates, and the maintenance report has a f
       [],
       `${name}: every namespace says what it is for`,
     );
-    assert.match(readFileSync(join(out, "brains", name, "kioku.yaml"), "utf8"), /^format: 1$/m);
+    const yaml = readFileSync(join(out, "brains", name, "kioku.yaml"), "utf8");
+    assert.match(yaml, /^format: 2$/m);
+    assert.ok(yaml.includes(`\nname: ${name}\n`), `${name}: the brain carries its name (§2.2)`);
     const lint = (await kioku(["brain", "lint", name])).brains[0];
     assert.ok(lint.count >= 5 && lint.count <= 40, `${name}: ${lint.count} things to review`);
     for (const [k, v] of Object.entries(lint)) if (Array.isArray(v) && v.length > 0) kinds.add(k);

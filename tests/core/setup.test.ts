@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readMachineConfig, configPath } from "../../src/core/config/machine.ts";
 import { readSemanticState } from "../../src/core/semantic/status.ts";
@@ -87,8 +87,12 @@ test("setup on a machine with no ~/.kioku writes the configuration, makes no bra
 
     const text = await kioku(["setup"], ctx({ home }), true);
     assert.match(text.raw, /You have no personal brain on this machine yet/);
-    assert.match(text.raw, /\n {2}kioku brain create\nmakes yours, sam\/brain, on this machine/);
-    assert.match(text.raw, /\n {2}kioku brain clone sam\/brain\nbrings it from its repository/);
+    assert.match(
+      text.raw,
+      /\n {2}kioku brain create <owner>\/<repo>\nmakes yours on this machine, with the name you give it/,
+    );
+    assert.match(text.raw, /\n {2}kioku brain clone <address>\nbrings it from its repository/);
+    assert.doesNotMatch(text.raw, /sam\/brain/, "no name is worked out for the person (§2.3)");
     assert.match((await kioku(["setup", "--user", "sam"], ctx({ home }))).out.error.message, /^unknown flag --user/);
   }));
 
@@ -108,7 +112,7 @@ test("running setup twice changes nothing and says so", () =>
     const third = await kioku(["setup"], context);
     assert.deepEqual(
       [third.out.configuration, third.out.personal, third.out.model.action],
-      ["nothing", "github.com/sam/brain", "pending"],
+      ["nothing", "sam/brain", "pending"],
       "the fetch was started by the first run; sync owns it since",
     );
   }));
@@ -164,10 +168,7 @@ test("brain create personal makes the brain in the repository named, after its r
     await kioku(["setup"], ctx({ home }));
     const r = await kioku(["brain", "create", "northwind/brain-sam", "--tier", "personal"], ctx({ home }));
     assert.equal(r.code, 0, r.raw);
-    assert.deepEqual(
-      [r.out.brain, r.out.tier, r.out.publication],
-      ["github.com/northwind/brain-sam", "personal", "local"],
-    );
+    assert.deepEqual([r.out.brain, r.out.tier, r.out.publication], ["northwind/brain-sam", "personal", "local"]);
     const path = join(home, ".kioku/brains/northwind/brain-sam");
     assert.equal(r.out.path, path);
     for (const f of [
@@ -186,12 +187,16 @@ test("brain create personal makes the brain in the repository named, after its r
       /^namespaces: \[\]$/m,
       "no namespace until the first page needs one (§3.2)",
     );
-    assert.doesNotMatch(
+    assert.match(
       readFileSync(join(path, "kioku.yaml"), "utf8"),
-      /^name:/m,
-      "a brain's name is its repository's",
+      /^name: northwind\/brain-sam$/m,
+      "a brain carries its name (§2.2)",
     );
-    assert.match(readFileSync(join(path, "BRAIN.md"), "utf8"), /^The personal brain of sam:/m);
+    assert.match(
+      readFileSync(join(path, "BRAIN.md"), "utf8"),
+      /^The personal brain northwind\/brain-sam: /m,
+      "never who the person is",
+    );
     assert.deepEqual(
       validateBrain(path).findings.filter((f) => f.severity === "error"),
       [],
@@ -201,8 +206,8 @@ test("brain create personal makes the brain in the repository named, after its r
     assert.equal(sh(path, "status", "--porcelain"), "");
     assert.equal(sh(path, "branch", "--show-current"), "main");
     assert.deepEqual(readMachineConfig(home), {
-      brain: "github.com/northwind/brain-sam",
-      repositories: { "github.com/northwind/brain-sam": {} },
+      brain: "northwind/brain-sam",
+      repositories: {},
       trust: { owners: [] },
     });
 
@@ -259,7 +264,7 @@ test("brain create makes a personal brain here even when the git host has one; p
       const a = join(dir, "machine-a");
       await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home: a }));
       remotes.empty("sam/brain");
-      await kioku(["brain", "publish"], ctx({ home: a }));
+      await kioku(["brain", "publish", "sam/brain", "--remote", "github.com/sam/brain"], ctx({ home: a }));
       const b = join(dir, "machine-b");
       const r = await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home: b }));
       assert.equal(r.code, 0, r.raw);
@@ -269,7 +274,10 @@ test("brain create makes a personal brain here even when the git host has one; p
         "brain clone is the verb that brings it",
       );
       assert.equal(sh(BRAIN(b), "remote"), "", "made here, with nothing of the host's");
-      const published = await kioku(["brain", "publish"], ctx({ home: b }));
+      const published = await kioku(
+        ["brain", "publish", "sam/brain", "--remote", "github.com/sam/brain"],
+        ctx({ home: b }),
+      );
       assert.deepEqual([published.code, published.out.status], [0, "connected"], published.raw);
       assert.equal(
         sh(BRAIN(b), "rev-parse", "HEAD"),
@@ -293,7 +301,7 @@ test("brain clone on a second machine brings the personal brain as it is, writes
       await kioku(["setup"], ctx({ home: a }));
       await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home: a }));
       remotes.empty("sam/brain");
-      await kioku(["brain", "publish"], ctx({ home: a }));
+      await kioku(["brain", "publish", "sam/brain", "--remote", "github.com/sam/brain"], ctx({ home: a }));
 
       const b = join(dir, "machine-b");
       const r = await kioku(["brain", "clone", "github.com/sam/brain"], ctx({ home: b }));
@@ -308,7 +316,7 @@ test("brain clone on a second machine brings the personal brain as it is, writes
         "kioku.yaml": "format: 1\ntier: personal\nnamespaces:\n  - sam\n",
         "BRAIN.md": "# sam\n",
       });
-      const refused = await kioku(["brain", "clone", "sam/notes"], ctx({ home: b }));
+      const refused = await kioku(["brain", "clone", "github.com/sam/notes"], ctx({ home: b }));
       assert.deepEqual([refused.code, refused.out.error.code], [1, "personal_exists"]);
       assert.equal(existsSync(join(b, ".kioku/brains/sam/notes")), false);
     } finally {
@@ -326,23 +334,26 @@ test("brain clone registers a shared brain as trusted, refuses what is not a bra
       });
       remotes.publish("northwind/api", { "README.md": "# api\n" });
       const home = join(dir, "home");
-      const team = await kioku(["brain", "clone", "northwind/brain"], ctx({ home }));
+      const team = await kioku(["brain", "clone", "github.com/northwind/brain"], ctx({ home }));
       assert.equal(team.code, 0, team.raw);
       assert.deepEqual(
-        [
-          team.out.tier,
-          readMachineConfig(home)!.repositories["github.com/northwind/brain"],
-          readMachineConfig(home)!.brain,
-        ],
-        ["team", {}, undefined],
+        [team.out.tier, readMachineConfig(home)!.repositories["northwind/brain"], readMachineConfig(home)!.brain],
+        ["team", "https://github.com/northwind/brain.git", undefined],
       );
 
-      const code = await kioku(["brain", "clone", "northwind/api"], ctx({ home }));
+      const code = await kioku(["brain", "clone", "github.com/northwind/api"], ctx({ home }));
       assert.deepEqual([code.code, code.out.error.code], [1, "not_a_brain"]);
       assert.equal(existsSync(join(home, ".kioku/brains/northwind/api")), false);
+      assert.deepEqual(readdirSync(join(home, ".kioku/staging")), [], "nothing staged is left");
+      const name = await kioku(["brain", "clone", "northwind/brain"], ctx({ home }));
+      assert.equal(name.out.error.code, "brain_url_invalid", "a name has no host to clone from");
+      assert.match(name.out.error.message, /github\.com\/northwind\/brain, say/);
+      const again = await kioku(["brain", "clone", "git@github.com:northwind/brain.git"], ctx({ home }));
+      assert.equal(again.out.error.code, "brain_exists", "one repository is never two brains (§2.3)");
       assert.equal((await kioku(["brain", "clone", "not a url"], ctx({ home }))).out.error.code, "brain_url_invalid");
       assert.equal(
-        (await kioku(["brain", "clone", "northwind/brain"], ctx({ home, interactive: false }))).out.error.code,
+        (await kioku(["brain", "clone", "github.com/northwind/brain"], ctx({ home, interactive: false }))).out.error
+          .code,
         "needs_terminal",
       );
     } finally {
@@ -357,9 +368,9 @@ test("brain sync pulls and pushes a brain wherever the person is, or every brain
       const a = join(dir, "machine-a");
       await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home: a }));
       remotes.empty("sam/brain");
-      await kioku(["brain", "publish"], ctx({ home: a }));
+      await kioku(["brain", "publish", "sam/brain", "--remote", "github.com/sam/brain"], ctx({ home: a }));
       const b = join(dir, "machine-b");
-      await kioku(["brain", "clone", "sam/brain"], ctx({ home: b }));
+      await kioku(["brain", "clone", "github.com/sam/brain"], ctx({ home: b }));
       writeFileSync(join(BRAIN(a), "note.md"), "x\n");
       sh(BRAIN(a), "add", "note.md");
       sh(BRAIN(a), "-c", "user.name=sam", "-c", "user.email=sam@x", "commit", "-q", "-m", "A note");
@@ -371,7 +382,7 @@ test("brain sync pulls and pushes a brain wherever the person is, or every brain
       assert.equal(r.code, 0, r.raw);
       assert.deepEqual(
         r.out.outcomes.map((o: { key: string; status: string }) => [o.key, o.status]),
-        [["github.com/sam/brain", "pulled"]],
+        [["sam/brain", "pulled"]],
       );
       assert.ok(existsSync(join(BRAIN(b), "note.md")));
       assert.equal(
@@ -379,7 +390,7 @@ test("brain sync pulls and pushes a brain wherever the person is, or every brain
         "up-to-date",
       );
       // Every brain verb finds a brain of the machine by name or repository, wherever the person is (§6.1).
-      for (const name of ["sam/brain", "github.com/sam/brain", "personal"]) {
+      for (const name of ["sam/brain", "sam/brain", "personal"]) {
         const found = await kioku(["brain", "validate", name], ctx({ home: b, cwd: somewhere }));
         assert.equal(found.out.error, undefined, name);
         assert.match(found.raw, new RegExp(BRAIN(b).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), name);
@@ -404,7 +415,7 @@ test("brain sync pulls and pushes a brain wherever the person is, or every brain
     }
   }));
 
-test("brain publish with no brain named takes the brain the folder is inside, and the personal one elsewhere (§6.1)", () =>
+test("brain publish always names the brain and the address; without either it refuses and says how (§2.3, §6.1)", () =>
   scratch(async (dir) => {
     const remotes = new Remotes(dir);
     try {
@@ -413,21 +424,29 @@ test("brain publish with no brain named takes the brain the folder is inside, an
       const repo = join(dir, "api");
       mkdirSync(repo, { recursive: true });
       sh(repo, "init", "-q", "-b", "main");
-      const made = await kioku(["init", "northwind/brain-local", "--create"], ctx({ home, cwd: repo }));
+      const made = await kioku(["init", "northwind/brain-local"], ctx({ home, cwd: repo }));
       assert.equal(made.code, 0, made.raw);
+      const local = join(home, ".kioku/brains/northwind/brain-local");
+
+      const unnamed = await kioku(["brain", "publish"], ctx({ home, cwd: local }));
+      assert.equal(unnamed.out.error.code, "usage", "never the brain the folder is inside, nor the personal one");
+      assert.match(unnamed.out.error.message, /kioku brain publish <brain> --remote <address>/);
+      const nowhere = await kioku(["brain", "publish", "northwind/brain-local"], ctx({ home }));
+      assert.equal(nowhere.out.error.code, "usage");
+      assert.match(nowhere.out.error.message, /has no remote; name the repository to publish it to/);
+      const name = await kioku(
+        ["brain", "publish", "northwind/brain-local", "--remote", "northwind/brain-local"],
+        ctx({ home }),
+      );
+      assert.equal(name.out.error.code, "usage", "a name has no host: owner/repo never means github.com");
+      assert.equal(sh(local, "remote"), "", "nothing changed");
 
       remotes.empty("northwind/brain-local");
-      remotes.empty("sam/brain");
-      const inside = await kioku(
-        ["brain", "publish"],
-        ctx({ home, cwd: join(home, ".kioku/brains/northwind/brain-local") }),
+      const r = await kioku(
+        ["brain", "publish", "northwind/brain-local", "--remote", "github.com/northwind/brain-local"],
+        ctx({ home, cwd: dir }),
       );
-      assert.deepEqual(
-        [inside.code, inside.out.brain, inside.out.status],
-        [0, "github.com/northwind/brain-local", "pushed"],
-        inside.raw,
-      );
-      const local = join(home, ".kioku/brains/northwind/brain-local");
+      assert.deepEqual([r.code, r.out.brain, r.out.status], [0, "northwind/brain-local", "pushed"], r.raw);
       assert.equal(existsSync(join(local, ".github")), false, "publishing writes no workflow into the brain");
       assert.equal(sh(local, "status", "--porcelain"), "");
       assert.equal(
@@ -435,14 +454,17 @@ test("brain publish with no brain named takes the brain the folder is inside, an
         sh(local, "rev-parse", "HEAD"),
         "and it is pushed",
       );
-      assert.equal(sh(BRAIN(home), "remote"), "", "only the brain the folder is inside");
-
-      const elsewhere = await kioku(["brain", "publish"], ctx({ home, cwd: dir }));
-      assert.deepEqual(
-        [elsewhere.out.brain, elsewhere.out.status],
-        ["github.com/sam/brain", "pushed"],
-        "outside any brain it is the personal one",
+      assert.equal(
+        readMachineConfig(home)!.repositories["northwind/brain-local"],
+        "https://github.com/northwind/brain-local.git",
       );
+      assert.equal(sh(BRAIN(home), "remote"), "", "only the brain named");
+      assert.ok(existsSync(local), "its name and folder stay");
+      const other = await kioku(
+        ["brain", "publish", "sam/brain", "--remote", "github.com/northwind/brain-local"],
+        ctx({ home }),
+      );
+      assert.equal(other.out.error.code, "brain_exists", "one repository is never two brains");
     } finally {
       remotes.close();
     }
@@ -464,29 +486,26 @@ async function ghRan(dir: string, body: () => Promise<void>): Promise<boolean> {
   return existsSync(mark);
 }
 
-test("brain publish pushes to the empty repository the name says, once, and when nothing is there names both ways and changes nothing; gh runs in neither (§2.3, §6.3)", () =>
+test("brain publish pushes to the empty repository the address says, once, and when nothing is there says to make one and changes nothing; gh runs in neither (§2.3, §6.3)", () =>
   scratch(async (dir) => {
     const remotes = new Remotes(dir);
     try {
       const home = join(dir, "home");
       await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home }));
+      const publish = ["brain", "publish", "sam/brain", "--remote", "github.com/sam/brain"];
       const ran = await ghRan(dir, async () => {
-        const none = await kioku(["brain", "publish"], ctx({ home }));
+        const none = await kioku(publish, ctx({ home }));
         assert.deepEqual([none.code, none.out.error.code], [1, "remote_absent"], none.raw);
         assert.match(none.out.error.message, /git says: /, "git's own words");
-        assert.match(none.out.error.message, /create an empty private repository sam\/brain on github\.com/);
-        assert.match(none.out.error.message, /kioku brain publish github\.com\/sam\/brain --to <url>/);
+        assert.match(none.out.error.message, /Kioku makes no repository on a host\. Create an empty repository there/);
         assert.equal(sh(BRAIN(home), "remote"), "");
-        assert.equal(readMachineConfig(home)!.repositories["github.com/sam/brain"]?.url, undefined);
-        assert.equal(
-          (await kioku(["brain", "publish"], ctx({ home, interactive: false }))).out.error.code,
-          "needs_terminal",
-        );
+        assert.equal(readMachineConfig(home)!.repositories["sam/brain"], undefined);
+        assert.equal((await kioku(publish, ctx({ home, interactive: false }))).out.error.code, "needs_terminal");
 
         const bare = remotes.empty("sam/brain");
-        const r = await kioku(["brain", "publish"], ctx({ home }));
+        const r = await kioku(publish, ctx({ home }));
         assert.equal(r.code, 0, r.raw);
-        assert.deepEqual([r.out.status, r.out.brain], ["pushed", "github.com/sam/brain"]);
+        assert.deepEqual([r.out.status, r.out.brain], ["pushed", "sam/brain"]);
         assert.equal(sh(bare, "rev-parse", "main"), sh(BRAIN(home), "rev-parse", "HEAD"));
         assert.equal((await kioku(["brain", "publish", "sam/brain"], ctx({ home }))).out.status, "exists");
       });
@@ -496,47 +515,17 @@ test("brain publish pushes to the empty repository the name says, once, and when
     }
   }));
 
-test("--dir puts a brain made or cloned in the folder named and records it, so every verb finds it there (§2.5)", () =>
-  scratch(async (dir) => {
-    const remotes = new Remotes(dir);
-    try {
-      const a = join(dir, "machine-a");
-      const mine = join(a, "code/sam/brain");
-      const r = await kioku(
-        ["brain", "create", "sam/brain", "--tier", "personal", "--dir", "~/code/sam/brain"],
-        ctx({ home: a }),
-      );
-      assert.equal(r.code, 0, r.raw);
-      remotes.empty("sam/brain");
-      assert.equal((await kioku(["brain", "publish"], ctx({ home: a }))).out.status, "pushed");
-      assert.equal(r.out.path, mine);
-      assert.ok(existsSync(join(mine, "kioku.yaml")));
-      assert.equal(existsSync(BRAIN(a)), false, "nothing in the managed folder");
-      assert.deepEqual(readMachineConfig(a)!.repositories, { "github.com/sam/brain": { path: mine } });
-      assert.equal((await kioku(["brain", "path", "sam/brain"], ctx({ home: a }))).out.path, mine);
-      const again = await kioku(
-        ["brain", "create", "sam/brain", "--tier", "project", "--dir", join(dir, "elsewhere")],
-        ctx({ home: a }),
-      );
-      assert.equal(again.out.error.code, "usage", "a repository already placed is not moved");
-
-      // A second machine clones it where it is told, relative to where the person is.
-      const b = join(dir, "machine-b");
-      mkdirSync(join(b, "work"), { recursive: true });
-      const cloned = await kioku(
-        ["brain", "clone", "sam/brain", "--dir", "notes"],
-        ctx({ home: b, cwd: join(b, "work") }),
-      );
-      assert.equal(cloned.code, 0, cloned.raw);
-      assert.equal(cloned.out.path, join(b, "work/notes"));
-      assert.equal(readMachineConfig(b)!.repositories["github.com/sam/brain"]!.path, join(b, "work/notes"));
-      assert.equal(
-        (await kioku(["brain", "sync", "sam/brain"], ctx({ home: b }))).out.outcomes[0].status,
-        "up-to-date",
-      );
-    } finally {
-      remotes.close();
+test("every brain lives in the managed folder: no verb takes a folder for one (§2.5)", () =>
+  scratch(async (home) => {
+    for (const argv of [
+      ["brain", "create", "sam/brain", "--dir", "~/code/sam/brain"],
+      ["brain", "clone", "github.com/sam/brain", "--dir", "notes"],
+      ["init", "northwind/brain-acme", "--dir", "x"],
+    ]) {
+      const r = await kioku(argv, ctx({ home }));
+      assert.match(r.out.error.message, /^unknown flag --dir/, argv.join(" "));
     }
+    assert.equal(existsSync(join(home, "code")), false);
   }));
 
 test("brain sync never looks for the repository of a brain with no remote; brain publish connects one made since, and never merges two (§2.3)", () =>
@@ -545,19 +534,16 @@ test("brain sync never looks for the repository of a brain with no remote; brain
     try {
       const somewhere = join(dir, "elsewhere");
       mkdirSync(somewhere);
+      const publish = ["brain", "publish", "sam/brain", "--remote", "github.com/sam/brain"];
 
       const a = join(dir, "machine-a");
       await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home: a }));
-      // A second machine makes its own brain too, while there is no repository: it has no page.
-      await kioku(
-        ["brain", "create", "sam/brain", "--tier", "personal", "--dir", join(dir, "b-brain")],
-        ctx({ home: join(dir, "offline") }),
-      );
+      // A second machine makes its own brain of that name too, while there is no repository: it has no page.
+      const b = join(dir, "machine-b");
+      await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home: b }));
 
       // An empty repository made by hand on the host: sync does not look for it.
-      const bare = join(remotes.base, "sam/brain.git");
-      mkdirSync(bare, { recursive: true });
-      execFileSync("git", ["init", "-q", "--bare", "-b", "main", bare]);
+      const bare = remotes.empty("sam/brain");
       const none = await kioku(["brain", "sync", "sam/brain"], ctx({ home: a, cwd: somewhere }));
       assert.deepEqual(
         [none.code, none.out.outcomes[0].status, none.out.outcomes[0].message],
@@ -567,7 +553,7 @@ test("brain sync never looks for the repository of a brain with no remote; brain
       assert.equal(sh(bare, "rev-list", "--all", "--count"), "0", "nothing pushed");
 
       // brain publish connects it: the empty repository takes this brain.
-      const pushed = await kioku(["brain", "publish"], ctx({ home: a, cwd: somewhere }));
+      const pushed = await kioku(publish, ctx({ home: a, cwd: somewhere }));
       assert.deepEqual([pushed.code, pushed.out.status], [0, "pushed"], pushed.raw);
       assert.equal(sh(bare, "rev-parse", "main"), sh(BRAIN(a), "rev-parse", "HEAD"));
       writeFileSync(join(BRAIN(a), "memory/lesson.md"), "x\n");
@@ -575,76 +561,62 @@ test("brain sync never looks for the repository of a brain with no remote; brain
       sh(BRAIN(a), "commit", "-q", "-m", "A page");
       sh(BRAIN(a), "push", "-q");
 
-      // A second machine made its own brain before the repository was there, and has no page: publishing takes the host's.
-      const b = join(dir, "machine-b");
-      const bConfig = join(b, ".kioku");
-      mkdirSync(bConfig, { recursive: true });
-      writeFileSync(
-        join(bConfig, "config.yaml"),
-        `brain: github.com/sam/brain\nrepositories:\n  github.com/sam/brain:\n    path: ${join(dir, "b-brain")}\n`,
-      );
+      // The second machine's brain has no page: publishing to that repository takes the host's.
       assert.equal(
         (await kioku(["brain", "sync", "sam/brain"], ctx({ home: b, cwd: somewhere }))).out.outcomes[0].status,
         "no-remote",
       );
-      const adopted = await kioku(["brain", "publish"], ctx({ home: b, cwd: somewhere }));
+      const adopted = await kioku(publish, ctx({ home: b, cwd: somewhere }));
       assert.deepEqual([adopted.code, adopted.out.status], [0, "connected"], adopted.raw);
-      assert.equal(sh(join(dir, "b-brain"), "rev-parse", "HEAD"), sh(BRAIN(a), "rev-parse", "HEAD"));
-      assert.ok(existsSync(join(dir, "b-brain/memory/lesson.md")));
+      assert.equal(sh(BRAIN(b), "rev-parse", "HEAD"), sh(BRAIN(a), "rev-parse", "HEAD"));
+      assert.ok(existsSync(join(BRAIN(b), "memory/lesson.md")));
 
-      // A third copy with pages of its own: two brains under one name, never merged here.
-      const c = join(dir, "c-brain");
-      execFileSync("git", ["clone", "-q", bare, c]);
-      sh(c, "remote", "remove", "origin");
-      sh(c, "checkout", "-q", "--orphan", "other");
-      sh(c, "rm", "-rq", "--cached", ".");
-      writeFileSync(join(c, "kioku.yaml"), "format: 1\ntier: personal\nnamespaces:\n  - sam\n");
-      mkdirSync(join(c, "memory"), { recursive: true });
-      writeFileSync(join(c, "memory/mine.md"), "y\n");
-      sh(c, "add", "kioku.yaml", "memory/mine.md");
-      sh(c, "commit", "-q", "-m", "Mine");
-      const cHome = join(dir, "machine-c");
-      mkdirSync(join(cHome, ".kioku"), { recursive: true });
-      writeFileSync(
-        join(cHome, ".kioku/config.yaml"),
-        `brain: github.com/sam/brain\nrepositories:\n  github.com/sam/brain:\n    path: ${c}\n`,
-      );
-      const refused = await kioku(["brain", "publish"], ctx({ home: cHome, cwd: somewhere }));
-      assert.equal(refused.out.error.code, "remote_diverged");
+      // A third brain of that name with pages of its own: two brains under one name, never merged here.
+      const c = join(dir, "machine-c");
+      await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home: c }));
+      writeFileSync(join(BRAIN(c), "memory/mine.md"), "y\n");
+      sh(BRAIN(c), "add", "-A");
+      sh(BRAIN(c), "commit", "-q", "-m", "Mine");
+      const refused = await kioku(publish, ctx({ home: c, cwd: somewhere }));
+      assert.equal(refused.out.error.code, "remote_diverged", refused.raw);
       assert.match(
         refused.out.error.message,
         /two brains under one name\. Kioku never merges them on its own; nothing was changed/,
       );
-      assert.equal(sh(c, "remote"), "", "nothing was changed");
+      assert.equal(sh(BRAIN(c), "remote"), "", "nothing was changed");
     } finally {
       remotes.close();
     }
   }));
 
-test("brain publish --to pushes a brain to an empty repository anywhere, records the address, and brain clone --url brings it to another machine (§2.2)", () =>
+test("brain publish --remote pushes a brain to an empty repository anywhere, records the address, and brain clone brings it to another machine under its name (§2.2)", () =>
   scratch(async (dir) => {
     const home = join(dir, "home");
     await kioku(["brain", "create", "sam/brain", "--tier", "personal"], ctx({ home }));
     const shared = join(dir, "shared/sam.git");
 
-    const absent = await kioku(["brain", "publish", "--to", shared], ctx({ home }));
-    assert.deepEqual([absent.code, absent.out.error.code], [1, "remote_absent"]);
-    assert.match(absent.out.error.message, /make an empty one there first \(git init --bare /);
+    const absent = await kioku(["brain", "publish", "sam/brain", "--remote", shared], ctx({ home }));
+    assert.deepEqual([absent.code, absent.out.error.code], [1, "remote_absent"], absent.raw);
     assert.equal(sh(BRAIN(home), "remote"), "", "nothing changed");
 
     mkdirSync(shared, { recursive: true });
     execFileSync("git", ["init", "-q", "--bare", "-b", "main", shared]);
-    const r = await kioku(["brain", "publish", "--to", "../shared/sam.git"], ctx({ home, cwd: join(dir, "shared") }));
+    const r = await kioku(
+      ["brain", "publish", "sam/brain", "--remote", "../shared/sam.git"],
+      ctx({ home, cwd: join(dir, "shared") }),
+    );
     assert.deepEqual([r.code, r.out.status, r.out.remote], [0, "pushed", shared], r.raw);
     assert.equal(sh(shared, "rev-parse", "main"), sh(BRAIN(home), "rev-parse", "HEAD"));
-    assert.deepEqual(readMachineConfig(home)!.repositories, { "github.com/sam/brain": { url: shared } });
+    assert.deepEqual(readMachineConfig(home)!.repositories, { "sam/brain": shared });
 
     const b = join(dir, "machine-b");
-    const bare = await kioku(["brain", "clone", shared], ctx({ home: b }));
-    assert.equal(bare.out.error.code, "brain_url_invalid");
-    assert.match(bare.out.error.message, /kioku brain clone <owner>\/<repo> --url /);
-    const cloned = await kioku(["brain", "clone", "sam/brain", "--url", shared], ctx({ home: b }));
-    assert.deepEqual([cloned.code, cloned.out.tier, cloned.out.action], [0, "personal", "cloned"], cloned.raw);
+    const cloned = await kioku(["brain", "clone", shared], ctx({ home: b }));
+    assert.deepEqual(
+      [cloned.code, cloned.out.brain, cloned.out.tier, cloned.out.action],
+      [0, "sam/brain", "personal", "cloned"],
+      cloned.raw,
+    );
+    assert.equal(cloned.out.path, BRAIN(b), "under the name it holds, whatever the address is called");
     assert.deepEqual(readMachineConfig(b)!.repositories, readMachineConfig(home)!.repositories);
     assert.equal(sh(BRAIN(b), "rev-parse", "HEAD"), sh(BRAIN(home), "rev-parse", "HEAD"));
     assert.equal((await kioku(["brain", "sync", "sam/brain"], ctx({ home: b }))).out.outcomes[0].status, "up-to-date");
@@ -666,7 +638,10 @@ test("doctor asks no git host about a brain with no remote, and says it lives on
         [warned.state, warned.detail],
         ["warn", `${BRAIN(home)}, no remote: it lives only on this machine`],
       );
-      assert.match(warned.fix, /^kioku brain publish puts it in an empty repository you make/);
+      assert.match(
+        warned.fix,
+        /^kioku brain publish sam\/brain --remote <address> puts it in an empty repository you make/,
+      );
       await kioku(["config", "set", "display.mute", "+unpublished"], ctx({ home }));
       const quiet = await check();
       assert.deepEqual([quiet.state, quiet.fix], ["ok", undefined]);
@@ -682,12 +657,12 @@ test("a brain verb for a brain not on this machine says how to bring it", () =>
     assert.equal(repo.out.error.code, "brain_unknown");
     assert.match(
       repo.out.error.message,
-      /To bring it: kioku brain clone northwind\/brain-acme, or, to make it when it does not exist, kioku brain create northwind\/brain-acme --tier personal\|project\|team/,
+      /To bring it: kioku brain clone <its address>, or, to make it, kioku brain create northwind\/brain-acme --tier personal\|project\|team/,
     );
     const word = await kioku(["brain", "path", "northwind/brain-acme"], ctx({ home }));
     assert.match(
       word.out.error.message,
-      /no brain called "northwind\/brain-acme" on this machine \(sam\/brain\)\. To bring it: kioku brain clone northwind\/brain-acme/,
+      /no brain called "northwind\/brain-acme" on this machine \(sam\/brain\)\. To bring it: kioku brain clone <its address>/,
     );
   }));
 
@@ -712,7 +687,7 @@ test("the hook makes no brain: with no personal brain it says so once a week, an
     );
     assert.match(
       first.out.systemMessage,
-      /  ⎿ run kioku brain create to make one here, or kioku brain clone sam\/brain to bring yours/,
+      /  ⎿ run kioku brain create <owner>\/<repo> to make one here, named as you like, or kioku brain clone <address> to bring yours/,
     );
     assert.equal(existsSync(join(home, ".kioku/brains")), false, "no brain was made");
 
@@ -734,7 +709,7 @@ test("doctor warns, and does not fail, when the machine has no personal brain", 
     assert.equal(check.state, "warn");
     assert.match(
       check.fix,
-      /`kioku brain create` makes yours, sam\/brain, on this machine; `kioku brain clone sam\/brain` brings it from its repository/,
+      /`kioku brain create <owner>\/<repo>` makes yours on this machine, named as you like; `kioku brain clone <address>` brings it from its repository/,
     );
   }));
 

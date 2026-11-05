@@ -11,11 +11,11 @@ isolateGit();
 
 const line = (o: unknown) => `${JSON.stringify(o)}\n`;
 const done = (o: Record<string, unknown>) =>
-  line({ status: "done", brain: "github.com/northwind/brain-acme", commit: "abc1234", publication: "local", ...o });
+  line({ status: "done", brain: "northwind/brain-acme", commit: "abc1234", publication: "local", ...o });
 
 test("every read and every write of a command is one entry, each in one arrow (ยง4.6)", () => {
   const page = {
-    brain: "github.com/northwind/brain-acme",
+    brain: "northwind/brain-acme",
     path: "knowledge/acme/p.md",
     title: "Pool",
     kind: "knowledge",
@@ -27,7 +27,7 @@ test("every read and every write of a command is one entry, each in one arrow (ย
   assert.deepEqual(
     entriesFor(
       'kioku page search "deploy steps" --brain northwind/brain-acme --limit 5',
-      line({ mode: "hybrid", hits: [{ brain: "github.com/northwind/brain-acme" }, { brain: "github.com/sam/brain" }] }),
+      line({ mode: "hybrid", hits: [{ brain: "northwind/brain-acme" }, { brain: "sam/brain" }] }),
     ),
     [
       {
@@ -35,28 +35,28 @@ test("every read and every write of a command is one entry, each in one arrow (ย
         arrow: "read",
         words: "deploy steps",
         count: 2,
-        brain: "github.com/northwind/brain-acme, github.com/sam/brain",
+        brain: "northwind/brain-acme, sam/brain",
       },
     ],
   );
   assert.deepEqual(
     entriesFor(
       "kioku page list --brain northwind/brain-acme",
-      line({ pages: [{ brain: "github.com/northwind/brain-acme" }, { brain: "github.com/northwind/brain-acme" }] }),
+      line({ pages: [{ brain: "northwind/brain-acme" }, { brain: "northwind/brain-acme" }] }),
     ),
-    [{ what: "listed", arrow: "read", count: 2, brain: "github.com/northwind/brain-acme" }],
+    [{ what: "listed", arrow: "read", count: 2, brain: "northwind/brain-acme" }],
   );
   assert.deepEqual(
     entriesFor(
       "kioku page list --brain northwind/brain-acme",
       line({
-        pages: [{ brain: "github.com/northwind/brain-acme" }, { brain: "github.com/northwind/brain-acme" }],
+        pages: [{ brain: "northwind/brain-acme" }, { brain: "northwind/brain-acme" }],
         total: 75,
         offset: 0,
         limit: 2,
       }),
     ),
-    [{ what: "listed", arrow: "read", count: 2, total: 75, brain: "github.com/northwind/brain-acme" }],
+    [{ what: "listed", arrow: "read", count: 2, total: 75, brain: "northwind/brain-acme" }],
     "a window says how many there are in all (ยง4.6)",
   );
   assert.deepEqual(
@@ -69,7 +69,7 @@ test("every read and every write of a command is one entry, each in one arrow (ย
 
   const saved = { path: "knowledge/acme/p.md", title: "Pool", kind: "knowledge", subkind: "context" };
   assert.deepEqual(entriesFor("kioku page save --brain northwind/brain-acme --title Pool", done(saved)), [
-    { what: "saved", arrow: "write", brain: "github.com/northwind/brain-acme", ...saved },
+    { what: "saved", arrow: "write", brain: "northwind/brain-acme", ...saved },
   ]);
   const instinct = { path: "memory/instincts/use-pnpm.md", title: "Use pnpm", kind: "memory", subkind: "instinct" };
   assert.equal(
@@ -86,7 +86,7 @@ test("every read and every write of a command is one entry, each in one arrow (ย
       {
         what: "instinct again",
         arrow: "write",
-        brain: "github.com/northwind/brain-acme",
+        brain: "northwind/brain-acme",
         ...instinct,
         candidate: true,
       },
@@ -122,14 +122,14 @@ test("every read and every write of a command is one entry, each in one arrow (ย
   assert.deepEqual(
     entriesFor(
       "kioku page save --brain northwind/brain-acme",
-      line({ status: "similar", brain: "github.com/northwind/brain-acme", similar: [] }),
+      line({ status: "similar", brain: "northwind/brain-acme", similar: [] }),
     ),
     [],
   );
   assert.deepEqual(
     entriesFor(
       "kioku page save --brain northwind/brain-acme",
-      line({ status: "namespace", brain: "github.com/northwind/brain-acme", namespaces: [] }),
+      line({ status: "namespace", brain: "northwind/brain-acme", namespaces: [] }),
     ),
     [],
   );
@@ -141,28 +141,27 @@ const hook = (w: World, verb: string, input: Record<string, unknown>) =>
 
 test("an entry carries its brains as Kioku names them, one label for each name, in order (ยง4.6)", () => {
   const labels = {
-    label: (k: string) =>
-      k === "github.com/northwind/brain-acme" ? "project" : k === "github.com/sam/brain" ? "personal" : `team ยท ${k}`,
+    label: (k: string) => (k === "northwind/brain-acme" ? "project" : k === "sam/brain" ? "personal" : `team ยท ${k}`),
   };
   const search = entriesFor(
     'kioku page search "x" --brain northwind/brain-acme',
     line({
-      hits: [{ brain: "github.com/northwind/brain-acme" }, { brain: "github.com/sam/brain" }, { brain: "rival" }],
+      hits: [{ brain: "northwind/brain-acme" }, { brain: "sam/brain" }, { brain: "rival" }],
     }),
     labels,
   );
-  assert.equal(search[0]!.brain, "github.com/northwind/brain-acme, github.com/sam/brain, rival");
+  assert.equal(search[0]!.brain, "northwind/brain-acme, sam/brain, rival");
   assert.equal(search[0]!.label, "project, personal, team ยท rival");
   const one = entriesFor(
     "kioku page show p.md",
-    line({ brain: "github.com/northwind/brain-acme", path: "p.md", title: "Pool" }),
+    line({ brain: "northwind/brain-acme", path: "p.md", title: "Pool" }),
     labels,
   );
   assert.deepEqual(one, [
     {
       what: "opened",
       arrow: "read",
-      brain: "github.com/northwind/brain-acme",
+      brain: "northwind/brain-acme",
       label: "project",
       path: "p.md",
       title: "Pool",
@@ -171,7 +170,7 @@ test("an entry carries its brains as Kioku names them, one label for each name, 
   // Without a brain there is no label, and without labels the entry is as it was.
   assert.deepEqual(entriesFor("kioku brain log", line({ brains: [] }), labels), [{ what: "log", arrow: "read" }]);
   assert.equal(
-    "label" in entriesFor("kioku page show p.md", line({ brain: "github.com/northwind/brain-acme", path: "p.md" }))[0]!,
+    "label" in entriesFor("kioku page show p.md", line({ brain: "northwind/brain-acme", path: "p.md" }))[0]!,
     false,
   );
 });
@@ -188,7 +187,7 @@ test("the hooks keep the session's journal: the summary, each prompt's turn, the
     await hook(w, "pre-tool-use", { tool_name: "Skill", tool_input: { skill: "kioku:kioku" } });
     await hook(w, "post-tool-use", {
       tool_input: { command: "kioku page show p.md --brain northwind/brain-acme" },
-      tool_response: { stdout: line({ brain: "github.com/northwind/brain-acme", path: "p.md", title: "Pool" }) },
+      tool_response: { stdout: line({ brain: "northwind/brain-acme", path: "p.md", title: "Pool" }) },
     });
     await hook(w, "user-prompt-submit", { prompt: "and now?" });
     await hook(w, "post-tool-use", {
@@ -200,7 +199,7 @@ test("the hooks keep the session's journal: the summary, each prompt's turn, the
     await w.kioku(["hook", "post-tool-use"], {
       stdin: JSON.stringify({
         tool_input: { command: "kioku page show p.md" },
-        tool_response: { stdout: line({ brain: "github.com/northwind/brain-acme", path: "p.md", title: "Pool" }) },
+        tool_response: { stdout: line({ brain: "northwind/brain-acme", path: "p.md", title: "Pool" }) },
       }),
     });
 
@@ -215,7 +214,7 @@ test("the hooks keep the session's journal: the summary, each prompt's turn, the
       ],
     );
     // A brain of the session's own is named by its tier (ยง4.6).
-    assert.equal(entries[2]!.brain, "github.com/northwind/brain-acme");
+    assert.equal(entries[2]!.brain, "northwind/brain-acme");
     assert.equal(entries[2]!.label, "project");
     for (const e of entries.filter((x) => x.brain !== undefined)) assert.equal(typeof e.label, "string");
     assert.deepEqual(
@@ -284,13 +283,13 @@ test("a session resumed or compacted loads its summary again in a turn of its ow
 test("a search's entry holds the pages its answer brought, in order and without their text (ยง4.6)", () => {
   const hits = [
     {
-      brain: "github.com/northwind/brain-acme",
+      brain: "northwind/brain-acme",
       path: "knowledge/acme/a.md",
       title: "A",
       text: "never kept",
       score: 0.9,
     },
-    { brain: "github.com/sam/brain", path: "knowledge/sam/b.md", title: "B" },
+    { brain: "sam/brain", path: "knowledge/sam/b.md", title: "B" },
   ];
   assert.deepEqual(entriesFor("kioku page search deploy", line({ mode: "hybrid", hits })), [
     {
@@ -298,15 +297,15 @@ test("a search's entry holds the pages its answer brought, in order and without 
       arrow: "read",
       words: "deploy",
       count: 2,
-      brain: "github.com/northwind/brain-acme, github.com/sam/brain",
+      brain: "northwind/brain-acme, sam/brain",
       hits: [
-        { brain: "github.com/northwind/brain-acme", path: "knowledge/acme/a.md", title: "A" },
-        { brain: "github.com/sam/brain", path: "knowledge/sam/b.md", title: "B" },
+        { brain: "northwind/brain-acme", path: "knowledge/acme/a.md", title: "A" },
+        { brain: "sam/brain", path: "knowledge/sam/b.md", title: "B" },
       ],
     },
   ]);
   const many = Array.from({ length: 20 }, (_, i) => ({
-    brain: "github.com/northwind/brain-acme",
+    brain: "northwind/brain-acme",
     path: `p${i}.md`,
     title: `T${i}`,
   }));

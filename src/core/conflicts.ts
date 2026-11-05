@@ -3,6 +3,7 @@ import { basename, dirname, join } from "node:path";
 import { userError } from "./errors.ts";
 import { git, gitQuiet } from "./git.ts";
 import { conflictsPath } from "./state.ts";
+import { parseName } from "./config/brain-ref.ts";
 
 /**
  * The changes of this machine that could not sit on top of what others published. Each is a branch
@@ -126,9 +127,8 @@ export function resolveConflict(root: string, branch: string): { branch: string;
   return { branch, removedWorktree: worktree !== undefined };
 }
 
-/** The repository a key names, for the folder a conflict is opened in; a folder given by path has only its name. */
+/** The brain a key names, for the folder a conflict is opened in: its name (§2.2); a folder given by path has only its name. */
 export function repoOfKey(key: string): { owner: string; repo: string } {
-  const parts = key.split("/");
-  if (parts.length >= 3 && !key.startsWith("folder:")) return { owner: parts[1]!, repo: parts[2]! };
-  return { owner: "local", repo: basename(key.replace(/^folder:/, "")) };
+  const named = key.startsWith("folder:") ? undefined : parseName(key);
+  return named ?? { owner: "local", repo: basename(key.replace(/^folder:/, "")) };
 }

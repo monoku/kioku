@@ -143,5 +143,5 @@ function describe(p: PageRecord, ui: Ui): string {
 /** An answer with nothing to list says where it looked (§6.1): `No pages in sam/brain (personal), northwind/brain-acme (project).` */
 export const nothingIn = (what: string, brains: { key: string; tier: string }[]): string =>
   brains.length === 0
-    ? `${what}: no brain is loaded here (kioku brain create makes your personal brain, kioku brain clone brings it).`
+    ? `${what}: no brain is loaded here (kioku brain create <owner>/<repo> makes your personal brain, kioku brain clone <address> brings it).`
     : `${what} in ${brains.map((b) => `${brainRepoOfKey(b.key)} (${b.tier})`).join(", ")}.`;

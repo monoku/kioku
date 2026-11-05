@@ -4,7 +4,7 @@
 name: ci
 on:
   push:
-    branches: [main, develop]   # another branch runs through its pull request; a tag's push runs the release workflow
+    branches: [main, develop]   # another branch runs through its pull request
   pull_request:
 permissions:
   contents: read

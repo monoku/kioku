@@ -48,7 +48,7 @@ test("a promote whose original cannot be retired answers error with the destinat
     const r = await w.kioku(["page", "promote", MEMORY, "--brain", "sam/brain", "--to", "team"], BODY);
     assert.equal(r.code, 1);
     assert.equal(r.out.status, "error", r.raw);
-    assert.equal(r.out.brain, "github.com/northwind/brain", "the destination's");
+    assert.equal(r.out.brain, "northwind/brain", "the destination's");
     assert.equal(r.out.path, MEMORY);
     assert.match(r.out.commit, /^[0-9a-f]{7,}$/);
     assert.equal(r.out.publication, "pushed");
@@ -65,7 +65,7 @@ test("a promote whose original cannot be retired answers error with the destinat
     assert.equal(entries.length, 1);
     assert.deepEqual(
       [entries[0]!.what, entries[0]!.arrow, entries[0]!.brain],
-      ["promoted", "write", "github.com/northwind/brain"],
+      ["promoted", "write", "northwind/brain"],
     );
   }));
 
@@ -142,7 +142,7 @@ test("a conflict found when publishing carries the commit it set aside, and the 
     assert.equal(r!.out.error.code, "conflict");
     assert.match(r!.out.commit, /^[0-9a-f]{7,}$/, "the commit exists, on the conflict's branch");
     assert.equal(r!.out.publication, null);
-    assert.deepEqual([r!.out.brain, r!.out.path], ["github.com/northwind/brain-acme", MIGRATE]);
+    assert.deepEqual([r!.out.brain, r!.out.path], ["northwind/brain-acme", MIGRATE]);
     assert.match(
       r!.out.error.message,
       /^your change was committed \([0-9a-f]+\), but it and your changes to .* could not sit on top/,

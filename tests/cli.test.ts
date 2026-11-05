@@ -20,7 +20,7 @@ async function call(argv: string[], isTty = false) {
 test("--version prints the version as JSON when piped", async () => {
   const { code, out } = await call(["--version"]);
   assert.equal(code, 0);
-  assert.deepEqual(JSON.parse(out), { version: "0.0.0-dev", contract: 1, formats: [1] });
+  assert.deepEqual(JSON.parse(out), { version: "0.0.0-dev", contract: 2, formats: [1, 2] });
 });
 
 test("--version prints plain text on a terminal", async () => {

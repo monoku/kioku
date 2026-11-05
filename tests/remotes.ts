@@ -38,7 +38,7 @@ function offline(): void {
 
 /**
  * Stand-ins for brains on GitHub: bare repositories under `<root>/remote/<owner>/<repo>.git`, reached through git's
- * own URL rewriting so that `github.com/owner/repo` clones from disk and nothing touches the network.
+ * own URL rewriting so that `owner/repo` clones from disk and nothing touches the network.
  */
 export class Remotes {
   readonly root: string;

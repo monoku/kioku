@@ -159,7 +159,7 @@ test("the verbs that wait name their steps: a write's bring-in and publication, 
     try {
       await freshen(a.brain);
       await pushBrain(a.brain);
-      await syncBrains(a.home, [linkOf("project", "github.com/northwind/brain-acme", a.brain)], new Date());
+      await syncBrains(a.home, [linkOf("project", "northwind/brain-acme", a.brain)], new Date());
       a.offline();
       await freshen(a.brain);
     } finally {

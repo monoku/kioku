@@ -8,6 +8,9 @@
 # Kioku
 
 [![ci](https://github.com/monoku/kioku/actions/workflows/ci.yml/badge.svg)](https://github.com/monoku/kioku/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/monoku/kioku)](https://github.com/monoku/kioku/releases/latest)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![node](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](https://nodejs.org)
 
 Memory for coding agents, kept in **brains**: git repositories of Markdown
 pages, yours and your team's. Your agent reads the brains at the start of every
@@ -24,12 +27,12 @@ You need Node 24 or later and git; nothing needs GitHub or an account.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/monoku/kioku/main/install.sh | sh
-kioku brain create
+kioku brain create sam/memory
 kioku plugin claude-code install
 ```
 
-The first line installs the tool; the second makes your personal brain, on
-this machine alone; the third connects Claude Code, showing the two commands
+The first line installs the tool; the second makes your personal brain, which
+you name, on this machine alone; the third connects Claude Code, showing the two commands
 it will run and asking first. The plugin travels with the tool, so every
 update of Kioku brings it along. From the next session each call the agent
 makes to the memory is a row in the conversation, the footer counts what the
@@ -63,8 +66,8 @@ confirm. A brain's files are a promise: every later version of Kioku reads and
 writes a brain any released version made, and nothing ever moves a brain back.
 
 ```bash
-kioku init github.com/northwind/acme-brain           # link this folder to its project brain
-kioku init github.com/northwind/acme-brain --create  # or make it here, then kioku brain publish
+kioku init github.com/northwind/acme-brain  # link this folder to its project brain, cloning it
+kioku init northwind/acme-brain             # or make it here; once published, kioku init writes its address
 ```
 
 When in doubt the agent saves to the personal brain, which affects nobody

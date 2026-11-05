@@ -18,15 +18,15 @@ Your personal brain is where the agent keeps what it learns about how you
 work. Make it:
 
 ```bash
-kioku brain create
+kioku brain create sam/memory
 ```
 
-It is `sam/brain` if git on this machine knows you as sam (`github.user`, else
-your name, else your email's), and it says which name it took; `git config
---global github.user <handle>` sets it first. It lives at
-`~/.kioku/brains/sam/brain/`, with no remote and no network. When you want a backup or a second machine, make an empty private
-repository on your git host, `github.com/sam/brain` say, and run
-`kioku brain publish`; on the second machine, `kioku brain clone sam/brain`.
+The name is yours, `owner/repo`, and it is the brain's on every machine, wherever the repository lives. It lives at
+`~/.kioku/brains/sam/memory/`, with no remote and no network. When you want a
+backup or a second machine, make an empty private repository on your git host,
+`github.com/sam/memory` say, and run
+`kioku brain publish sam/memory --remote github.com/sam/memory`; on the second
+machine, `kioku brain clone github.com/sam/memory` brings it as `sam/memory`.
 
 ## 2. Connect Claude Code
 
@@ -69,22 +69,31 @@ A page forgotten by mistake comes back:
 For a project with a shared brain, in its project folder, in a terminal:
 
 ```bash
-kioku init github.com/northwind/acme-brain --team github.com/northwind/team-brain
+kioku init github.com/northwind/acme-brain
 ```
 
-and commit the `kioku.yaml` it writes, which names both; leave out `--team`
-for a project with no team brain. A team you work with outside any project
-is yours to name on your machine, once it is cloned:
+It writes the project brain into the folder's `kioku.yaml`. When the project
+shares a team brain, add it to that file by hand, once:
+
+```yaml
+brain: { name: northwind/acme-brain, url: https://github.com/northwind/acme-brain.git }
+team: { name: northwind/team-brain, url: https://github.com/northwind/team-brain.git }
+```
+
+then run `kioku init` alone to trust and clone it, and commit the file. A team
+you work with outside any project is yours to name on your machine, once it is
+cloned:
 
 ```bash
-kioku brain clone northwind/team-brain && kioku config set team northwind/team-brain
+kioku brain clone github.com/northwind/team-brain && kioku config set team northwind/team-brain
 ```
 
 It loads in every folder whose `kioku.yaml` names no team. A teammate who clones the code runs
 `kioku init` there to trust and clone the brain. If the brain does not exist
-yet, `kioku init northwind/acme-brain --create` makes it on your machine, and
-`kioku brain publish acme` pushes it to the empty repository your teammates
-clone.
+yet, `kioku init northwind/acme-brain` makes it on your machine, and
+`kioku brain publish northwind/acme-brain --remote github.com/northwind/acme-brain`
+pushes it to the empty repository your teammates clone; `kioku init` in the code
+folder then writes its address into the link they clone.
 
 From then on, a session in that folder reads the folder's `kioku.yaml`, finds
 the project and team brains it names on the machine (or clones them), adds your

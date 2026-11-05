@@ -80,7 +80,7 @@ test("sources lists what was ingested from the pages' own source, newest first, 
     );
     assert.ok(
       listed.every(
-        (s: { brain: string; last: string | null }) => s.brain === "github.com/northwind/brain-acme" && s.last !== null,
+        (s: { brain: string; last: string | null }) => s.brain === "northwind/brain-acme" && s.last !== null,
       ),
     );
 

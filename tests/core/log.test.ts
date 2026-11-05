@@ -141,8 +141,8 @@ test("kioku brain log: today's writes of the chain, newest first, by brain; --br
         .map((x: { verb: string; brain: string; title: string; path: string }) => [x.verb, x.brain, x.title, x.path])
         .sort(),
       [
-        ["save", "github.com/northwind/brain-acme", "Staging deploys wait for a green build", saved.out.path],
-        ["save", "github.com/sam/brain", "Prefers pnpm over npm", mine.out.path],
+        ["save", "northwind/brain-acme", "Staging deploys wait for a green build", saved.out.path],
+        ["save", "sam/brain", "Prefers pnpm over npm", mine.out.path],
       ].sort(),
     );
     assert.ok(Date.parse(r.out.writes[0].date) >= Date.parse(r.out.writes[1].date), "newest first");

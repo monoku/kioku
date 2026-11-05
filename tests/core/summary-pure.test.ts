@@ -43,7 +43,7 @@ const brain = (docs: SummaryBrain["docs"], extra: Partial<SummaryBrain> = {}): S
     key: "k",
     path: "/nowhere",
     cloned: true,
-    ref: { host: "h", owner: "o", repo: "brain-acme" },
+    ref: { owner: "o", repo: "brain-acme" },
   },
   isProject: true,
   config: { form: "brain", tier: "project", namespaces: [] } as unknown as BrainConfig,
@@ -95,8 +95,8 @@ test("the sections keep the order of §4.1, with no file system", () => {
     "acme: front page",
     "## Rules",
     "## Skills",
-    "## Decisions in h/o/brain-acme",
-    "## New in h/o/brain-acme",
+    "## Decisions in o/brain-acme",
+    "## New in o/brain-acme",
     "## To review",
   ].map((h) => text.indexOf(h));
   assert.ok(

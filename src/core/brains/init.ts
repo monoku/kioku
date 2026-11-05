@@ -1,13 +1,29 @@
-import { existsSync, rmSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { parseNamed, repoKey, cloneOf, type BrainRef } from "../config/brain-ref.ts";
-import { findConfigRoot, isTrusted, resolveChain, type ChainLink } from "../config/chain.ts";
-import { readFolderConfig, stringifyFolderConfig } from "../config/folder-config.ts";
+import {
+  addressUrl,
+  isAddress,
+  ownerOfAddress,
+  parseName,
+  repoKey,
+  sameRepository,
+  type BrainRef,
+} from "../config/brain-ref.ts";
+import {
+  ACCEPTS,
+  addressOf,
+  findConfigRoot,
+  isHere,
+  isTrusted,
+  resolveChain,
+  type ChainLink,
+} from "../config/chain.ts";
+import { readFolderConfig, stringifyFolderConfig, type CodeRepoConfig } from "../config/folder-config.ts";
 import { emptyConfig, readMachineConfig, updateMachineConfig } from "../config/machine.ts";
-import { environmentError, userError } from "../errors.ts";
+import { userError } from "../errors.ts";
 import { writeAtomic } from "../fs/atomic.ts";
 import { gitQuiet } from "../git.ts";
-import { cloneMissing, recordedUrl, type SyncOutcome } from "./clone.ts";
+import { brainAtAddress, bringBrain, cloneMissing, type CloneResult, type SyncOutcome } from "./clone.ts";
 import { createBrain, type CreateResult } from "./create.ts";
 
 export interface InitResult {
@@ -15,48 +31,53 @@ export interface InitResult {
   file: string;
   /** The file is in a git repository, so it travels with the code once committed. */
   inRepository: boolean;
-  /** False when the file already named these brains. */
+  /** False when the file already said all of it. */
   wrote: boolean;
-  /** The project brain's key, when the file names one. */
+  /** The project brain's name, when the file names one. */
   brain?: string;
-  /** The team brain's key, when the file names one. */
+  /** The team brain's name, when the file names one. */
   team?: string;
+  /** The brain `init` cloned from the address it was given. */
+  brought?: CloneResult;
+  /** What cloning the brains the folder's chain was missing did. */
   cloned: SyncOutcome[];
-  /** The brains `--create` made because they could not be cloned. */
+  /** The brain `init` made, given a name this machine did not have (§2.4). */
   created: CreateResult[];
+  /** The brains the file named by name alone and now names with their address, published since (§2.4). */
+  addressed: string[];
+  /** The brains the file names by name alone that this machine does not have (`brain-not-here`, §2.4). */
+  notHere: string[];
   chain: ChainLink[];
 }
 
-/** What `--create` needs to make a brain: the version whose files it writes. */
-export interface InitCreate {
+export interface InitOptions {
+  /** The project brain: an address or a name (§2.4); none takes what the file names. */
+  brain?: string;
+  /** In a terminal: the person's act, which accepts an address or makes a brain (§2.4). */
+  interactive?: boolean;
+  /** The version whose files a brain `init` makes is written with. */
   version: string;
   /** How the write arrived (§1.6). */
   via?: string;
 }
 
-/** A brain as `init` is given it: `owner/repo` or a URL. */
-function refOf(text: string, what: string): BrainRef {
-  const ref = parseNamed(text, true);
-  if (ref === undefined) throw userError(`"${text}" is not a ${what} brain such as github.com/owner/repo`, "usage");
-  return ref;
-}
-
-const keyOrNone = (ref: BrainRef | undefined): string => (ref === undefined ? "none" : repoKey(ref));
+const needTerminal = (what: string): never => {
+  throw userError(
+    `kioku init is for you to run in a terminal when it ${what}: the files of a brain reach the agent's context, so the agent does not do it`,
+    "needs_terminal",
+  );
+};
 
 /**
- * `kioku init [<brain>] [--team <brain>]` (§2.4): link a project folder to its project brain, to a team brain,
- * or to both, with the `kioku.yaml` of §2.5 at the repository's root, not committed; then clone the brains the chain names when they are not on this machine.
- * With no brain named, it takes the ones the nearest `kioku.yaml` already names, as a teammate who cloned the code
- * does. Outside a repository the file goes in the current folder. Refuses inside a brain, over a `kioku.yaml` that names other brains, and, outside a terminal,
- * when a brain it would register is new to this machine, before writing anything. A brain it names that cannot be
- * cloned undoes what this call wrote: the file and the registration; with `create`, it is made instead (§2.4), on
- * this machine only.
+ * `kioku init [<brain>]` (§2.4): link a project folder to its project brain, with the `kioku.yaml` of §2.5 at the
+ * repository's root, keeping the `team` the file holds, which is written by hand. `<brain>` is an address, cloned
+ * when this machine does not have its brain, or a name, made as a project brain when this machine has none of it.
+ * Alone, where the file exists, it accepts the addresses the file gives, clones what the chain is missing, and writes
+ * the address of a brain the file names by name alone once that brain has a remote. Refuses inside a brain, a brain of
+ * another tier than the link takes, and, outside a terminal, before writing anything, an address this machine does not
+ * know or a brain it would make.
  */
-export async function initRepository(
-  home: string,
-  cwd: string,
-  o: { brain?: string; team?: string; dir?: string; interactive?: boolean; create?: InitCreate },
-): Promise<InitResult> {
+export async function initRepository(home: string, cwd: string, o: InitOptions): Promise<InitResult> {
   // Inside a brain the nearest file is the brain's own, wherever in its folder this runs (§2.7).
   const nearest = findConfigRoot(cwd);
   const around = nearest === undefined ? undefined : readFolderConfig(join(nearest, "kioku.yaml"));
@@ -64,150 +85,149 @@ export async function initRepository(
     throw userError(`${nearest} is a brain, not a project folder`, "is_a_brain");
   const repository = gitQuiet(cwd, ["rev-parse", "--show-toplevel"]);
   // With no brain named it takes what the folder is under already; naming one links this folder, and the nearest wins.
-  const top = repository ?? (o.brain === undefined && o.team === undefined && nearest !== undefined ? nearest : cwd);
+  const top = repository ?? (o.brain === undefined && nearest !== undefined ? nearest : cwd);
   const file = join(top, "kioku.yaml");
   const found = existsSync(file) ? readFolderConfig(file) : undefined;
   if (found !== undefined && !found.ok)
     throw userError(`${found.reason}; fix or remove it first`, "kioku_yaml_invalid");
   if (found?.ok && found.value.form !== "code")
     throw userError(`${top} is a brain, not a project folder`, "is_a_brain");
-  const existing = found?.ok && found.value.form === "code" ? found.value : undefined;
-  const named = o.brain !== undefined || o.team !== undefined;
-  if (!named && existing === undefined) {
+  const existing: CodeRepoConfig | undefined = found?.ok && found.value.form === "code" ? found.value : undefined;
+  if (o.brain === undefined && existing === undefined) {
     throw userError(
-      `${top} has no kioku.yaml yet: name its project brain, kioku init <owner>/<repo>, or its team brain, kioku init --team <owner>/<repo>. To make the project brain and link it: kioku init <owner>/<repo> --create`,
+      `${top} has no kioku.yaml yet: name its project brain, kioku init <address> to clone it, or kioku init <owner>/<repo> to make it here`,
       "usage",
     );
   }
-  // No brain named: the ones the repository's file names, which is what a teammate who cloned the code wants (§2.4).
-  const wanted = named
-    ? {
-        ...(o.brain !== undefined && { brain: refOf(o.brain, "project") }),
-        ...(o.team !== undefined && { team: refOf(o.team, "team") }),
-      }
-    : {
-        ...(existing!.brain !== undefined && { brain: existing!.brain }),
-        ...(existing!.team !== undefined && { team: existing!.team }),
-      };
-
-  let wrote = false;
-  if (existing !== undefined) {
-    for (const field of ["brain", "team"] as const) {
-      if (keyOrNone(existing[field]) !== keyOrNone(wanted[field])) {
-        throw userError(
-          `${file} already names ${field === "brain" ? "the project brain" : "the team brain"} ${keyOrNone(existing[field])}; edit it by hand to change it`,
-          "kioku_yaml_exists",
-        );
-      }
-    }
-  }
-  if (o.interactive !== true) {
-    const config = readMachineConfig(home) ?? emptyConfig();
-    for (const ref of [wanted.brain, wanted.team]) {
-      if (ref !== undefined && !isTrusted(config, ref)) {
-        throw userError(
-          `kioku init is for you to run in a terminal when this machine does not know ${repoKey(ref)}: registering a brain lets its files reach the agent's context, so the agent does not do it. Run kioku init ${repoKey(ref)} in a terminal, or kioku brain trust ${repoKey(ref)}`,
-          "needs_terminal",
-        );
-      }
-    }
-  }
-  if (!existsSync(file)) {
-    // A brain the machine knows at an address of its own is written with it, so the file reaches it from every machine (§2.2, §2.4).
-    const known = readMachineConfig(home) ?? emptyConfig();
-    const withUrl = (ref: BrainRef): BrainRef =>
-      ref.url !== undefined || known.repositories[repoKey(ref)]?.url === undefined
-        ? ref
-        : { ...ref, url: known.repositories[repoKey(ref)]!.url! };
-    writeAtomic(
-      file,
-      stringifyFolderConfig({
-        form: "code",
-        ...(wanted.brain !== undefined && { brain: withUrl(wanted.brain) }),
-        ...(wanted.team !== undefined && { team: withUrl(wanted.team) }),
-      }),
-    );
-    wrote = true;
-  }
-  // `--dir`: where the repository of the brain named goes, the project brain's or else the team brain's (§2.5).
-  const placed = o.dir === undefined ? undefined : (wanted.brain ?? wanted.team);
-  if (placed !== undefined) {
-    const config = readMachineConfig(home) ?? emptyConfig();
-    const now = cloneOf(config, placed, home);
-    if (config.repositories[repoKey(placed)] !== undefined && now !== o.dir)
-      throw userError(`${repoKey(placed)} is already at ${now} on this machine; --dir cannot move it`, "usage");
-  }
-  // Naming a brain to `init` is the person's act: it is what makes this machine trust it (§2.4).
-  const before = readMachineConfig(home)?.repositories ?? {};
-  const added = [wanted.brain, wanted.team]
-    .filter((ref): ref is BrainRef => ref !== undefined && before[repoKey(ref)] === undefined)
-    .map(repoKey);
-  await updateMachineConfig((c) => {
-    for (const ref of [wanted.brain, wanted.team]) {
-      if (ref === undefined) continue;
-      c.repositories[repoKey(ref)] ??= {};
-      // The address the file gives is the person's to record, here, in a terminal (§2.4).
-      const address = recordedUrl(ref, ref.url);
-      if (address !== undefined) c.repositories[repoKey(ref)]!.url ??= address;
-    }
-    if (placed !== undefined) c.repositories[repoKey(placed)]!.path = o.dir;
-  }, home);
-  const cloned = (await cloneMissing(top, home)).filter((c) => c.tier !== "personal");
-  // A brain named here that could not be cloned, often one not created yet: nothing of this call is left behind.
-  const ownKeys = new Set([wanted.brain, wanted.team].filter((ref): ref is BrainRef => ref !== undefined).map(repoKey));
-  let missed = cloned.filter((c) => c.status === "failed" && ownKeys.has(c.key));
-  const refs = [wanted.brain, wanted.team].filter((ref): ref is BrainRef => ref !== undefined);
+  const interactive = o.interactive === true;
+  const config = readMachineConfig(home) ?? emptyConfig();
   const created: CreateResult[] = [];
-  if (missed.length > 0 && o.create !== undefined) {
-    // Asked for: each brain named that could not be cloned is made, then the chain is cloned again.
-    try {
-      for (const m of missed) {
-        const ref = refs.find((x) => repoKey(x) === m.key)!;
+  let brought: CloneResult | undefined;
+  let project: BrainRef | undefined = existing?.brain;
+
+  // A file that names another project brain is an edit by hand: refused before anything is cloned or made.
+  if (o.brain !== undefined && existing?.brain !== undefined) {
+    const named = parseName(o.brain);
+    const url = named === undefined && isAddress(o.brain) ? addressUrl(o.brain) : undefined;
+    const same =
+      named !== undefined
+        ? repoKey(named) === repoKey(existing.brain)
+        : url !== undefined &&
+          ((existing.brain.url !== undefined && sameRepository(existing.brain.url, url)) ||
+            brainAtAddress(home, url, config) === repoKey(existing.brain));
+    if (!same)
+      throw userError(
+        `${file} already names the project brain ${repoKey(existing.brain)}; edit it by hand to change it`,
+        "kioku_yaml_exists",
+      );
+  }
+
+  if (o.brain !== undefined) {
+    if (isAddress(o.brain)) {
+      const url = addressUrl(o.brain);
+      const here = brainAtAddress(home, url, config);
+      if (here !== undefined) project = { ...parseName(here)!, url };
+      else {
+        // An address this machine does not know is accepted only by the person, unless its owner is trusted (§2.4).
+        const owner = ownerOfAddress(url);
+        if (!interactive && (owner === undefined || !config.trust.owners.includes(owner)))
+          needTerminal(`clones ${url}, which this machine does not know`);
+        brought = await bringBrain(home, url, "project");
+        project = { ...parseName(brought.brain)!, url };
+      }
+    } else {
+      const named = parseName(o.brain);
+      if (named === undefined)
+        throw userError(
+          `"${o.brain}" is neither an address nor a brain's name, <owner>/<repo>, such as northwind/app-brain`,
+          "usage",
+        );
+      if (!isHere(home, named)) {
+        if (!interactive) needTerminal(`makes the brain ${repoKey(named)}`);
         created.push(
-          await createBrain(home, o.create.version, {
-            tier: m.tier,
-            repo: `${ref.host}/${ref.owner}/${ref.repo}`,
-            ...(o.create.via !== undefined && { via: o.create.via }),
+          await createBrain(home, o.version, {
+            tier: "project",
+            repo: repoKey(named),
+            ...(o.via !== undefined && { via: o.via }),
           }),
         );
+      } else {
+        const tier = readFolderConfig(join(home, ".kioku", "brains", named.owner, named.repo, "kioku.yaml"));
+        const declared = tier.ok && tier.value.form === "brain" ? tier.value.tier : undefined;
+        if (declared !== undefined && !ACCEPTS.project.includes(declared))
+          throw userError(
+            `${repoKey(named)} is a ${declared} brain; a project folder's \`brain\` takes a project brain`,
+            "brain_other_tier",
+          );
       }
-      const again = await cloneMissing(top, home);
-      missed = again.filter((c) => c.status === "failed" && ownKeys.has(c.key));
-      cloned.splice(
-        0,
-        cloned.length,
-        ...cloned.filter((c) => !ownKeys.has(c.key)),
-        ...again.filter((c) => c.tier !== "personal"),
-      );
-    } catch (e) {
-      if (wrote) rmSync(file, { force: true });
-      if (added.length > 0) await updateMachineConfig((c) => void added.forEach((k) => delete c.repositories[k]), home);
-      throw e;
+      const url = addressOf(config, home, named);
+      project = url === undefined ? named : { ...named, url };
     }
+    if (existing?.brain !== undefined && repoKey(existing.brain) !== repoKey(project!))
+      throw userError(
+        `${file} already names the project brain ${repoKey(existing.brain)}; edit it by hand to change it`,
+        "kioku_yaml_exists",
+      );
   }
-  if (missed.length > 0) {
-    if (wrote) rmSync(file, { force: true });
-    if (added.length > 0) await updateMachineConfig((c) => void added.forEach((k) => delete c.repositories[k]), home);
-    const why = missed.map((m) => `${m.key}: ${m.message ?? "the clone failed"}`).join("; ");
-    const create = missed
-      .map((m) => {
-        const ref = refs.find((x) => repoKey(x) === m.key)!;
-        return `kioku brain create ${ref.owner}/${ref.repo} --tier ${m.tier}`;
-      })
-      .join(", or ");
-    throw environmentError(
-      `could not clone ${why}. Nothing was written. If the brain does not exist yet, add --create to make it on this machine, or make it first: ${create}`,
-      "clone_failed",
-    );
+
+  // Alone: the addresses the file gives are the person's to accept, here, in a terminal (§2.4).
+  const refs = [project, existing?.team].filter((r): r is BrainRef => r !== undefined);
+  const accepted: string[] = [];
+  // Read again: a brain cloned or made above recorded its address.
+  const now = readMachineConfig(home) ?? emptyConfig();
+  for (const ref of refs) {
+    if (ref.url === undefined || isTrusted(now, ref, home)) continue;
+    if (isHere(home, ref) || addressOf(now, home, ref) !== undefined)
+      throw userError(
+        `${file} gives ${repoKey(ref)} the address ${ref.url}, and this machine has that brain at another address; edit the file, or remove the brain here first`,
+        "brain_exists",
+      );
+    if (!interactive) needTerminal(`accepts the address ${ref.url}, which this machine does not know`);
+    accepted.push(repoKey(ref));
   }
+  if (accepted.length > 0)
+    await updateMachineConfig((c) => {
+      for (const ref of refs) if (accepted.includes(repoKey(ref))) c.repositories[repoKey(ref)] = ref.url!;
+    }, home);
+
+  // A link by name alone takes the address of its brain once it has one, so a teammate can clone it (§2.4).
+  const after = readMachineConfig(home) ?? emptyConfig();
+  const addressed: string[] = [];
+  const withAddress = (ref: BrainRef | undefined): BrainRef | undefined => {
+    if (ref === undefined || ref.url !== undefined) return ref;
+    const url = addressOf(after, home, ref);
+    if (url === undefined) return ref;
+    addressed.push(repoKey(ref));
+    return { ...ref, url };
+  };
+  const next: CodeRepoConfig = {
+    form: "code",
+    ...(project !== undefined && { brain: withAddress(project)! }),
+    ...(existing?.team !== undefined && { team: withAddress(existing.team)! }),
+  };
+  const text = stringifyFolderConfig(next);
+  const before = existsSync(file) ? stringifyFolderConfig(existing!) : undefined;
+  const wrote = text !== before;
+  if (wrote) writeAtomic(file, text);
+
+  const cloned = (await cloneMissing(top, home)).filter((c) => c.tier !== "personal");
+  // An address accepted here whose clone failed is forgotten again: nothing of this call is left behind for it.
+  const failed = cloned.filter((c) => c.status === "failed" && accepted.includes(c.key)).map((c) => c.key);
+  if (failed.length > 0) await updateMachineConfig((c) => void failed.forEach((k) => delete c.repositories[k]), home);
+  const notHere = [next.brain, next.team]
+    .filter((r): r is BrainRef => r !== undefined && r.url === undefined && !isHere(home, r))
+    .map(repoKey);
   return {
     file,
     inRepository: repository !== undefined,
     wrote,
-    ...(wanted.brain && { brain: repoKey(wanted.brain) }),
-    ...(wanted.team && { team: repoKey(wanted.team) }),
+    ...(next.brain && { brain: repoKey(next.brain) }),
+    ...(next.team && { team: repoKey(next.team) }),
+    ...(brought !== undefined && { brought }),
     cloned,
     created,
+    addressed,
+    notHere,
     chain: resolveChain(top, readMachineConfig(home), home).links,
   };
 }

@@ -17,7 +17,7 @@ folder in effect.
 
 `~/.kioku/brains/` holds your personal brain and the clones of the shared
 ones. If the personal brain has no remote (`kioku doctor` says "no remote"),
-deleting it deletes that memory: publish it first with `kioku brain publish`,
+deleting it deletes that memory: publish it first with `kioku brain publish <brain> --remote <address>`,
 or copy the folder somewhere else. A shared brain is on its git host and is
 cloned again when a machine needs it.
 

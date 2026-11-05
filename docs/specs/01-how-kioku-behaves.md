@@ -38,8 +38,8 @@ opened directly has no row.
 A page is named by its path in its brain, then the brain in parentheses by its
 tier, which says who sees it: `knowledge/billing/decisions/webhook-retries.md
 (project)`. A brain that is not one of the session's is named by its tier and
-its repository, `(project · northwind/acme-brain)`; one whose tier cannot be read,
-by its repository alone; brains together are
+its name, `(project · northwind/acme-brain)`; one whose tier cannot be read, by
+its name alone; brains together are
 `(project, personal)`, and the summary counts them by tier,
 `personal 65 · project 79 · team 172`. Everything below names them this way.
 
@@ -98,11 +98,14 @@ name:
 | `update-available` | a newer version exists, with `kioku update`; only where the installer installed the tool (§6.4) |
 | `plugin-version` | the host's plugin and the tool are of different versions, once for each pair, with the command that brings them together (§6.2) |
 | `cloning` | brains of the chain being cloned, ready next session (§4.2) |
-| `untrusted` | a brain a repository names that this machine does not trust, with `kioku brain trust` (§2.4) |
+| `untrusted` | a brain a repository names that this machine does not trust, with `kioku init` in the folder, or `kioku config set trust.owners +<host/owner>` for every brain of that owner (§2.4) |
 | `publication-pending` | commits a write could not publish yet, retried (§1.6) |
 | `index-building` | the search index being built for the first time (§4.3) |
 | `no-personal-brain` | in a session: the machine has no personal brain, so nothing personal is saved; `setup` still says how to make or bring one (§2.3, §6.3) |
-| `unpublished` | a brain with no remote lives only on this machine, with `kioku brain publish`: the weekly notice, `doctor`'s warning and the reminders after `setup`, `brain create`, `init --create` and `brain remove` (§2.3) |
+| `unpublished` | a brain with no remote lives only on this machine, with `kioku brain publish`: the weekly notice, `doctor`'s warning and the reminders after `setup`, `brain create`, `init` where it makes a brain, and `brain remove` (§2.3) |
+| `link-without-address` | in a session: the folder's `kioku.yaml` names by name alone a brain that has a remote, so teammates cannot clone it, with `kioku init`, which writes its address (§2.4) |
+| `format-behind` | a project or team brain of an older format than the tool writes, which teammates on an older version still write to, with `kioku brain upgrade <brain>` once they have updated (§3.2) |
+| `brain-not-here` | in a session: the folder's `kioku.yaml` names by name alone a brain this machine does not have, so it is not loaded, with `kioku init <address>` once a teammate who has it gives its address (§2.4) |
 
 The rest is never silenced: an error, changes kept aside after a conflict
 (§1.6), a question the host asks (§3.2), the summary and the rows. A notice with
@@ -211,8 +214,13 @@ The agent chooses by subject among the session's brains (§2.1):
 something to a more shared brain ("that goes to acme"), the agent promotes it:
 `kioku page promote` writes a new page in the destination, in words fit for it,
 through the same `save` as any other (similar pages, validator, publication),
-and retires the original. A page is promoted up (personal, project, team), never
-down or across.
+and retires the original. **The destination is a brain of the session's chain**,
+named by its tier, `project` or `team`, or by its name: the folder says which
+project brain and which team brain are the session's (§2.4), so a page is
+promoted from inside the project that uses the brain. A brain outside the chain
+is refused, saying to open the session in the project folder that links it; a
+personal brain is never a destination. A page is promoted up, by the tier each
+brain says (personal, project, team), never down or across.
 
 In a session opened inside a brain (§2.7), what the person says about
 themselves is not saved to the brain in front of it, which others share (§1.5,

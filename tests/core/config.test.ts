@@ -3,12 +3,19 @@ import assert from "node:assert/strict";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  managedPath,
+  addressParts,
+  addressUrl,
+  brainFolder,
+  isAddress,
   managedRef,
+  nameOfAddress,
+  ownerOfAddress,
   parseBrainReference,
-  parseRepo,
+  parseName,
+  parseOwner,
   referenceValue,
   repoKey,
+  sameRepository,
 } from "../../src/core/config/brain-ref.ts";
 import {
   BRAIN_KEYS,
@@ -27,7 +34,7 @@ import {
   writeMachineConfig,
   CONFIG_HEADER,
 } from "../../src/core/config/machine.ts";
-import { expandPath, localPathOf } from "../../src/core/config/brain-ref.ts";
+import { expandPath } from "../../src/core/config/brain-ref.ts";
 import { resolveChain } from "../../src/core/config/chain.ts";
 import { cloneUrl } from "../../src/core/brains/clone.ts";
 import { downloadMB, PINS } from "../../src/core/semantic/pins.ts";
@@ -37,157 +44,189 @@ import { scratch as scratchIn } from "../fixtures.ts";
 
 const scratch = scratchIn("config");
 
+const ACME = "https://github.com/northwind/brain-acme.git";
+const TEAM_URL = "https://github.com/northwind/brain.git";
 // The worked example of §2.5, file by file.
-const CODE = "brain: github.com/northwind/brain-acme\nteam: github.com/northwind/brain\n";
+const CODE = `brain: { name: northwind/brain-acme, url: ${ACME} }\nteam: { name: northwind/brain, url: ${TEAM_URL} }\n`;
 /** A project folder that names its project brain and no team. */
-const PROJECT_ONLY = "brain: github.com/northwind/brain-acme\n";
-const PROJECT = "format: 1\ntier: project\nnamespaces:\n  - acme\n";
-const TEAM = "format: 1\ntier: team\nnamespaces:\n  - engineering\n  - design\n  - delivery\n";
-const PERSONAL = "format: 1\ntier: personal\nnamespaces:\n  - sam\n";
-const MACHINE = `brain: github.com/sam/brain
+const PROJECT_ONLY = `brain: { name: northwind/brain-acme, url: ${ACME} }\n`;
+const PROJECT = "format: 2\nname: northwind/brain-acme\ntier: project\nnamespaces:\n  - acme\n";
+const TEAM = "format: 2\nname: northwind/brain\ntier: team\nnamespaces:\n  - engineering\n  - design\n  - delivery\n";
+const PERSONAL = "format: 2\nname: sam/brain\ntier: personal\nnamespaces:\n  - sam\n";
+const MACHINE = `brain: sam/brain
 trust:
   owners:
     - github.com/northwind
     - github.com/acme
 repositories:
-  github.com/sam/brain:
-    path: ~/code/sam/brain
-  github.com/northwind/brain-acme: {}
-  github.com/northwind/brain: {}
+  sam/brain: git@github.com:sam/memoria.git
+  northwind/brain-acme: ${ACME}
+  northwind/brain: ${TEAM_URL}
 `;
 
-test("brain URLs in every spelling reduce to one key", () => {
-  for (const s of [
+test("a name is <owner>/<repo>, letters, digits, - and _, never a dot, a path or an address (§2.2)", () => {
+  assert.deepEqual(parseName("sam/memoria"), { owner: "sam", repo: "memoria" });
+  assert.deepEqual(parseName("north_wind/app-brain"), { owner: "north_wind", repo: "app-brain" });
+  for (const bad of ["memoria", "a/b/c", "github.com/sam", "sam/my.brain", "./a", "~/a", "/a/b", "a//b", "", "a/"])
+    assert.equal(parseName(bad), undefined, bad);
+  assert.equal(brainFolder("/h", parseName("northwind/brain-acme")!), "/h/.kioku/brains/northwind/brain-acme");
+  assert.deepEqual(managedRef("northwind/brain-acme"), { owner: "northwind", repo: "brain-acme" });
+  assert.equal(
+    managedRef("github.com/northwind/brain-acme"),
+    undefined,
+    "a folder of 0.1.0's under its host is no brain's",
+  );
+  assert.equal(managedRef("northwind/brains/acme"), undefined, "a folder inside a brain is no brain of its own");
+});
+
+test("an address is any address git clones from, and a name never reads as one (§2.2)", () => {
+  for (const a of [
     "github.com/northwind/brain-acme",
-    "https://github.com/northwind/brain-acme",
     "https://github.com/northwind/brain-acme.git",
     "git@github.com:northwind/brain-acme.git",
-    "ssh://git@github.com/northwind/brain-acme/",
+    "ssh://git@git.example.com:2222/northwind/platform/team.git",
+    "file:///srv/acme.git",
+    "/Volumes/shared/acme.git",
+    "./acme.git",
+    "~/brains/acme.git",
   ])
-    assert.equal(repoKey(parseRepo(s)!), "github.com/northwind/brain-acme", s);
-  assert.equal(parseRepo("brain-acme"), undefined);
-  assert.equal(parseRepo(""), undefined);
-  assert.equal(
-    managedPath("/h", parseRepo("github.com/northwind/brain-acme")!),
-    "/h/.kioku/brains/northwind/brain-acme",
-  );
-});
-
-test("a brain reference is a repository, the whole of it: a `path` is refused naming the key (§2.2)", () => {
-  const short = parseBrainReference("github.com/northwind/brain-acme", "brain");
-  assert.ok(short.ok && repoKey(short.ref) === "github.com/northwind/brain-acme");
-  const long = parseBrainReference({ repo: "https://github.com/northwind/brains.git" }, "brain");
-  assert.ok(long.ok);
-  assert.equal(repoKey(long.ref), "github.com/northwind/brains");
-  assert.equal(referenceValue(long.ref), "github.com/northwind/brains");
-  const path = parseBrainReference({ repo: "github.com/northwind/brains", path: "acme" }, "brain");
-  assert.match(path.ok ? "" : path.reason, /unknown key `brain\.path`.*a brain is a whole repository/);
-  const extra = parseBrainReference({ repo: "github.com/a/b", branch: "x" }, "brain");
-  assert.match(extra.ok ? "" : extra.reason, /unknown key `brain.branch`/);
-});
-
-test("a brain reference may say where its repository is: an ssh address alone, or { repo, url }, a folder on disk included (§2.2)", () => {
-  const ssh = parseBrainReference("git@git.example.com:northwind/brain-acme.git", "brain");
-  assert.ok(ssh.ok);
-  assert.deepEqual(
-    [repoKey(ssh.ref), ssh.ref.url, cloneUrl(ssh.ref)],
-    [
-      "git.example.com/northwind/brain-acme",
-      "git@git.example.com:northwind/brain-acme.git",
-      "git@git.example.com:northwind/brain-acme.git",
-    ],
-  );
-  assert.equal(referenceValue(ssh.ref), "git@git.example.com:northwind/brain-acme.git", "written back as it was given");
-  const disk = parseBrainReference(
-    { repo: "github.com/northwind/brain-acme", url: "/Volumes/shared/acme.git" },
-    "brain",
-  );
-  assert.ok(disk.ok);
-  assert.deepEqual(
-    [repoKey(disk.ref), cloneUrl(disk.ref)],
-    ["github.com/northwind/brain-acme", "/Volumes/shared/acme.git"],
-  );
-  assert.deepEqual(referenceValue(disk.ref), {
-    repo: "github.com/northwind/brain-acme",
-    url: "/Volumes/shared/acme.git",
+    assert.ok(isAddress(a), a);
+  for (const n of ["northwind/brain-acme", "memoria", "-upload-pack=x", "github.com/northwind"])
+    assert.ok(!isAddress(n), n);
+  assert.equal(addressUrl("github.com/northwind/brain-acme"), ACME, "host/path is read as https");
+  assert.equal(addressUrl("git@github.com:northwind/brain-acme.git"), "git@github.com:northwind/brain-acme.git");
+  assert.deepEqual(addressParts("ssh://git@git.example.com:2222/northwind/platform/team.git"), {
+    host: "git.example.com",
+    path: "northwind/platform/team",
   });
-  const plain = parseBrainReference("https://github.com/northwind/brain-acme.git", "brain");
-  assert.ok(plain.ok && plain.ref.url === undefined, "an https address is the one the name says");
-  assert.equal(cloneUrl(parseRepo("github.com/northwind/brain-acme")!), "https://github.com/northwind/brain-acme.git");
-  const config = { ...emptyConfig(), repositories: { "github.com/northwind/brain-acme": { url: "/srv/acme.git" } } };
-  assert.equal(
-    cloneUrl(parseRepo("github.com/northwind/brain-acme")!, config),
-    "/srv/acme.git",
-    "the machine's address when the reference has none",
+  assert.equal(addressParts("/srv/acme.git"), undefined, "a folder has no host");
+  assert.deepEqual(nameOfAddress(ACME), { owner: "northwind", repo: "brain-acme" });
+  assert.deepEqual(nameOfAddress("/Volumes/shared/northwind/acme.git"), { owner: "northwind", repo: "acme" });
+  assert.equal(ownerOfAddress("git@GitHub.com:northwind/brain-acme.git"), "github.com/northwind");
+  assert.equal(ownerOfAddress("/srv/acme.git"), undefined);
+  assert.ok(
+    sameRepository(ACME, "git@github.com:northwind/brain-acme.git"),
+    "the https and ssh forms of one repository",
   );
-  const bad = parseBrainReference({ repo: "github.com/a/b", url: "" }, "brain");
-  assert.match(bad.ok ? "" : bad.reason, /brain\.url/);
-  const text = "brain: { repo: github.com/northwind/brain-acme, url: /Volumes/shared/acme.git }\n";
+  assert.ok(!sameRepository(ACME, "https://gitlab.com/northwind/brain-acme.git"), "another host is another repository");
+  assert.deepEqual(parseOwner("GitHub.com/northwind"), { host: "github.com", owner: "northwind" });
+  assert.equal(parseOwner("northwind"), undefined, "an owner names its host");
+});
+
+test("a project folder's reference is a name, or { name, url }; an address alone, as 0.1.0 wrote it, says its name (§2.2)", () => {
+  const name = parseBrainReference("northwind/brain-acme", "brain");
+  assert.ok(name.ok);
+  assert.deepEqual(name.ref, { owner: "northwind", repo: "brain-acme" });
+  assert.equal(referenceValue(name.ref), "northwind/brain-acme");
+  const both = parseBrainReference({ name: "northwind/brain-acme", url: "/Volumes/shared/acme.git" }, "brain");
+  assert.ok(both.ok);
+  assert.deepEqual([repoKey(both.ref), cloneUrl(both.ref)], ["northwind/brain-acme", "/Volumes/shared/acme.git"]);
+  assert.deepEqual(referenceValue(both.ref), { name: "northwind/brain-acme", url: "/Volumes/shared/acme.git" });
+  const old = parseBrainReference("github.com/northwind/brain-acme", "brain");
+  assert.ok(old.ok);
+  assert.deepEqual(old.ref, { owner: "northwind", repo: "brain-acme", url: ACME });
+  const config = { ...emptyConfig(), repositories: { "northwind/brain-acme": "/srv/acme.git" } };
+  assert.equal(cloneUrl(name.ref, config), "/srv/acme.git", "the machine's address when the reference has none");
+  assert.equal(cloneUrl(name.ref), undefined, "a name alone has no address to clone from (§2.4)");
+  for (const [value, reason] of [
+    [{ name: "a/b", url: "" }, /brain\.url/],
+    [{ name: "a/b", branch: "x" }, /unknown key `brain.branch`/],
+    [{ repo: "a/b" }, /unknown key `brain.repo`/],
+    [{ name: "a/b", url: "--upload-pack=x" }, /begins with -/],
+    ["acme", /not a brain's name/],
+  ] as const) {
+    const r = parseBrainReference(value, "brain");
+    assert.match(r.ok ? "" : r.reason, reason, JSON.stringify(value));
+  }
+  const text = "brain: { name: northwind/brain-acme, url: /Volumes/shared/acme.git }\n";
   const read = parseFolderConfig(text);
   assert.ok(read.ok);
   if (read.ok) assert.equal(stringifyFolderConfig(read.value), text);
 });
 
-test("a clone from a host other than github.com goes under a folder of the host's name, and is found back from it (§2.5)", () => {
-  assert.equal(
-    managedPath("/h", parseRepo("git.example.com/northwind/brain-acme")!),
-    "/h/.kioku/brains/git.example.com/northwind/brain-acme",
-  );
-  assert.deepEqual(managedRef("git.example.com/northwind/brain-acme"), {
-    host: "git.example.com",
-    owner: "northwind",
-    repo: "brain-acme",
-  });
-  assert.deepEqual(managedRef("northwind/brain-acme"), { host: "github.com", owner: "northwind", repo: "brain-acme" });
-  assert.equal(managedRef("northwind/brains/acme"), undefined, "a folder inside a clone is no brain of its own");
-});
-
-test("a machine configuration keeps the address of a repository that is not where its name says, and refuses an empty one", () =>
+test("a machine configuration holds the addresses the person accepted, by name, and refuses an empty one (§2.5)", () =>
   scratch(async (home) => {
     mkdirSync(join(home, ".kioku"), { recursive: true });
     writeFileSync(
       configPath(home),
-      "repositories:\n  github.com/sam/brain:\n    url: /Volumes/shared/sam.git\ndisplay:\n  mute:\n    - unpublished\n",
+      "repositories:\n  sam/brain: /Volumes/shared/sam.git\ndisplay:\n  mute:\n    - unpublished\n",
     );
     const c = readMachineConfig(home)!;
-    assert.deepEqual(
-      [c.repositories["github.com/sam/brain"], c.display],
-      [{ url: "/Volumes/shared/sam.git" }, { mute: ["unpublished"] }],
+    assert.deepEqual([c.repositories["sam/brain"], c.display], ["/Volumes/shared/sam.git", { mute: ["unpublished"] }]);
+    assert.match(stringifyMachineConfig(c), /^repositories:\n {2}sam\/brain: \/Volumes\/shared\/sam\.git$/m);
+    writeFileSync(configPath(home), 'repositories:\n  sam/brain: ""\n');
+    assert.throws(() => readMachineConfig(home), /repositories\.sam\/brain/);
+    writeFileSync(configPath(home), "repositories:\n  sam.x/brain: /a\n");
+    assert.throws(() => readMachineConfig(home), /not a brain's name/);
+  }));
+
+test("a configuration 0.1.0 wrote is read by name, its addresses and paths kept for the hand-over of update (§2.5)", () =>
+  scratch(async (home) => {
+    mkdirSync(join(home, ".kioku"), { recursive: true });
+    writeFileSync(
+      configPath(home),
+      "brain: github.com/sam/brain\nteam: git.example.com/northwind/brain\nrepositories:\n  github.com/sam/brain:\n    path: ~/code/sam/brain\n  git.example.com/northwind/brain: {}\n  github.com/northwind/brain-acme:\n    url: /srv/acme.git\n",
     );
-    assert.match(stringifyMachineConfig(c), /github\.com\/sam\/brain:\n {4}url: \/Volumes\/shared\/sam\.git\n/);
-    writeFileSync(configPath(home), 'repositories:\n  github.com/sam/brain:\n    url: ""\n');
-    assert.throws(() => readMachineConfig(home), /repositories\.github\.com\/sam\/brain\.url/);
+    const c = readMachineConfig(home)!;
+    assert.deepEqual([c.brain, c.team], ["sam/brain", "northwind/brain"]);
+    assert.deepEqual(c.repositories, {
+      "sam/brain": "https://github.com/sam/brain.git",
+      "northwind/brain": "https://git.example.com/northwind/brain.git",
+      "northwind/brain-acme": "/srv/acme.git",
+    });
+    assert.deepEqual(
+      c.legacy?.map((l) => [l.key, l.name, l.path, l.url]),
+      [
+        ["github.com/sam/brain", "sam/brain", "~/code/sam/brain", undefined],
+        ["git.example.com/northwind/brain", "northwind/brain", undefined, undefined],
+        ["github.com/northwind/brain-acme", "northwind/brain-acme", undefined, "/srv/acme.git"],
+      ],
+    );
+    assert.doesNotMatch(
+      stringifyMachineConfig(c),
+      /^ *github\.com\/|path:/m,
+      "written back by name, never in the old form",
+    );
   }));
 
 test("code repository form of kioku.yaml (§2.5)", () => {
   const r = parseFolderConfig(CODE);
   assert.ok(r.ok && r.value.form === "code");
-  assert.equal(r.ok && r.value.form === "code" && repoKey(r.value.brain!), "github.com/northwind/brain-acme");
-  const url = parseFolderConfig("brain: https://github.com/northwind/brain-acme.git\n");
-  assert.ok(url.ok && url.value.form === "code" && repoKey(url.value.brain!) === "github.com/northwind/brain-acme");
+  assert.equal(r.ok && r.value.form === "code" && repoKey(r.value.brain!), "northwind/brain-acme");
+  const name = parseFolderConfig("brain: northwind/brain-acme\n");
+  assert.ok(name.ok && name.value.form === "code" && name.value.brain!.url === undefined);
 });
 
-test("brain form: project, team, personal (§2.5)", () => {
-  const project = parseFolderConfig(PROJECT);
-  assert.deepEqual(project, {
+test("brain form: project, team, personal, each with its name (§2.5)", () => {
+  assert.deepEqual(parseFolderConfig(PROJECT), {
     ok: true,
-    value: { form: "brain", format: 1, tier: "project", namespaces: ["acme"] },
+    value: { form: "brain", format: 2, name: "northwind/brain-acme", tier: "project", namespaces: ["acme"] },
   });
-  const team = parseFolderConfig(TEAM);
-  assert.deepEqual(team, {
+  assert.deepEqual(parseFolderConfig(TEAM), {
     ok: true,
     value: {
       form: "brain",
-      format: 1,
+      format: 2,
+      name: "northwind/brain",
       tier: "team",
       namespaces: ["engineering", "design", "delivery"],
     },
   });
-  const personal = parseFolderConfig(PERSONAL);
-  assert.deepEqual(personal, {
+  assert.deepEqual(parseFolderConfig(PERSONAL), {
     ok: true,
-    value: { form: "brain", format: 1, tier: "personal", namespaces: ["sam"] },
+    value: { form: "brain", format: 2, name: "sam/brain", tier: "personal", namespaces: ["sam"] },
   });
+});
+
+test("format 1, which 0.1.0 wrote, reads with no name; format 2 needs one; a name is refused in format 1 (§3.2)", () => {
+  const one = parseFolderConfig("format: 1\ntier: project\nnamespaces:\n  - acme\n");
+  assert.deepEqual(one, { ok: true, value: { form: "brain", format: 1, tier: "project", namespaces: ["acme"] } });
+  const unnamed = parseFolderConfig("format: 2\ntier: project\nnamespaces: []\n");
+  assert.match(unnamed.ok ? "" : unnamed.reason, /^`name` must be/);
+  const bad = parseFolderConfig("format: 2\nname: acme\ntier: project\nnamespaces: []\n");
+  assert.match(bad.ok ? "" : bad.reason, /^`name` must be/);
+  const early = parseFolderConfig("format: 1\nname: northwind/acme\ntier: project\nnamespaces: []\n");
+  assert.match(early.ok ? "" : early.reason, /unknown key `name`/);
 });
 
 test("the files of §2.5 write back as they were read", () => {
@@ -199,35 +238,35 @@ test("the files of §2.5 write back as they were read", () => {
 });
 
 test("a newer format still reads, so the validator can refuse it", () => {
-  const r = parseFolderConfig(PERSONAL.replace("format: 1", "format: 9") + "future: yes\n");
+  const r = parseFolderConfig(PERSONAL.replace("format: 2", "format: 9") + "future: yes\n");
   assert.ok(r.ok && r.value.form === "brain" && r.value.format === 9);
 });
 
 test("a project folder's kioku.yaml names a team brain, alone or with its project brain (§2.4)", () => {
-  const alone = parseFolderConfig("team: github.com/northwind/brain\n");
+  const alone = parseFolderConfig("team: northwind/brain\n");
   assert.ok(
     alone.ok &&
       alone.value.form === "code" &&
       alone.value.brain === undefined &&
-      repoKey(alone.value.team!) === "github.com/northwind/brain",
+      repoKey(alone.value.team!) === "northwind/brain",
   );
-  const both = parseFolderConfig("brain: github.com/northwind/brain-acme\nteam: github.com/acme/brain\n");
+  const both = parseFolderConfig(`brain: northwind/brain-acme\nteam: { name: acme/brain, url: ${TEAM_URL} }\n`);
   assert.ok(
     both.ok &&
       both.value.form === "code" &&
-      repoKey(both.value.brain!) === "github.com/northwind/brain-acme" &&
-      repoKey(both.value.team!) === "github.com/acme/brain",
+      repoKey(both.value.brain!) === "northwind/brain-acme" &&
+      repoKey(both.value.team!) === "acme/brain",
   );
   assert.equal(
     both.ok && stringifyFolderConfig(both.value),
-    "brain: github.com/northwind/brain-acme\nteam: github.com/acme/brain\n",
+    `brain: northwind/brain-acme\nteam: { name: acme/brain, url: ${TEAM_URL} }\n`,
     "written back as read",
   );
-  const folder = parseFolderConfig("team: { repo: github.com/northwind/brains, path: engineering }\n");
+  const folder = parseFolderConfig("team: { name: northwind/brains, path: engineering }\n");
   assert.match(folder.ok ? "" : folder.reason, /unknown key `team\.path`/, "a brain is a whole repository");
   const project = parseFolderConfig(PROJECT);
   assert.equal(project.ok && project.value.form, "brain", "a project brain's own team keeps it a brain's file");
-  const extra = parseFolderConfig("team: github.com/northwind/brain\nextra: 1\n");
+  const extra = parseFolderConfig("team: northwind/brain\nextra: 1\n");
   assert.match(
     extra.ok ? "" : extra.reason,
     /unknown key `extra`; a project folder's file holds `brain`, `team` or both/,
@@ -247,16 +286,16 @@ test("bad folder configs say what is wrong and name the key", () => {
   };
   assert.match(reasons("brain: [unclosed\n"), /not valid YAML/);
   assert.match(reasons("- a\n"), /not a mapping/);
-  assert.match(reasons("brain: nonsense\n"), /`brain` is not a brain URL/);
-  assert.match(reasons("brain: 3\n"), /`brain` must be a brain URL/);
+  assert.match(reasons("brain: nonsense\n"), /`brain` is not a brain's name/);
+  assert.match(reasons("brain: 3\n"), /`brain` must be a brain's name/);
   assert.match(reasons(CODE + "extra: 1\n"), /unknown key `extra`/);
   assert.match(reasons(PERSONAL + "extra: 1\n"), /unknown key `extra`/);
   assert.match(reasons(PERSONAL.replace("tier: personal", "tier: other")), /`tier`/);
-  assert.match(reasons(PERSONAL.replace("format: 1", "format: one")), /`format`/);
+  assert.match(reasons(PERSONAL.replace("format: 2", "format: one")), /`format`/);
   assert.match(
-    reasons(PERSONAL.replace("format: 1\n", "format: 1\nname: sam\n")),
-    /unknown key `name`/,
-    "a brain's name is its repository's (§2.3, §5)",
+    reasons(PERSONAL.replace("name: sam/brain\n", "name: sam\n")),
+    /`name` must be/,
+    "a brain's name is <owner>/<repo> (§2.2, §5.1 rule 13)",
   );
   assert.match(reasons(PERSONAL.replace("  - sam\n", "").replace("namespaces:", "namespaces: [3]")), /`namespaces`/);
   assert.match(reasons(PERSONAL.replace("  - sam\n", "").replace("namespaces:", "namespaces: sam")), /`namespaces`/);
@@ -267,7 +306,7 @@ test("bad folder configs say what is wrong and name the key", () => {
   );
   for (const brain of [PROJECT, TEAM, PERSONAL])
     assert.match(
-      reasons(`${brain}team: github.com/northwind/brain\n`),
+      reasons(`${brain}team: northwind/brain\n`),
       /unknown key `team`/,
       "a brain names no other brain: the folder names its team (§2.4, §5)",
     );
@@ -285,7 +324,7 @@ test("a folder config read from a file names the file in its failures", () =>
 
 test("the keys a kioku.yaml may hold are fixed", () => {
   assert.deepEqual([...CODE_REPO_KEYS], ["brain", "team"]);
-  assert.deepEqual([...BRAIN_KEYS], ["format", "tier", "namespaces", "language"]);
+  assert.deepEqual([...BRAIN_KEYS], ["format", "name", "tier", "namespaces", "language"]);
 });
 
 test("`language` in a brain's file: a tag, kept on a round trip, and anything else is named (§3.2)", () => {
@@ -313,19 +352,14 @@ test("machine configuration: the example of §2.5 reads and writes back identica
     mkdirSync(join(home, ".kioku"));
     writeFileSync(configPath(home), MACHINE);
     const c = readMachineConfig(home)!;
-    assert.equal(c.brain, "github.com/sam/brain");
+    assert.equal(c.brain, "sam/brain");
     assert.deepEqual(c.repositories, {
-      "github.com/sam/brain": { path: "~/code/sam/brain" },
-      "github.com/northwind/brain-acme": {},
-      "github.com/northwind/brain": {},
+      "sam/brain": "git@github.com:sam/memoria.git",
+      "northwind/brain-acme": ACME,
+      "northwind/brain": TEAM_URL,
     });
     assert.equal(stringifyMachineConfig(c), `${CONFIG_HEADER}\n${MACHINE}`, "written as read, under the header");
-    assert.equal(localPathOf(c, parseRepo("github.com/sam/brain")!, home), join(home, "code/sam/brain"));
-    assert.equal(
-      localPathOf(c, parseRepo("github.com/northwind/brain-acme")!, home),
-      join(home, ".kioku/brains/northwind/brain-acme"),
-    );
-    assert.equal(localPathOf(c, parseRepo("github.com/unknown/x")!, home), join(home, ".kioku/brains/unknown/x"));
+    assert.equal(c.legacy, undefined);
   }));
 
 test("`instincts` and `enabled` are refused naming them: Kioku has no switch of its own (§2.3, §2.5)", () =>
@@ -377,15 +411,15 @@ test("a missing machine configuration is a state, not an error; a broken one is 
     assert.throws(() => readMachineConfig(home), /not valid YAML/);
     await assert.rejects(
       updateMachineConfig((c) => {
-        c.brain = "github.com/x/brain";
+        c.brain = "x/brain";
       }, home),
       /not valid YAML/,
     );
     assert.equal(readFileSync(configPath(home), "utf8"), "brain: [oops\n");
     writeFileSync(configPath(home), "brain: nonsense\n");
-    assert.throws(() => readMachineConfig(home), /`brain` is not a brain URL/);
-    writeFileSync(configPath(home), "repositories:\n  github.com/a/b:\n    path: 3\n");
-    assert.throws(() => readMachineConfig(home), /repositories\.github\.com\/a\/b\.path/);
+    assert.throws(() => readMachineConfig(home), /`brain` is not a brain's name/);
+    writeFileSync(configPath(home), "repositories:\n  a/b: 3\n");
+    assert.throws(() => readMachineConfig(home), /repositories\.a\/b/);
     writeFileSync(configPath(home), "evolve: sometimes\n");
     assert.throws(() => readMachineConfig(home), /`evolve`/);
   }));
@@ -401,7 +435,17 @@ test("unknown keys are an error naming the file and the key", () =>
       );
     }
     writeFileSync(configPath(home), "repositories:\n  github.com/a/b:\n    team: x\n");
-    assert.throws(() => readMachineConfig(home), /unknown key `repositories\.github\.com\/a\/b\.team`/);
+    assert.throws(
+      () => readMachineConfig(home),
+      /unknown key `repositories\.github\.com\/a\/b\.team`/,
+      "0.1.0's form, read to bring it forward, holds `path` and `url`",
+    );
+    writeFileSync(configPath(home), "repositories:\n  a/b:\n    url: x\n");
+    assert.throws(
+      () => readMachineConfig(home),
+      /`repositories\.a\/b` must be the address/,
+      "this form holds the address alone",
+    );
   }));
 
 test("autoupdate and the notice updated are gone: a file that names them is refused, as any unknown key or name (§2.5, §6.4)", () =>
@@ -434,43 +478,42 @@ test("the machine configuration names the person's brain and team, and holds no 
 test("`brain` and `team` read as keys and write back first, in the order of §2.5", () =>
   scratch((home) => {
     mkdirSync(join(home, ".kioku"));
-    const text =
-      "brain: github.com/sam/brain\nteam: github.com/northwind/brain\nrepositories:\n  github.com/northwind/brain: {}\n";
+    const text = `brain: sam/brain\nteam: northwind/brain\nrepositories:\n  northwind/brain: ${TEAM_URL}\n`;
     writeFileSync(configPath(home), text);
     const c = readMachineConfig(home)!;
-    assert.deepEqual([c.brain, c.team], ["github.com/sam/brain", "github.com/northwind/brain"]);
+    assert.deepEqual([c.brain, c.team], ["sam/brain", "northwind/brain"]);
     assert.equal(stringifyMachineConfig(c), `${CONFIG_HEADER}\n${text}`);
     writeFileSync(configPath(home), "team: nonsense\n");
-    assert.throws(() => readMachineConfig(home), /`team` is not a brain URL/);
+    assert.throws(() => readMachineConfig(home), /`team` is not a brain's name/);
   }));
 
 test("machine configuration writes round-trip, atomically, leaving no lock or temporary file", () =>
   scratch(async (home) => {
     const c = emptyConfig();
-    c.brain = "github.com/sam/brain";
-    c.repositories["github.com/sam/brain"] = { path: "~/code/sam/brain" };
-    c.repositories["github.com/northwind/brain"] = {};
+    c.brain = "sam/brain";
+    c.repositories["sam/brain"] = "/Volumes/shared/sam.git";
+    c.repositories["northwind/brain"] = TEAM_URL;
     await writeMachineConfig(c, home);
     assert.deepEqual(readMachineConfig(home), c);
     assert.deepEqual(readdirSync(join(home, ".kioku")), ["config.yaml"]);
 
     await updateMachineConfig((x) => {
-      x.repositories["github.com/northwind/brain-acme"] = {};
+      x.repositories["northwind/brain-acme"] = ACME;
     }, home);
     assert.deepEqual(Object.keys(readMachineConfig(home)!.repositories), [
-      "github.com/sam/brain",
-      "github.com/northwind/brain",
-      "github.com/northwind/brain-acme",
+      "sam/brain",
+      "northwind/brain",
+      "northwind/brain-acme",
     ]);
   }));
 
 test("updating a machine that is not set up starts from the defaults", () =>
   scratch(async (home) => {
     await updateMachineConfig((c) => {
-      c.brain = "github.com/sam/brain";
+      c.brain = "sam/brain";
     }, home);
     assert.deepEqual(readMachineConfig(home), {
-      brain: "github.com/sam/brain",
+      brain: "sam/brain",
       repositories: {},
       trust: { owners: [] },
     });
@@ -481,7 +524,7 @@ test("concurrent updates are not lost", () =>
     await Promise.all(
       Array.from({ length: 8 }, (_, i) =>
         updateMachineConfig((c) => {
-          c.repositories[`github.com/o/b${i}`] = {};
+          c.repositories[`o/b${i}`] = `/srv/b${i}.git`;
         }, home),
       ),
     );
@@ -506,7 +549,7 @@ function machine(
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "kioku.yaml"), text);
   };
-  if (clone.personal) put(join(home, "code/sam/brain"), PERSONAL);
+  if (clone.personal) put(join(home, ".kioku/brains/sam/brain"), PERSONAL);
   if (clone.project) put(join(home, ".kioku/brains/northwind/brain-acme"), clone.projectText ?? PROJECT);
   if (clone.team) put(join(home, ".kioku/brains/northwind/brain"), TEAM);
   const repo = join(home, "work/acme-api");
@@ -525,12 +568,12 @@ test("chain: personal, project and team, all cloned, from a subfolder", () =>
     assert.deepEqual(
       chain.links.map((l) => [l.tier, l.key, l.cloned]),
       [
-        ["personal", "github.com/sam/brain", true],
-        ["project", "github.com/northwind/brain-acme", true],
-        ["team", "github.com/northwind/brain", true],
+        ["personal", "sam/brain", true],
+        ["project", "northwind/brain-acme", true],
+        ["team", "northwind/brain", true],
       ],
     );
-    assert.equal(chain.links[0]!.path, join(home, "code/sam/brain"));
+    assert.equal(chain.links[0]!.path, join(home, ".kioku/brains/sam/brain"));
     assert.equal(chain.links[1]!.path, join(home, ".kioku/brains/northwind/brain-acme"));
     assert.equal(chain.links[2]!.path, join(home, ".kioku/brains/northwind/brain"));
     assert.deepEqual(chain.missing, []);
@@ -557,17 +600,15 @@ test("a folder with no kioku.yaml resolves to the personal brain alone", () =>
     assert.equal(chain.root, undefined);
     assert.deepEqual(
       chain.links.map((l) => [l.tier, l.key]),
-      [["personal", "github.com/sam/brain"]],
+      [["personal", "sam/brain"]],
     );
   }));
 
-test("a personal brain overridden by a local path resolves to that path", () =>
+test("every brain lives in the managed folder under its name: a brain the machine names but has not is not cloned (§2.5)", () =>
   scratch((home) => {
-    machine(home, { personal: true });
-    const c = config(home);
-    c.repositories["github.com/sam/brain"] = { path: "/data/my-brain" };
-    const chain = resolveChain(join(home, "work/acme-api"), c, home);
-    assert.equal(chain.links[0]!.path, "/data/my-brain");
+    machine(home, {});
+    const chain = resolveChain(join(home, "work/acme-api"), config(home), home);
+    assert.equal(chain.links[0]!.path, join(home, ".kioku/brains/sam/brain"));
     assert.equal(chain.links[0]!.cloned, false);
   }));
 
@@ -593,7 +634,7 @@ test("a machine that is not set up has no personal link, and the project still r
 function unfamiliar(home: string, o: Parameters<typeof machine>[1]) {
   const repo = machine(home, o);
   const c = config(home);
-  c.repositories = { "github.com/sam/brain": c.repositories["github.com/sam/brain"]! };
+  c.repositories = { "sam/brain": c.repositories["sam/brain"]! };
   c.trust.owners = [];
   return { repo, c };
 }
@@ -604,28 +645,28 @@ test("a brain a repository names is not loaded until this machine trusts it (§2
     const chain = resolveChain(repo, c, home);
     assert.deepEqual(
       chain.links.map((l) => l.key),
-      ["github.com/sam/brain"],
+      ["sam/brain"],
     );
     assert.deepEqual(
       chain.untrusted.map((l) => [l.tier, l.key, l.cloned]),
       [
-        ["project", "github.com/northwind/brain-acme", false],
-        ["team", "github.com/northwind/brain", false],
+        ["project", "northwind/brain-acme", false],
+        ["team", "northwind/brain", false],
       ],
     );
     assert.deepEqual(chain.missing, []);
-    assert.equal(chain.project, "github.com/northwind/brain-acme");
+    assert.equal(chain.project, "northwind/brain-acme");
   }));
 
 test("a registered repository, or an owner in `trust.owners`, is trusted", () =>
   scratch((home) => {
     const { repo, c } = unfamiliar(home, { personal: true, project: true, team: true });
-    c.repositories["github.com/northwind/brain-acme"] = {};
-    c.repositories["github.com/northwind/brain"] = {};
+    c.repositories["northwind/brain-acme"] = ACME;
+    c.repositories["northwind/brain"] = TEAM_URL;
     const byBrain = resolveChain(repo, c, home);
     assert.deepEqual(
       byBrain.links.map((l) => l.key),
-      ["github.com/sam/brain", "github.com/northwind/brain-acme", "github.com/northwind/brain"],
+      ["sam/brain", "northwind/brain-acme", "northwind/brain"],
     );
     assert.deepEqual(byBrain.untrusted, []);
 
@@ -633,7 +674,7 @@ test("a registered repository, or an owner in `trust.owners`, is trusted", () =>
     owner.c.trust.owners = ["github.com/northwind"];
     assert.deepEqual(
       resolveChain(owner.repo, owner.c, home).links.map((l) => l.key),
-      ["github.com/sam/brain", "github.com/northwind/brain-acme", "github.com/northwind/brain"],
+      ["sam/brain", "northwind/brain-acme", "northwind/brain"],
     );
   }));
 
@@ -645,15 +686,15 @@ test("every brain the folder names is checked on its own: a team beside a truste
       team: true,
       code: `${PROJECT_ONLY}team: github.com/acme/brain\n`,
     });
-    c.repositories["github.com/northwind/brain-acme"] = {};
+    c.repositories["northwind/brain-acme"] = ACME;
     const chain = resolveChain(repo, c, home);
     assert.deepEqual(
       chain.links.map((l) => l.key),
-      ["github.com/sam/brain", "github.com/northwind/brain-acme"],
+      ["sam/brain", "northwind/brain-acme"],
     );
     assert.deepEqual(
       chain.untrusted.map((l) => [l.tier, l.key]),
-      [["team", "github.com/acme/brain"]],
+      [["team", "acme/brain"]],
     );
   }));
 
@@ -663,7 +704,7 @@ test("a brain the session is inside is the person's own act and needs no trust",
     const c = config(home);
     c.trust.owners = [];
     const inside = resolveChain(join(home, ".kioku/brains/northwind/brain-acme"), c, home);
-    assert.equal(inside.inside, "github.com/northwind/brain-acme");
+    assert.equal(inside.inside, "northwind/brain-acme");
     assert.deepEqual(inside.untrusted, []);
   }));
 
@@ -706,8 +747,8 @@ test("a repository that names only a team gives personal and team, with no proje
     assert.deepEqual(
       chain.links.map((l) => [l.tier, l.key]),
       [
-        ["personal", "github.com/sam/brain"],
-        ["team", "github.com/northwind/brain"],
+        ["personal", "sam/brain"],
+        ["team", "northwind/brain"],
       ],
     );
     assert.equal(chain.project, undefined);
@@ -720,8 +761,8 @@ test("the team is the one the folder names, whatever its project brain's file ho
     assert.deepEqual(
       chain.missing.map((l) => [l.tier, l.key]),
       [
-        ["project", "github.com/northwind/brain-acme"],
-        ["team", "github.com/acme/brain"],
+        ["project", "northwind/brain-acme"],
+        ["team", "acme/brain"],
       ],
     );
   }));
@@ -730,11 +771,11 @@ test("the machine's team loads where no project folder names one, and needs no t
   scratch((home) => {
     const repo = machine(home, { personal: true, project: true, team: true, code: PROJECT_ONLY });
     const c = config(home);
-    c.team = "github.com/northwind/brain";
+    c.team = "northwind/brain";
     // Nobody ran `kioku init` here: the machine's team is the person's own act, so it is trusted all the same.
     const strict = {
       ...c,
-      repositories: { "github.com/sam/brain": c.repositories["github.com/sam/brain"]! },
+      repositories: { "sam/brain": c.repositories["sam/brain"]! },
       trust: { owners: [] },
     };
     mkdirSync(join(home, "scratch"), { recursive: true });
@@ -742,8 +783,8 @@ test("the machine's team loads where no project folder names one, and needs no t
     assert.deepEqual(
       nowhere.links.map((l) => [l.tier, l.key]),
       [
-        ["personal", "github.com/sam/brain"],
-        ["team", "github.com/northwind/brain"],
+        ["personal", "sam/brain"],
+        ["team", "northwind/brain"],
       ],
     );
     assert.equal(nowhere.teamFrom, "machine");
@@ -753,9 +794,9 @@ test("the machine's team loads where no project folder names one, and needs no t
     assert.deepEqual(
       projectOnly.links.map((l) => [l.tier, l.key]),
       [
-        ["personal", "github.com/sam/brain"],
-        ["project", "github.com/northwind/brain-acme"],
-        ["team", "github.com/northwind/brain"],
+        ["personal", "sam/brain"],
+        ["project", "northwind/brain-acme"],
+        ["team", "northwind/brain"],
       ],
     );
     assert.equal(projectOnly.teamFrom, "machine");
@@ -765,9 +806,9 @@ test("the machine's team loads where no project folder names one, and needs no t
     assert.deepEqual(
       named.links.map((l) => [l.tier, l.key]),
       [
-        ["personal", "github.com/sam/brain"],
-        ["project", "github.com/northwind/brain-acme"],
-        ["team", "github.com/acme/brain"],
+        ["personal", "sam/brain"],
+        ["project", "northwind/brain-acme"],
+        ["team", "acme/brain"],
       ],
       "the folder's team, and the machine's is not loaded",
     );
@@ -781,15 +822,19 @@ test("the machine's team loads where no project folder names one, and needs no t
     );
   }));
 
-test("a personal project whose brain is the personal brain appears once", () =>
+test("a folder that names the personal brain as its project loads it once, as personal, and says so (§2.1)", () =>
   scratch((home) => {
-    const repo = machine(home, { personal: true, code: "brain: github.com/sam/brain\n" });
+    const repo = machine(home, { personal: true, code: "brain: sam/brain\n" });
     const chain = resolveChain(repo, config(home), home);
     assert.deepEqual(
       chain.links.map((l) => [l.tier, l.key]),
-      [["personal", "github.com/sam/brain"]],
+      [["personal", "sam/brain"]],
     );
-    assert.equal(chain.project, "github.com/sam/brain");
+    assert.equal(chain.project, undefined);
+    assert.match(
+      chain.problems.join("\n"),
+      /sam\/brain is a personal brain, and a project link takes only a project brain/,
+    );
   }));
 
 test("inside a brain's own folder that brain alone is the chain, and the personal brain is not loaded (§2.7)", () =>
@@ -799,36 +844,36 @@ test("inside a brain's own folder that brain alone is the chain, and the persona
     assert.equal(chain.root, undefined);
     assert.deepEqual(
       chain.links.map((l) => [l.tier, l.key]),
-      [["project", "github.com/northwind/brain-acme"]],
+      [["project", "northwind/brain-acme"]],
     );
     assert.deepEqual(
       chain.notLoaded.map((n) => [n.tier, n.key]),
-      [["personal", "github.com/sam/brain"]],
+      [["personal", "sam/brain"]],
     );
     const c = config(home);
-    c.team = "github.com/northwind/brain";
+    c.team = "northwind/brain";
     assert.deepEqual(
       resolveChain(join(home, ".kioku/brains/northwind/brain-acme"), c, home).notLoaded.map((n) => [n.tier, n.key]),
       [
-        ["personal", "github.com/sam/brain"],
-        ["team", "github.com/northwind/brain"],
+        ["personal", "sam/brain"],
+        ["team", "northwind/brain"],
       ],
       "the machine's team is the session's chain too, not loaded",
     );
-    assert.equal(chain.inside, "github.com/northwind/brain-acme");
-    assert.equal(chain.project, "github.com/northwind/brain-acme");
+    assert.equal(chain.inside, "northwind/brain-acme");
+    assert.equal(chain.project, "northwind/brain-acme");
     assert.equal(chain.links[0]!.path, join(home, ".kioku/brains/northwind/brain-acme"));
   }));
 
 test("inside the personal brain it loads once and is the brain the session is in", () =>
   scratch((home) => {
     machine(home, { personal: true });
-    const chain = resolveChain(join(home, "code/sam/brain"), config(home), home);
+    const chain = resolveChain(join(home, ".kioku/brains/sam/brain"), config(home), home);
     assert.deepEqual(
       chain.links.map((l) => [l.tier, l.key]),
-      [["personal", "github.com/sam/brain"]],
+      [["personal", "sam/brain"]],
     );
-    assert.equal(chain.inside, "github.com/sam/brain");
+    assert.equal(chain.inside, "sam/brain");
     assert.equal(chain.project, undefined);
     assert.deepEqual(chain.notLoaded, []);
   }));

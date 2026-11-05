@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { knownBrains } from "./brains/list.ts";
-import { parseRepo, localPathOf, brainRepoOfKey } from "./config/brain-ref.ts";
-import { resolveChain, trustCommand } from "./config/chain.ts";
+import { brainFolder, brainRepoOfKey, parseName } from "./config/brain-ref.ts";
+import { resolveChain, trustCommand, trustOwnerCommand } from "./config/chain.ts";
 import { NEWER_THAN_READ, NEWEST_FORMAT } from "./brain/brain.ts";
 import { readFolderConfig } from "./config/folder-config.ts";
 import { configPath, readMachineConfig, mutes, remindsUnpublished, type MachineConfig } from "./config/machine.ts";
@@ -32,7 +32,6 @@ import { indexPath, syncLockPath, syncStatePath } from "./state.ts";
 import { readPending } from "./write/pending.ts";
 import { NON_INTERACTIVE } from "./write/publish.ts";
 import { currentSteps } from "./steps.ts";
-import { knownUser } from "./setup/personal.ts";
 import { readJson } from "./util.ts";
 
 /** `ok`: fine. `warn`: optional, or pending work; reported without failing. `missing`: required; it fails the exit code. */
@@ -160,17 +159,16 @@ function gitChecks(env: DoctorEnv, config: MachineConfig | undefined): Check[] {
 function brainChecks(env: DoctorEnv, config: MachineConfig): Check[] {
   const checks: Check[] = [];
   if (config.brain === undefined) {
-    // The repository `brain create` would make, as the name the person goes by gives it (§2.3): the one to bring.
-    const yours = `${knownUser() ?? "<owner>"}/brain`;
+    // The name is the person's to give, never worked out (§2.3).
     checks.push(
       warn(
         "personal brain",
         "none: nothing personal is saved on this machine",
-        `\`kioku brain create\` makes yours, ${yours}, on this machine; \`kioku brain clone ${yours}\` brings it from its repository`,
+        "`kioku brain create <owner>/<repo>` makes yours on this machine, named as you like; `kioku brain clone <address>` brings it from its repository",
       ),
     );
   } else {
-    const path = localPathOf(config, parseRepo(config.brain)!, env.home);
+    const path = brainFolder(env.home, parseName(config.brain)!);
     const found = readFolderConfig(join(path, "kioku.yaml"));
     checks.push(
       found.ok && found.value.form === "brain" && found.value.tier === "personal"
@@ -178,13 +176,15 @@ function brainChecks(env: DoctorEnv, config: MachineConfig): Check[] {
         : missing(
             "personal brain",
             `${config.brain} is registered but not at ${path}`,
-            `run \`kioku brain clone ${config.brain}\``,
+            config.repositories[config.brain] !== undefined
+              ? `run \`kioku brain clone ${config.repositories[config.brain]}\``
+              : "it had no remote, so it is gone; `kioku brain create <owner>/<repo>` makes another",
           ),
     );
   }
   // The person's own team, where a project names none (§2.4): said when it is set, as the personal brain is.
   if (config.team !== undefined) {
-    const path = localPathOf(config, parseRepo(config.team)!, env.home);
+    const path = brainFolder(env.home, parseName(config.team)!);
     const found = readFolderConfig(join(path, "kioku.yaml"));
     checks.push(
       found.ok && found.value.form === "brain" && found.value.tier === "team"
@@ -192,7 +192,9 @@ function brainChecks(env: DoctorEnv, config: MachineConfig): Check[] {
         : missing(
             "team brain",
             `${config.team} is this machine's team but not a team brain at ${path}`,
-            `run \`kioku brain clone ${config.team}\`, or \`kioku config unset team\``,
+            config.repositories[config.team] !== undefined
+              ? `run \`kioku brain clone ${config.repositories[config.team]}\`, or \`kioku config unset team\``
+              : "`kioku config unset team`",
           ),
     );
   }
@@ -218,6 +220,18 @@ function brainChecks(env: DoctorEnv, config: MachineConfig): Check[] {
         ),
       );
     }
+    // A brain of an older format is read and written as it is; raising it is one commit (§3.2, `format-behind`).
+    if (declared.ok && declared.value.form === "brain" && declared.value.format < NEWEST_FORMAT) {
+      checks.push(
+        warn(
+          `${name} format`,
+          `${b.folder} is in format ${declared.value.format}; this version writes ${NEWEST_FORMAT}`,
+          declared.value.tier === "personal"
+            ? `\`kioku brain upgrade ${b.key}\` raises it, in one commit`
+            : `once your teammates run a version that reads format ${NEWEST_FORMAT}, \`kioku brain upgrade ${b.key}\` raises it; until then it is fine as it is`,
+        ),
+      );
+    }
     if (b.remote === undefined) {
       // A brain with no remote is never looked for on a git host (§2.5); whether it is a warning is the person's (§2.3).
       const detail = `${b.folder}, no remote: it lives only on this machine`;
@@ -227,7 +241,7 @@ function brainChecks(env: DoctorEnv, config: MachineConfig): Check[] {
           : warn(
               name,
               detail,
-              `kioku brain publish ${b.personal ? "" : `${brainRepoOfKey(b.key)} `}puts it in an empty repository you make, and a second machine clones it; kioku config set display.mute +unpublished if it is to stay here`,
+              `kioku brain publish ${brainRepoOfKey(b.key)} --remote <address> puts it in an empty repository you make, and a second machine clones it; kioku config set display.mute +unpublished if it is to stay here`,
             ),
       );
       continue;
@@ -363,15 +377,14 @@ function modelCheck(env: DoctorEnv): Check {
 /** Brains the repository of the current folder names that this machine does not trust (§2.4): said, never silent. */
 function trustCheck(env: DoctorEnv, config: MachineConfig): Check[] {
   if (env.cwd === undefined) return [];
-  return resolveChain(env.cwd, config, env.home).untrusted.map((u) =>
-    warn(
+  return resolveChain(env.cwd, config, env.home).untrusted.map((u) => {
+    const owner = trustOwnerCommand(u);
+    return warn(
       "trusted brains",
-      u.address === undefined
-        ? `this folder names ${u.key} as its ${u.tier} brain, which this machine does not trust: it is not loaded`
-        : `this folder names ${u.key} as its ${u.tier} brain at ${u.address}, an address this machine does not know for it: it is not loaded`,
-      `if you trust it, run \`${trustCommand(u)}\` in a terminal, then start a new session`,
-    ),
-  );
+      `this folder names ${u.key} as its ${u.tier} brain at ${u.address}, an address this machine does not know for it: it is not loaded`,
+      `if you trust it, run \`${trustCommand(u)}\` here in a terminal${owner === undefined ? "" : `, or \`${owner}\` for every brain of that owner`}, then start a new session`,
+    );
+  });
 }
 
 /**

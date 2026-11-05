@@ -16,10 +16,11 @@ away what a trial session wrote; `--out <dir>` builds elsewhere.
 
 | Path in `.demo/` | Is |
 |---|---|
+| `brains/` | a link to `.home/.kioku/brains/`, where the demo machine keeps every brain by its name |
 | `brains/sam/brain/` | sam's personal brain, about 67 pages in five namespaces |
 | `brains/northwind/team-brain/` | Northwind's team brain, about 174 pages in sixteen namespaces, one three deep |
 | `brains/northwind/app-brain/` | the app's project brain, about 80 pages in four namespaces |
-| `app/` | the app's code repository, linked to the project brain and the team's: a session here loads all three |
+| `app/` | the app's code repository, linked to the project brain and the team's by name and address: a session here loads all three |
 | `.home/` | the machine's state, standing in for `~/.kioku` |
 | `.remotes/` | bare repositories standing in for the git host |
 
@@ -33,15 +34,23 @@ pages (`SEARCHES` in the seed) and no page cites this repository.
 
 ## Run a verb against it
 
-`pnpm demo` writes a `.mise.toml` in `.demo/app` that sets `KIOKU_HOME`
+`pnpm demo` writes a `.mise.toml` in `.demo` that sets `KIOKU_HOME`
 to the demo's home and puts the checkout's launcher first on the `PATH`, so
-with [mise](https://mise.jdx.dev) a terminal there runs this checkout's tool
-against the demo's brains (`mise trust` once, when it asks):
+with [mise](https://mise.jdx.dev) a terminal anywhere under `.demo` (the code
+repository in `app`, a brain under `brains`, a remote) runs this checkout's
+tool against the demo's brains, never the installed one against your own.
+mise reads a file only once you trust it, and it trusts the path, so once is
+enough, whatever later `pnpm demo` runs write there:
 
 ```bash
+mise trust .demo/.mise.toml
 cd .demo/app
+which kioku          # .demo/bin/kioku, not the installed one
 kioku page search migrations
 ```
+
+Until it is trusted, mise leaves the file out and warns, and `kioku` in
+`.demo` is the installed one, against your own brains.
 
 Without mise, set the two by hand:
 `KIOKU_HOME=$PWD/../.home ../bin/kioku page search migrations`. `KIOKU_HOME`
@@ -57,8 +66,12 @@ is confirmed by sam whatever your git says.
 
 `pnpm demo` writes a `kioku` launcher for this checkout's bundle in
 `.demo/bin` and sets `KIOKU_HOME` and `KIOKU_BIN` in
-`.demo/app/.claude/settings.local.json`. A session opened in
-`.demo/app` then runs this checkout's tool against the demo's brains.
+`.demo/app/.claude/settings.local.json`, with a `SessionStart` hook that
+puts `.demo/bin` first on the `PATH` of the session's shell through
+`CLAUDE_ENV_FILE` (mise does not set it there). A session opened in
+`.demo/app` then runs this checkout's tool against the demo's brains: the
+hooks through `KIOKU_BIN`, and `kioku` in the agent's commands and in `!`
+through the `PATH`.
 After changing `src/`, `pnpm dev:claude` rebuilds the bundle;
 `pnpm dev:claude -- --launch` also starts `claude` there with this checkout's
 plugin loaded for the session (`--plugin-dir plugins/claude-code`), in place

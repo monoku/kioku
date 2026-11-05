@@ -1,15 +1,15 @@
-# A release is merging its pull request (§6.4). A push to main that brings the commit `Release <version>` and whose tag
-# does not exist yet: the version is checked, that commit is tested, and the GitHub release creates the tag and carries
-# the bundle, built here from that commit, as kioku.mjs, which the installer and `kioku update` fetch
+# A release is merging its pull request (§6.4): a branch release/v<version> or hotfix/v<version>, as git flow has it. A
+# push to main that moves the version in package.json and whose tag does not exist yet: the version is checked, the
+# commit main is at is tested, and the GitHub release creates the tag on it and carries the bundle, built here from that
+# commit, as kioku.mjs, which the installer and `kioku update` fetch
 # (§6.3), its checksum as kioku.mjs.sha256, the plugin that travels beside it as kioku-plugin.tar.gz with its
-# checksum (§6.2), and the CHANGELOG's section as its notes. Every release is the latest (§6.4). A tag on a commit off
-# main publishes nothing.
+# checksum (§6.2), and the CHANGELOG's section as its notes. Every release is the latest (§6.4).
 name: release
 on:
   push:
+    # Only main, which a pull request reaches: the token that writes runs only code that was reviewed and checked. A tag
+    # pushed by hand publishes nothing; a publication that failed is run again from the Actions page.
     branches: [main]
-    # A tag by hand, on a commit that main holds, publishes too.
-    tags: ["v*"]
 permissions:
   contents: write
 jobs:
@@ -22,11 +22,11 @@ jobs:
       - name: What this push brings
         id: found
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
-        run: node scripts/publish-release.mjs "$BEFORE" "$AFTER" "$RUNNER_TEMP/notes.md"
-      - name: Take the release commit
+        run: node .github/scripts/publish-release.mjs find "$BEFORE" "$AFTER" "$RUNNER_TEMP/notes.md"
+      - name: Take the commit to release
         if: steps.found.outputs.tag != ''
         env:
           SHA: ${{ steps.found.outputs.sha }}
@@ -49,7 +49,7 @@ jobs:
         run: pnpm typecheck
       - if: steps.found.outputs.tag != ''
         run: pnpm lint
-      - name: Build the bundle from the release commit, and test it
+      - name: Build the bundle from the commit to release, and test it
         if: steps.found.outputs.tag != ''
         run: pnpm test
       - if: steps.found.outputs.tag != ''
@@ -62,10 +62,10 @@ jobs:
       - name: Publish the release
         if: steps.found.outputs.tag != ''
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           TAG: ${{ steps.found.outputs.tag }}
           SHA: ${{ steps.found.outputs.sha }}
         run: |
           sha256sum lib/kioku.mjs | awk '{ print $1 "  kioku.mjs" }' > kioku.mjs.sha256
           sha256sum lib/kioku-plugin.tar.gz | awk '{ print $1 "  kioku-plugin.tar.gz" }' > kioku-plugin.tar.gz.sha256
-          gh release create "$TAG" "lib/kioku.mjs#kioku.mjs" "kioku.mjs.sha256#kioku.mjs.sha256" "lib/kioku-plugin.tar.gz#kioku-plugin.tar.gz" "kioku-plugin.tar.gz.sha256#kioku-plugin.tar.gz.sha256" --target "$SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest
+          node .github/scripts/publish-release.mjs publish "$TAG" "$SHA" "$RUNNER_TEMP/notes.md" lib/kioku.mjs kioku.mjs.sha256 lib/kioku-plugin.tar.gz kioku-plugin.tar.gz.sha256

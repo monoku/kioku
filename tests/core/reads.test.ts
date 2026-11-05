@@ -19,28 +19,28 @@ test("opened and surfaced are two counts, by brain and id, with the day of the l
   const home = mkdtempSync(join(tmpdir(), "kioku-reads-"));
   try {
     assert.equal(readReads(home), undefined, "nothing is counted before the first read");
-    recordOpened(home, at(2026, 10, 1), "github.com/acme/brain", "p-1");
-    recordOpened(home, at(2026, 10, 3), "github.com/acme/brain", "p-1");
+    recordOpened(home, at(2026, 10, 1), "acme/brain", "p-1");
+    recordOpened(home, at(2026, 10, 3), "acme/brain", "p-1");
     recordSurfaced(home, at(2026, 10, 2), [
-      { brain: "github.com/acme/brain", id: "p-1" },
-      { brain: "github.com/acme/brain", id: "p-2" },
-      { brain: "github.com/acme/brain", id: null },
+      { brain: "acme/brain", id: "p-1" },
+      { brain: "acme/brain", id: "p-2" },
+      { brain: "acme/brain", id: null },
     ]);
     const s = readReads(home)!;
     assert.equal(s.counting_since, "2026-10-01");
-    assert.deepEqual(s.brains["github.com/acme/brain"]!["p-1"], {
+    assert.deepEqual(s.brains["acme/brain"]!["p-1"], {
       opened: 2,
       last_opened: "2026-10-03",
       surfaced: 1,
       last_surfaced: "2026-10-02",
     });
-    assert.deepEqual(s.brains["github.com/acme/brain"]!["p-2"], {
+    assert.deepEqual(s.brains["acme/brain"]!["p-2"], {
       opened: 0,
       last_opened: null,
       surfaced: 1,
       last_surfaced: "2026-10-02",
     });
-    assert.equal(Object.keys(s.brains["github.com/acme/brain"]!).length, 2, "a page with no id is not counted");
+    assert.equal(Object.keys(s.brains["acme/brain"]!).length, 2, "a page with no id is not counted");
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

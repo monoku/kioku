@@ -18,7 +18,7 @@ validator checks.
 ├── AGENTS.md                    for an agent opened in this folder (§2.7)
 ├── CLAUDE.md                    Claude Code's pointer: one line importing AGENTS.md (§2.7)
 ├── .claude/commands/ingest.md   /ingest for Claude Code, offered only in this folder (§1.7)
-├── kioku.yaml                   format, tier, namespaces, language (§2.5)
+├── kioku.yaml                   format, name, tier, namespaces, language (§2.5)
 ├── knowledge/<namespace>/       INDEX.md, decisions/, playbooks/, context/ (§3.2)
 ├── memory/                      lessons and facts
 │   └── instincts/               learned conditionals with evidence
@@ -88,12 +88,28 @@ underscores, starting with a letter or a digit. Reserved, in any case:
 that is not this, is reserved, or is more than three deep; the validator
 (§5.1) refuses only what cannot be a folder and warns of the rest.
 
-**The format.** A brain is `format: 1`: namespaces as paths and a `language`
-are part of it. The counter moves only when an older tool would misread the
-files (§5.1 rule 10); a key an older tool can ignore never raises it; a raise
-comes, in one commit, with the verb that brings the brain forward and says so;
-nothing lowers it, `kioku brain refresh` never changes it, and a brain any
-released version wrote stays readable and writable by every later one.
+**The format.** A brain is `format: 2`: namespaces as paths, a `language`, and
+its `name` in `kioku.yaml` (§2.2). `format: 1`, what 0.1.0 made, is the same
+without a name. The counter moves only when an older tool would misread the
+files (§5.1 rule 10); a key an older tool can ignore never raises it; nothing
+lowers it, `kioku brain refresh` never changes it, and a brain any released
+version wrote stays readable and writable by every later one.
+
+**A raise is one commit, by `kioku brain upgrade <brain>`**, which says the
+format before and after, and pushes in a brain with a remote. From `format: 1`
+it writes the name the brain had on this machine, its repository's owner and
+name (`github.com/sam/brain` is `sam/brain`), and moves the brain to its folder
+under that name (§2.5) when it was elsewhere. Until then the tool reads and
+writes a brain of an older format as it is, with that name; one cloned from an
+address, on a machine that never had it, has the name of the last two segments
+of the address's path, `https://github.com/northwind/app-brain.git` is
+`northwind/app-brain`, which is the name the link must say. **The version that
+brings a newer format raises the person's own brain by itself** when `kioku
+update` hands over to it (§6.4), and says so; it never raises a project or team
+brain, whose teammates on an older version could then no longer write to it
+(§5.1): `kioku brain upgrade` does, in a terminal, when the person says, and
+until then `doctor` and the session say it can be raised (`format-behind`,
+§1.2).
 
 **The language.** A brain may declare, in `kioku.yaml`, the one language its
 pages are written in, `language`, a short tag such as `en` or `es`, with

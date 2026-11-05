@@ -138,16 +138,13 @@ test("--brain returns that brain's pages alone; without it, the chain's pages, e
   scratch(async (home) => {
     const { repo } = machine(home);
     const only = await kioku(["page", "search", "migraciones", "--brain", "northwind/brain-acme"], home, repo);
-    assert.deepEqual(
-      [...new Set(only.out.hits.map((h: { brain: string }) => h.brain))],
-      ["github.com/northwind/brain-acme"],
-    );
+    assert.deepEqual([...new Set(only.out.hits.map((h: { brain: string }) => h.brain))], ["northwind/brain-acme"]);
     const sam = await kioku(["page", "search", "migraciones", "--brain", "sam/brain"], home, repo);
     assert.deepEqual(paths(sam), ["memory/prefiero-pruebas-pequenas.md"]);
     const all = await kioku(["page", "search", "migraciones"], home, repo);
     assert.deepEqual(
       new Set(all.out.hits.map((h: { brain: string }) => h.brain)),
-      new Set(["github.com/northwind/brain-acme", "github.com/sam/brain"]),
+      new Set(["northwind/brain-acme", "sam/brain"]),
     );
     const unknown = await kioku(["page", "search", "x", "--brain", "nope"], home, repo);
     assert.equal(unknown.code, 1);
@@ -158,7 +155,7 @@ test("outside a linked repository the personal brain is searched alone", () =>
   scratch(async (home) => {
     machine(home);
     const r = await kioku(["page", "search", "migraciones"], home, home);
-    assert.deepEqual([...new Set(r.out.hits.map((h: { brain: string }) => h.brain))], ["github.com/sam/brain"]);
+    assert.deepEqual([...new Set(r.out.hits.map((h: { brain: string }) => h.brain))], ["sam/brain"]);
   }));
 
 test("deleting the index rebuilds it and answers the same; edits and removals show", () =>
@@ -237,7 +234,7 @@ test("a --json result holds the mode and the hits, each with brain, path, title,
     assert.ok(Array.isArray(r.out.hits));
     assert.equal(r.raw.trim().split("\n").length, 1, "one JSON value and nothing else");
     const hit = r.out.hits.find((h: { path: string }) => h.path === MIGRACIONES);
-    assert.equal(hit.brain, "github.com/northwind/brain-acme");
+    assert.equal(hit.brain, "northwind/brain-acme");
     assert.equal(hit.title, "Migraciones antes del deploy");
     assert.equal(hit.kind, "memory");
     assert.equal(hit.subkind, null);
@@ -292,7 +289,7 @@ test("indexing is by hash: unchanged pages are left alone and a page that cannot
   scratch(async (home) => {
     const { acme } = machine(home);
     put(acme, "memory/broken.md", "# no front matter\n");
-    const brains: IndexedBrain[] = [{ key: "github.com/northwind/brain-acme", root: acme }];
+    const brains: IndexedBrain[] = [{ key: "northwind/brain-acme", root: acme }];
     const index = await openIndex(home);
     try {
       const first = updateIndex(index, brains);
@@ -326,7 +323,7 @@ test("similar pages come from full text alone: a title holding every word of the
     );
     const strong = made({ n: 83, type: CONTEXT, title: "Office wifi router", sections: {}, summary: "The router." });
     const { acme } = machine(home, { acme: [...party, strong] });
-    const key = "github.com/northwind/brain-acme";
+    const key = "northwind/brain-acme";
     const index = await openIndex(home);
     try {
       updateIndex(index, [{ key, root: acme }]);
@@ -355,7 +352,7 @@ test("similar pages: the decision of §2.5 for `Run migrations before deploying`
         }),
       ],
     });
-    const key = "github.com/northwind/brain-acme";
+    const key = "northwind/brain-acme";
     const index = await openIndex(home);
     try {
       updateIndex(index, [{ key, root: acme }]);
@@ -382,7 +379,7 @@ test("similar pages: the decision of §2.5 for `Run migrations before deploying`
       const viaBody = similarPages(index, key, { title: "Deploy", body: "migraciones antes del deploy siempre" });
       assert.ok(viaBody.some((h) => h.path === MIGRACIONES));
       // Another brain's pages are never similar.
-      assert.deepEqual(similarPages(index, "github.com/sam/brain", { title: "Run migrations before deploying" }), []);
+      assert.deepEqual(similarPages(index, "sam/brain", { title: "Run migrations before deploying" }), []);
     } finally {
       index.close();
     }

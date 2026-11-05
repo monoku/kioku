@@ -145,7 +145,7 @@ test("a pending publication and an unreachable remote are reported, and the exit
     const r = runDoctor(env(w.home, { remoteAnswers: (clone) => !clone.endsWith("brain-acme") }));
     const c = byName(r);
     assert.equal(c["pending publications"]!.state, "warn");
-    assert.match(c["pending publications"]!.detail, /^1: github\.com\/northwind\/brain-acme since /);
+    assert.match(c["pending publications"]!.detail, /^1: northwind\/brain-acme since /);
     assert.equal(c["brain northwind/brain-acme"]!.state, "warn");
     assert.match(c["brain northwind/brain-acme"]!.detail, /does not answer/);
     assert.equal(r.ok, true);
@@ -158,7 +158,7 @@ test("a brain in a format newer than the tool reads is a warning with the comman
     const r = runDoctor(env(w.home));
     const c = byName(r)["brain northwind/brain-acme format"]!;
     assert.equal(c.state, "warn");
-    assert.match(c.detail, /format 99, newer than the newest this tool reads \(1\): it is read, never written/);
+    assert.match(c.detail, /format 99, newer than the newest this tool reads \(2\): it is read, never written/);
     assert.match(c.fix!, /kioku update/);
     assert.equal(r.ok, true);
   }));
