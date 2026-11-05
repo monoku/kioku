@@ -64,20 +64,34 @@ for ASSET in kioku.mjs kioku-plugin.tar.gz; do
   GOT=$(sha256 "$TMP/$ASSET")
   [ "$WANT" = "$GOT" ] || die "the download of $ASSET does not match its checksum; nothing was installed"
 done
-mkdir "$TMP/plugin"
-tar -xzf "$TMP/kioku-plugin.tar.gz" -C "$TMP/plugin" || die "the plugin's archive could not be unpacked; nothing was installed"
-[ -f "$TMP/plugin/.claude-plugin/marketplace.json" ] || die "the plugin's archive holds no marketplace; nothing was installed"
-
 # --- its version names its folder
 VERSION=$(node "$TMP/kioku.mjs" --version --json 2>/dev/null | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
 [ -n "$VERSION" ] || die "the download is not a Kioku bundle"
 
 # --- install: versions/<v>/kioku.mjs and its plugin, current -> that version, the launcher in BIN_DIR. The plugin is
 # in place before current moves, so current/plugin, which Claude Code reads, is always one (§6.2).
+FRESH=""
+[ -d "$INSTALL_DIR/versions/$VERSION" ] || FRESH=1
 mkdir -p "$INSTALL_DIR/versions/$VERSION" "$BIN_DIR"
 cp "$TMP/kioku.mjs" "$INSTALL_DIR/versions/$VERSION/kioku.mjs"
-rm -rf "$INSTALL_DIR/versions/$VERSION/plugin"
-mv "$TMP/plugin" "$INSTALL_DIR/versions/$VERSION/plugin"
+undo() {
+  [ -n "$FRESH" ] && rm -rf "$INSTALL_DIR/versions/$VERSION"
+  die "$1; nothing was installed"
+}
+# The bundle downloaded unpacks its own plugin, checked above, so how a release lays it out is known only to that
+# release's tool (§6.3, §6.4). One from before that hand-over does not know --prepare: its one layout is put in place here.
+if ! node "$INSTALL_DIR/versions/$VERSION/kioku.mjs" update --prepare --archive "$TMP/kioku-plugin.tar.gz" --json \
+  >"$TMP/prepared" 2>&1; then
+  if grep -q "unknown flag --prepare" "$TMP/prepared"; then
+    mkdir "$TMP/plugin"
+    tar -xzf "$TMP/kioku-plugin.tar.gz" -C "$TMP/plugin" || undo "the plugin's archive could not be unpacked"
+    [ -f "$TMP/plugin/.claude-plugin/marketplace.json" ] || undo "the plugin's archive holds no marketplace"
+    rm -rf "$INSTALL_DIR/versions/$VERSION/plugin"
+    mv "$TMP/plugin" "$INSTALL_DIR/versions/$VERSION/plugin"
+  else
+    undo "the plugin could not be put in place ($(sed -n 's/.*"message":"\([^"]*\)".*/\1/p' "$TMP/prepared" | tail -n 1))"
+  fi
+fi
 ln -sfn "versions/$VERSION" "$INSTALL_DIR/current"
 LAUNCHER="$BIN_DIR/kioku"
 cat > "$TMP/launcher" <<LAUNCH

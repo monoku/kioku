@@ -86,7 +86,13 @@ interface Box {
   finishes: string[];
   kioku: (
     argv: string[],
-    o?: { interactive?: boolean; tty?: boolean; finishUpdate?: Context["finishUpdate"]; bundle?: string },
+    o?: {
+      interactive?: boolean;
+      tty?: boolean;
+      finishUpdate?: Context["finishUpdate"];
+      prepareUpdate?: Context["prepareUpdate"];
+      bundle?: string;
+    },
   ) => Promise<{ code: number; out: any; raw: string }>;
 }
 
@@ -147,6 +153,7 @@ async function box<T>(fn: (b: Box) => Promise<T>): Promise<T> {
           interactive: o.interactive ?? false,
           bundle: o.bundle ?? installerBundle(dirs),
         });
+        if (o.prepareUpdate !== undefined) context.prepareUpdate = o.prepareUpdate;
         // What the bundle just installed would do, done here by this same code, so the test sees it; which bundle was asked is recorded.
         context.finishUpdate =
           o.finishUpdate ??
@@ -538,22 +545,78 @@ test("update puts the release's plugin beside its bundle before current moves, a
     assert.deepEqual(b.finishes, [currentBundle(b.dirs)], "the finishing was handed to the bundle just installed");
     assert.equal(existsSync(join(b.dir, "person/.claude/settings.json")), false, "no settings were written");
 
+    // The version downloaded fetches the plugin of its own release, not the latest's (§6.4).
     b.release("0.7.0");
-    b.assets[`${BASE}/kioku-plugin.tar.gz.sha256`] = `${"0".repeat(64)}  kioku-plugin.tar.gz\n`;
+    const own = `${RELEASES}/download/v0.7.0`;
+    b.assets[`${own}/kioku-plugin.tar.gz.sha256`] = `${"0".repeat(64)}  kioku-plugin.tar.gz\n`;
     const wrong = await b.kioku(["update"]);
     assert.equal(wrong.out.error.code, "update_failed");
     assert.match(wrong.out.error.message, /does not match its checksum; nothing was changed/);
-    delete b.assets[`${BASE}/kioku-plugin.tar.gz`];
-    delete b.assets[`${BASE}/kioku-plugin.tar.gz.sha256`];
+    delete b.assets[`${own}/kioku-plugin.tar.gz`];
+    delete b.assets[`${own}/kioku-plugin.tar.gz.sha256`];
     const missing = await b.kioku(["update"]);
     assert.equal(missing.out.error.code, "update_failed");
-    b.assets[`${BASE}/kioku-plugin.tar.gz`] = Buffer.from("not an archive");
-    b.assets[`${BASE}/kioku-plugin.tar.gz.sha256`] = `${sha(Buffer.from("not an archive"))}  kioku-plugin.tar.gz\n`;
+    b.assets[`${own}/kioku-plugin.tar.gz`] = Buffer.from("not an archive");
+    b.assets[`${own}/kioku-plugin.tar.gz.sha256`] = `${sha(Buffer.from("not an archive"))}  kioku-plugin.tar.gz\n`;
     const broken = await b.kioku(["update"]);
     assert.equal(broken.out.error.code, "update_failed");
     assert.match(broken.out.error.message, /the plugin's archive is not one/);
     assert.equal(currentVersion(b.dirs), "0.6.0", "current did not move");
     assert.equal(pluginIn(b.dirs, "0.7.0"), undefined, "and no plugin of 0.7.0 was left");
+    assert.equal(existsSync(join(versionsDir(b.dirs), "0.7.0")), false, "nor its bundle");
+  }));
+
+test("the version downloaded puts its own plugin in place, update --prepare run from its bundle before it is active; when it cannot, nothing changes (§6.4)", () =>
+  box(async (b) => {
+    b.installed("0.5.0");
+    // A bundle that answers --version, and update --prepare as `prepare` says, recording that it ran and while which was current.
+    const ran = join(b.dir, "prepared.log");
+    const answers = (version: string, prepare: string): string =>
+      `const a = process.argv.slice(2);\nif (a.includes("--version")) console.log(JSON.stringify({ version: "${version}", contract: 1, formats: [1] }));\nelse if (a[0] === "update" && a.includes("--prepare")) { process.getBuiltinModule("node:fs").appendFileSync(${JSON.stringify(ran)}, process.getBuiltinModule("node:fs").readlinkSync(${JSON.stringify(join(b.dirs.install, "current"))}) + "\\n"); ${prepare} }\nelse if (a[0] === "update" && a.includes("--finish")) console.log(JSON.stringify({ refreshed: null }));\n`;
+    const { prepareByBundle } = await import("../../src/cli/update.ts");
+    const handOver = { prepareUpdate: prepareByBundle, finishUpdate: finishByBundle };
+    b.release("0.6.0", answers("0.6.0", `console.log(JSON.stringify({ prepared: "0.6.0" }));`));
+    const r = await b.kioku(["update"], handOver);
+    assert.equal(r.code, 0, r.raw);
+    assert.equal(currentVersion(b.dirs), "0.6.0");
+    assert.deepEqual(
+      readFileSync(ran, "utf8").trim().split("\n"),
+      [join("versions", "0.5.0")],
+      "it ran before current moved",
+    );
+
+    b.release(
+      "0.7.0",
+      answers(
+        "0.7.0",
+        `console.log(JSON.stringify({ error: { code: "update_failed", message: "the plugin's archive is not one (bad); nothing was changed" } })); process.exit(3);`,
+      ),
+    );
+    const failed = await b.kioku(["update"], handOver);
+    assert.equal(failed.out.error.code, "update_failed");
+    assert.match(failed.out.error.message, /the plugin's archive is not one \(bad\); nothing was changed/);
+    assert.equal(currentVersion(b.dirs), "0.6.0", "current did not move");
+    assert.equal(existsSync(join(versionsDir(b.dirs), "0.7.0")), false, "and the version downloaded was removed");
+  }));
+
+test("a release from before the hand-over gets its plugin from the version running, in its one layout, so update can go back to it (§6.4)", () =>
+  box(async (b) => {
+    b.installed("0.5.0");
+    // A bundle that answers --version, and anything else as 0.2.1 answers a flag it does not know.
+    b.tagged(
+      "0.2.1",
+      `const a = process.argv.slice(2);\nif (a.includes("--version")) console.log(JSON.stringify({ version: "0.2.1", contract: 1, formats: [1] }));\nelse { console.log(JSON.stringify({ error: { code: "usage", message: "unknown flag --prepare; kioku update [<version>] [--check] [--dry-run]" } })); process.exit(1); }\n`,
+    );
+    const { prepareByBundle } = await import("../../src/cli/update.ts");
+    const r = await b.kioku(["update", "0.2.1"], {
+      tty: false,
+      interactive: true,
+      prepareUpdate: prepareByBundle,
+      finishUpdate: async () => ({ refreshed: null }),
+    });
+    assert.equal(r.code, 0, r.raw);
+    assert.equal(currentVersion(b.dirs), "0.2.1");
+    assert.equal(pluginIn(b.dirs, "0.2.1"), "0.2.1");
   }));
 
 test("update hands the finishing to the version it installed, update --finish run from its bundle, and says when that could not be (§6.4)", () =>
@@ -610,6 +673,9 @@ test("after installing a version, update brings the files Kioku owns in each bra
         [`${BASE}/kioku.mjs.sha256`]: `${sha(bundleOf("9.0.0"))}  kioku.mjs\n`,
         [`${BASE}/kioku-plugin.tar.gz`]: pluginArchiveOf("9.0.0"),
         [`${BASE}/kioku-plugin.tar.gz.sha256`]: `${sha(pluginArchiveOf("9.0.0"))}  kioku-plugin.tar.gz\n`,
+        // The version downloaded fetches its plugin from its own release (§6.4).
+        [`${RELEASES}/download/v9.0.0/kioku-plugin.tar.gz`]: pluginArchiveOf("9.0.0"),
+        [`${RELEASES}/download/v9.0.0/kioku-plugin.tar.gz.sha256`]: `${sha(pluginArchiveOf("9.0.0"))}  kioku-plugin.tar.gz\n`,
       };
       const r = await w.kioku(["update"], {
         context: {

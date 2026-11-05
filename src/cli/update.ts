@@ -2,8 +2,9 @@ import { execFile } from "node:child_process";
 import { readMachineConfig } from "../core/config/machine.ts";
 import { userError } from "../core/errors.ts";
 import { parseVerb } from "./args.ts";
-import { currentBundle, installDirs, installOrigin, managerCommand } from "../core/setup/install.ts";
+import { bundleVersion, currentBundle, installDirs, installOrigin, managerCommand } from "../core/setup/install.ts";
 import {
+  prepareOwnPlugin,
   recordAvailable,
   recordCheck,
   RELEASE_VERSION,
@@ -18,6 +19,7 @@ import { personHome } from "./home.ts";
 import { requireTerminal } from "./terminal.ts";
 import { currentSteps } from "../core/steps.ts";
 import { CHANGELOG_URL } from "../product.ts";
+import { VERSION } from "../version.ts";
 
 /**
  * `kioku update [<version>] [--check] [--dry-run]` (§6.1, §6.4): the latest release, when it is
@@ -42,6 +44,14 @@ export const runUpdate: Handler = async (args, ctx) => {
   if (wanted !== undefined && !RELEASE_VERSION.test(wanted))
     throw userError(`${positionals[0]} is not a version, such as 1.2.0`, "usage");
   const dirs = installDirs(personHome(ctx), ctx.env);
+  if (values.prepare) {
+    if (values.check || values["dry-run"] || values.finish || wanted !== undefined)
+      throw userError("--prepare goes alone: it is what update calls in the version it downloaded", "usage");
+    const version = ctx.version ?? VERSION;
+    await prepareOwnPlugin(dirs, version, ctx.semantic.download, releasesUrl(ctx.env), values.archive);
+    return { data: { prepared: version }, text: `Put the plugin of ${version} beside it.` };
+  }
+  if (values.archive !== undefined) throw userError("--archive goes with --prepare", "usage");
   if (values.finish) {
     if (values.check || values["dry-run"] || wanted !== undefined)
       throw userError("--finish goes alone: it is what update calls in the version it installed", "usage");
@@ -75,6 +85,7 @@ export const runUpdate: Handler = async (args, ctx) => {
     releases,
     values.check ? "check" : dryRun ? "dry-run" : "install",
     wanted,
+    ctx.prepareUpdate ?? ((bundle) => prepareHere(ctx, bundle)),
   );
   // The latest release was looked at: no session looks again today (§6.4).
   if (wanted === undefined) recordCheck(ctx.home, ctx.now());
@@ -114,6 +125,40 @@ export const runUpdate: Handler = async (args, ctx) => {
 export async function finishHere(ctx: Context): Promise<UpdateFinish> {
   const forwarded = await bringForward(ctx.home, ctx.now());
   return { refreshed: await refreshBrains(ctx), forwarded };
+}
+
+/** `kioku update --prepare` done by this process, for the version of `bundle`: the tests' stand-in for the bundle's own. */
+async function prepareHere(ctx: Context, bundle: string): Promise<void> {
+  const found = await bundleVersion(bundle);
+  if (found === undefined) throw new Error("it is not a Kioku bundle");
+  await prepareOwnPlugin(installDirs(personHome(ctx), ctx.env), found, ctx.semantic.download, releasesUrl(ctx.env));
+}
+
+/**
+ * `kioku update --prepare` run from `bundle`, the version just downloaded, before it is made active (§6.4): it puts its
+ * own plugin beside it. Throws with what it said when it could not.
+ */
+export function prepareByBundle(bundle: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      process.execPath,
+      [bundle, "update", "--prepare", "--json"],
+      { timeout: 600_000, maxBuffer: 64 * 1024 * 1024, encoding: "utf8" },
+      (error, stdout) => {
+        let said: unknown;
+        try {
+          said = JSON.parse(stdout.trim().split("\n").at(-1) ?? "");
+        } catch {}
+        const answer = (typeof said === "object" && said !== null ? said : {}) as {
+          prepared?: unknown;
+          error?: { message?: unknown };
+        };
+        if (error === null && answer.prepared !== undefined) return resolve();
+        const message = typeof answer.error?.message === "string" ? answer.error.message : undefined;
+        reject(new Error(message ?? (error ? error.message.split("\n")[0]! : "it gave no answer")));
+      },
+    );
+  });
 }
 
 /** `kioku update --finish` run from `bundle`, so that the version just installed does the finishing (§6.4). */

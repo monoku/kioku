@@ -78,7 +78,9 @@ is the remedy; rewriting history is the person's, outside Kioku.
   same release, and nothing is installed when one disagrees (§6.4); the
   plugin's archive is unpacked only into its version's folder. That catches a
   corrupted download, not a release whose files and checksums were both
-  replaced; a build provenance attestation would.
+  replaced; a build provenance attestation would. The bundle downloaded runs
+  once before it is active, after its check, to put its plugin in place: the
+  code every `kioku` call would run once it is.
 - **No update installs itself.** A release reaches a machine only by the
   person's `kioku update`, installer or package manager. A bad release still
   rewrites the files the tool owns in every brain of a machine that installs

@@ -219,6 +219,52 @@ async function placePlugin(d: InstallDirs, version: string, archive: string): Pr
   renameSync(scratch, dest);
 }
 
+/** A release from before the hand-over: its plugin's archive, beside its bundle at `base`, put in place here. */
+async function placeLegacyPlugin(
+  d: InstallDirs,
+  version: string,
+  download: Download,
+  base: string,
+  which: string,
+): Promise<void> {
+  const sha = await releaseChecksum(download, base, which, PLUGIN_ARCHIVE);
+  const archive = await fetchAsset(download, base, d, sha, which, PLUGIN_ARCHIVE);
+  try {
+    await placePlugin(d, version, archive);
+  } finally {
+    rmSync(archive, { force: true });
+  }
+}
+
+/**
+ * What the version installed does before it is made active (§6.4): its own plugin beside its bundle, from `archive`, a
+ * file the installer downloaded and checked, or else fetched from its own release and checked here.
+ */
+export async function prepareOwnPlugin(
+  d: InstallDirs,
+  version: string,
+  download: Download,
+  releases: string,
+  archive?: string,
+): Promise<void> {
+  if (archive !== undefined) return placePlugin(d, version, archive);
+  const base = versionAssets(releases, version);
+  const which = `the release of ${version}`;
+  const file = await fetchAsset(
+    download,
+    base,
+    d,
+    await releaseChecksum(download, base, which, PLUGIN_ARCHIVE),
+    which,
+    PLUGIN_ARCHIVE,
+  );
+  try {
+    await placePlugin(d, version, file);
+  } finally {
+    rmSync(file, { force: true });
+  }
+}
+
 /** Put a bundle in place as `version`, make it current, make sure the launcher runs it, and prune. */
 export function installBundle(
   d: InstallDirs,
@@ -242,6 +288,7 @@ export async function updateFromRelease(
   releases: string,
   mode: "install" | "check" | "dry-run",
   version?: string,
+  prepare: (bundle: string) => Promise<void> = async () => {},
 ): Promise<UpdateOutcome> {
   const was = currentVersion(d) ?? null;
   const base = version === undefined ? latestAssets(releases) : versionAssets(releases, version);
@@ -272,29 +319,41 @@ export async function updateFromRelease(
     if (version === undefined && was !== null && !newerThan(found, was))
       return { status: "current", version: was, latest: found, was, installed: false, pruned: [], dryRun };
     if (dryRun) return { status: "available", version: found, was, installed: false, pruned: [], dryRun };
-    // The plugin travels with the bundle, checked as it is, and is in place before `current` moves (§6.2, §6.4).
-    const archive = await steps.runAsync(
-      {
-        doing: `Downloading the plugin of ${which}`,
-        done: `Downloaded the plugin of ${which} and checked it against its checksum`,
-        direction: "down",
-      },
-      async () =>
-        fetchAsset(
-          download,
-          base,
-          d,
-          await releaseChecksum(download, base, which, PLUGIN_ARCHIVE),
-          which,
-          PLUGIN_ARCHIVE,
-        ),
-    );
+    // The version downloaded puts its own plugin in place, before `current` moves (§6.2, §6.4); one from before the
+    // hand-over gets it from this version, in the one layout those releases have.
+    const fresh = !existsSync(versionDir(d, found));
+    const installed = installVersion(d, found, scratch);
     try {
-      await placePlugin(d, found, archive);
-    } finally {
-      rmSync(archive, { force: true });
+      await steps.runAsync(
+        {
+          doing: `Putting the plugin of ${found} beside it`,
+          done: `Put the plugin of ${found} beside it`,
+          direction: "down",
+        },
+        async () => {
+          try {
+            await prepare(join(versionDir(d, found), "kioku.mjs"));
+          } catch (e) {
+            if (!(e instanceof Error && /unknown flag --prepare/.test(e.message))) throw e;
+            // A release from before the hand-over does not know `--prepare`: its one layout is put in place here.
+            await placeLegacyPlugin(d, found, download, base, which);
+          }
+        },
+      );
+    } catch (e) {
+      if (fresh) rmSync(versionDir(d, found), { recursive: true, force: true });
+      const why = e instanceof Error ? e.message : String(e);
+      throw environmentError(
+        /nothing was changed$/.test(why)
+          ? why
+          : `${found} could not put its plugin in place (${why}); nothing was changed`,
+        "update_failed",
+      );
     }
-    return { ...installBundle(d, found, scratch), was, dryRun };
+    const activated = activate(d, found);
+    ensureLauncher(d);
+    const pruned = prune(d);
+    return { status: installed || activated ? "updated" : "current", version: found, installed, pruned, was, dryRun };
   } finally {
     rmSync(scratch, { force: true });
   }
