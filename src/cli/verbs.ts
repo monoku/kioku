@@ -92,8 +92,15 @@ export const SECTIONS = [
     update: v(
       "installs the latest release, or the one named, rewrites the agent integration and refreshes the brains",
       "kioku update [<version>] [--check] [--dry-run]",
-      // `--finish` is what `update` runs in the version it just installed (§6.4): not for people.
-      { check: bool(), "dry-run": bool(), finish: hidden(bool()) },
+      // `--prepare` and `--finish` are what `update` runs in the version it downloads, before and after it is made
+      // active; `--archive` hands `--prepare` the installer's download (§6.4): not for people.
+      {
+        check: bool(),
+        "dry-run": bool(),
+        prepare: hidden(bool()),
+        archive: hidden(str("<file>")),
+        finish: hidden(bool()),
+      },
       "free",
     ),
     completion: v(

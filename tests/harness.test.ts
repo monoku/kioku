@@ -25,18 +25,21 @@ test("claude code: session start input keeps cwd, source and the session, and an
   for (const raw of ["", "{not json", "null", "[]"]) assert.deepEqual(h.parseSessionStart(raw), {}, raw);
 });
 
-test("claude code: session start answer is additional context plus a system message, and nothing when both are empty", () => {
+test("claude code: session start answer is additional context plus a system message on a line of its own, and nothing when both are empty", () => {
   const h = claudeCode("/h", {});
   assert.equal(h.sessionStartAnswer(undefined, []), undefined);
   assert.deepEqual(h.sessionStartAnswer("S", ["a.", "b."]), {
-    data: { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "S" }, systemMessage: "a.\nb." },
-    text: "a.\nb.\n\nS",
+    data: {
+      hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "S" },
+      systemMessage: "\na.\n\nb.",
+    },
+    text: "a.\n\nb.\n\nS",
   });
   assert.deepEqual(h.sessionStartAnswer("S", []), {
     data: { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "S" } },
     text: "S",
   });
-  assert.deepEqual(h.sessionStartAnswer(undefined, ["m"]), { data: { systemMessage: "m" }, text: "m" });
+  assert.deepEqual(h.sessionStartAnswer(undefined, ["m"]), { data: { systemMessage: "\nm" }, text: "m" });
 });
 
 test("claude code: tool result carries the command and the output; a string response is the output", () => {

@@ -99,10 +99,10 @@ export const sessionStart: Handler = async (args, ctx) => {
     const running = currentVersion(dirs);
     const available = looks ? takeAvailable(ctx.home) : undefined;
     if (available !== undefined && (running === undefined || newerThan(available, running))) {
-      const runs = running === undefined ? undefined : `this machine runs ${running}`;
+      // The version this machine runs is the summary's, said just above it (§1.2).
       messages.push({
         head: [`${available} is available`],
-        details: [...(runs === undefined ? [] : [[dim(runs)]]), ["run ", cmd("kioku update"), " in a terminal"]],
+        details: [["run ", cmd("kioku update"), " in a terminal"]],
         name: "update-available",
       });
     }
@@ -137,10 +137,10 @@ export const sessionStart: Handler = async (args, ctx) => {
     );
     // The person sees which brains the summary loaded (§1.2, §4.1), and the session's journal begins with it (§4.6).
     const labels = labelsFor(ctx.home, cwd, { machine: machineOf(ctx), ours: started.brains });
-    // The summary is told in the rows' words, the history's `summary`, in one line (§1.2).
+    // The summary: the tool's version, then one line in the rows' words, the history's `summary` (§1.2).
     const loaded =
       started.summary !== undefined && started.loaded !== undefined
-        ? [loadedRow(started.loaded, labels.label, input.source)]
+        ? [loadedRow(started.loaded, labels.label, ctx.version ?? VERSION, input.source)]
         : [];
     if (started.summary !== undefined && started.loaded !== undefined) {
       // Resumed or compacted, the summary loaded again is a turn of its own, and says why (§4.6).
@@ -163,7 +163,8 @@ export const sessionStart: Handler = async (args, ctx) => {
         ctx.now(),
       );
     }
-    return answer(started.summary, [...messages, ...started.messages, ...loaded]);
+    // The summary first, the notices after it (§1.2).
+    return answer(started.summary, [...loaded, ...messages, ...started.messages]);
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
     return answer(undefined, [...messages, { level: "error", head: ["could not start"], details: [[dim(why)]] }]);

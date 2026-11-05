@@ -229,7 +229,9 @@ curl -fsSL https://raw.githubusercontent.com/monoku/kioku/main/install.sh | sh
 
 The installer downloads the bundle and the plugin's archive from the latest
 release, with a plain download and no account, checks each against its
-checksum (§6.4), and installs nothing when one disagrees. It keeps one folder
+checksum (§6.4), and installs nothing when one disagrees. The bundle it
+downloaded unpacks the archive, so that how a release lays its plugin out is
+known only to that release's tool. It keeps one folder
 per version, the plugin beside the bundle, and marks the active one, which the
 launcher `kioku` runs, or the build a developer names; run again, it moves the
 mark to the latest release, as `kioku update` does. In a terminal it then runs
@@ -275,17 +277,21 @@ are ordered as semantic versioning orders them.
 
 `kioku update` brings the machine to the latest release, never back: a latest
 that is not newer than the version running changes nothing, so a machine on a
-build of its own newer than the latest stays there. It checks the bundle and
-the plugin's archive against their checksums, puts the plugin beside the bundle
-before the active version moves, then hands over to the version it installed,
-which rewrites a configuration an older version wrote (§2.5), raises the
+build of its own newer than the latest stays there. It downloads only the
+bundle and checks it against its checksum, then hands over to the version it
+downloaded, twice. First, before the active version moves, that version fetches
+the plugin's archive of its own release, checks it against its checksum and
+puts the plugin beside its bundle: the version running knows nothing of how a
+newer one lays its plugin out, so a release may change it without a step
+between. Then, once it is active, it rewrites a configuration an older version wrote (§2.5), raises the
 person's own brain to the newest format and says so (§3.2), and refreshes every
 brain (§2.7); a project or team brain of an older format is left as it is, and
 said. It keeps the previous version and says that
 `kioku update <previous version>` goes back. `--check` says whether there is a
 newer version and `--dry-run` what it would do; both write nothing. `kioku
 update <version>` installs that release, a newer or an earlier one, only in a
-terminal. A download that fails or does not match its checksum changes nothing.
+terminal. A download that fails or does not match its checksum, or a version
+that cannot put its plugin in place, changes nothing.
 
 The tool moves only when the person moves it: `kioku update`, the installer run
 again, or the package manager that installed it. No session installs anything.

@@ -30,11 +30,14 @@ const after = (w: World, command: string, stdout: string) =>
     stdin: JSON.stringify({ session_id: "s1", tool_input: { command }, tool_response: { stdout } }),
   });
 
-test("the start says the summary in one line, and a call's hook answers nothing: the journal keeps it for its row (§1.2, §4.6)", () =>
+test("the start says, on a line of its own, the tool's version and the summary under it, and a call's hook answers nothing: the journal keeps it for its row (§1.2, §4.6)", () =>
   world(async (w) => {
     assert.equal((await w.kioku(["sync"])).code, 0);
     const s = await start(w);
-    assert.match(s.out.systemMessage, /⬢ kioku\.md · ↓ summary {2}session summary · \d+ pages {2}\([a-z]+ \d+ · /);
+    assert.match(
+      s.out.systemMessage,
+      /^\n⬢ kioku\.md [\d.]+(?:-dev)?\n {2}⎿ ↓ summary {3}session summary · \d+ pages \([a-z]+, /,
+    );
     assert.ok(s.out.hookSpecificOutput.additionalContext.length > 0, "the summary is still the agent's");
     const p = await prompt(w);
     assert.equal(p.raw.trim(), "", "a prompt gets nothing, and the person is told nothing");
@@ -62,8 +65,8 @@ test("a display.detailed in the configuration is refused naming it: a notice is 
     assert.match(s.out.systemMessage, /⬢ kioku\.md · ⚠ your personal brain is only on this machine\n {2}⎿ /);
     assert.match(
       s.out.systemMessage,
-      /⬢ kioku\.md · ↓ summary {2}session summary · \d+ pages {2}\([^)]*\)$/m,
-      "the summary alone",
+      /^\n⬢ kioku\.md [\d.]+(?:-dev)?\n {2}⎿ ↓ summary {3}session summary · \d+ pages \([^)]*\)\n\n⬢ kioku\.md · ⚠ /,
+      "the summary first, its one line alone, and the notices after it, a blank line between",
     );
     display(w, { detailed: false });
     assert.match((await w.kioku(["doctor"])).raw, /unknown key `display\.detailed`/);
@@ -80,7 +83,7 @@ test("a muted notice is not said, while the summary and the agent's context are 
     display(w, { mute: ["unpublished"] });
     const s = await start(w);
     assert.doesNotMatch(s.out.systemMessage, NUDGE);
-    assert.match(s.out.systemMessage, /⬢ kioku\.md · ↓ summary/, "the summary is never muted");
+    assert.match(s.out.systemMessage, /⎿ ↓ summary {3}session summary · /, "the summary is never muted");
     assert.ok(s.out.hookSpecificOutput.additionalContext.length > 0);
   }));
 

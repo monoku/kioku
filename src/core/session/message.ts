@@ -13,7 +13,9 @@ export type Span = string | { dim: string } | { cmd: string } | { read: string }
 export interface Message {
   /** Nothing for information; `warn` when the person has something to do or something was not loaded; `error` when Kioku failed. */
   level?: "warn" | "error";
-  /** The headline. */
+  /** The version of the tool, said after the brand: the summary's (§1.2). */
+  version?: string;
+  /** The headline; none in the summary, whose one line is under the brand. */
   head: Span[];
   /** One fact a line, under the headline. */
   details?: Span[][];
@@ -45,7 +47,7 @@ export const layoutFor = (color: boolean): Layout => ({ color });
 export const unmuted = (messages: Message[], mute: readonly NoticeName[] | undefined): Message[] =>
   messages.filter((m) => m.name === undefined || mute?.includes(m.name) !== true);
 
-/** The message as text: the brand, the level, the headline, and under it its details. */
+/** The message as text: the brand and the version, the level, the headline, and under it its details. */
 export function render(m: Message, layout: Layout): string {
   const paint = (code: string, close: string) => sgr(layout.color, code, close);
   const orange = paint(ORANGE, "39");
@@ -57,7 +59,9 @@ export function render(m: Message, layout: Layout): string {
   const line = (spans: Span[]): string => spans.map(span).join("");
   const level =
     m.level === "warn" ? `${paint("33", "39")("⚠")} ` : m.level === "error" ? `${paint("31", "39")("✕")} ` : "";
-  const brand = `${orange("⬢")} ${bold("kioku")}${orange(".md")}${faint(" · ")}${level}`;
+  const version = m.version === undefined ? "" : ` ${faint(m.version)}`;
+  const headed = level !== "" || m.head.length > 0;
+  const brand = `${orange("⬢")} ${bold("kioku")}${orange(".md")}${version}${headed ? `${faint(" · ")}${level}` : ""}`;
   // A notice with a name ends with the command that mutes it (§1.2).
   const details = [
     ...(m.details ?? []),
