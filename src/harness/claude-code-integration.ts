@@ -15,7 +15,12 @@ export const PLUGIN_SELECTOR = `${PLUGIN_NAME}@${PLUGIN_MARKETPLACE}`;
 /** What the skill is called once loaded: the plugin's name, then the skill's. */
 export const PLUGIN_SKILL = `${PLUGIN_NAME}:kioku`;
 
-export type HookVerb = "session-start" | "user-prompt-submit" | "post-tool-use" | "pre-tool-use";
+export type HookVerb =
+  | "session-start"
+  | "session-start-holds"
+  | "user-prompt-submit"
+  | "post-tool-use"
+  | "pre-tool-use";
 
 /** The writing verbs, one filter each: their result is an entry of the journal (§4.6). */
 export const WRITE_FILTERS: readonly string[] = JOURNAL_WRITES.map((v) => `Bash(kioku page ${v} *)`);
@@ -43,7 +48,11 @@ export function pluginHooks(): { hooks: Record<string, HookGroup[]>; modules: st
   return {
     modules: ["./register.tsx"],
     hooks: {
-      SessionStart: [{ hooks: [{ type: "command", command: run("session-start") }] }],
+      // The summary in two parts, each a hook of its own, since the host caps what one hook injects (§4.1).
+      SessionStart: [
+        { hooks: [{ type: "command", command: run("session-start") }] },
+        { hooks: [{ type: "command", command: run("session-start-holds") }] },
+      ],
       UserPromptSubmit: [{ hooks: [{ type: "command", command: run("user-prompt-submit") }] }],
       PreToolUse: [
         { matcher: "Skill", hooks: [{ type: "command", command: run("pre-tool-use") }] },

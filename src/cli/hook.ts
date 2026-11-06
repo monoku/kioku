@@ -1,10 +1,11 @@
 import { resolve } from "node:path";
 import { machineReader, mutes, type MachineConfig } from "../core/config/machine.ts";
-import { loadedRow, startSession } from "../core/session/start.ts";
+import { loadedRow, startHolds, startSession } from "../core/session/start.ts";
 import { currentVersion, installDirs, installOrigin, managerCommand, newerThan } from "../core/setup/install.ts";
 import { dueForCheck, recordCheck, takeAvailable } from "../core/setup/update.ts";
 import { entriesFor, labelled, nextTurn, ownTurn, record } from "../core/session/journal.ts";
 import { labelsFor } from "../core/session/labels.ts";
+import { recordSurfaced } from "../core/reads.ts";
 import { newVersionPair } from "../core/session/versions.ts";
 import { VERSION } from "../version.ts";
 import {
@@ -99,10 +100,13 @@ export const sessionStart: Handler = async (args, ctx) => {
     const running = currentVersion(dirs);
     const available = looks ? takeAvailable(ctx.home) : undefined;
     if (available !== undefined && (running === undefined || newerThan(available, running))) {
-      // The version this machine runs is the summary's, said just above it (§1.2).
+      // The only place a session says a version: the newer one, and the one this machine runs (§1.2).
       messages.push({
         head: [`${available} is available`],
-        details: [["run ", cmd("kioku update"), " in a terminal"]],
+        details: [
+          [dim(`this machine runs ${running ?? ctx.version ?? VERSION}`)],
+          ["run ", cmd("kioku update"), " in a terminal"],
+        ],
         name: "update-available",
       });
     }
@@ -137,10 +141,10 @@ export const sessionStart: Handler = async (args, ctx) => {
     );
     // The person sees which brains the summary loaded (§1.2, §4.1), and the session's journal begins with it (§4.6).
     const labels = labelsFor(ctx.home, cwd, { machine: machineOf(ctx), ours: started.brains });
-    // The summary: the tool's version, then one line in the rows' words, the history's `summary` (§1.2).
+    // The summary: one row, the history's `summary` on the brand's line (§1.2); the version only when a newer one is.
     const loaded =
       started.summary !== undefined && started.loaded !== undefined
-        ? [loadedRow(started.loaded, labels.label, ctx.version ?? VERSION, input.source)]
+        ? [loadedRow(started.loaded, labels.label, input.source)]
         : [];
     if (started.summary !== undefined && started.loaded !== undefined) {
       // Resumed or compacted, the summary loaded again is a turn of its own, and says why (§4.6).
@@ -170,6 +174,24 @@ export const sessionStart: Handler = async (args, ctx) => {
     return answer(undefined, [...messages, { level: "error", head: ["could not start"], details: [[dim(why)]] }]);
   }
 };
+
+/**
+ * The second `SessionStart` hook (§4.1, §6.2): the summary's second part, what the memory holds, with the news since
+ * this machine's last session. It runs beside the first and says nothing to the person: the first says what they must
+ * see, a machine never set up included. Never fails the session.
+ */
+export const sessionStartHolds: Handler = guarded(async (harness, ctx) => {
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const input = harness.parseSessionStart(await ctx.stdin());
+  const holds = await startHolds(
+    ctx.home,
+    config,
+    { cwd: resolve(input.cwd ?? ctx.cwd), ...(input.source !== undefined && { source: input.source }) },
+    ctx.now(),
+  );
+  return holds === undefined ? undefined : harness.sessionStartAnswer(holds, []);
+});
 
 /** How messages are laid out, as the configuration's `display` and the terminal say (§1.2). */
 const layoutOf = (config: MachineConfig | undefined, env: NodeJS.ProcessEnv): Layout =>
@@ -221,12 +243,57 @@ function namespaceQuestion(n: NamespaceAdd): Message {
 }
 
 /**
- * The `UserPromptSubmit` hook (§4.6): each prompt is the session's next turn in its journal. It answers nothing and
- * never fails the prompt.
+ * The `UserPromptSubmit` hook (§4.6, §4.7): each prompt is the session's next turn in its journal, and the pages that
+ * stand out by meaning for it are added to its context, one line each, and are an entry of the journal. It never
+ * fails the prompt, and adds nothing past its budget.
  */
 export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
   const input = harness.parseUserPrompt(await ctx.stdin());
   if (input === undefined) return undefined;
   nextTurn(ctx.home, input.sessionId, ctx.now());
-  return undefined;
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const cwd = resolve(input.cwd ?? ctx.cwd);
+  // Imported here, not above: the prompt's hook alone reaches the index and the model (§4.7); the session's start never does.
+  const { recallFor, recallText, recalledRow, RECALL_TUNING } = await import("../core/session/recall.ts");
+  const pages = await recallFor(
+    ctx.home,
+    config,
+    { cwd, prompt: input.prompt, ...(input.sessionId !== undefined && { sessionId: input.sessionId }) },
+    ctx.semantic,
+    ctx.recall ?? RECALL_TUNING,
+  );
+  if (pages.length === 0) return undefined;
+  // What a prompt recalled is a read of the journal, with the pages and never the prompt (§4.6), and counts as surfaced (§4.5).
+  const labels = labelsFor(ctx.home, cwd, { machine: machineOf(ctx) });
+  const brains = [...new Set(pages.map((p) => p.brain))].join(", ");
+  record(
+    ctx.home,
+    input.sessionId,
+    [
+      labelled(
+        {
+          what: "recalled",
+          arrow: "read",
+          brain: brains,
+          count: pages.length,
+          hits: pages.map(({ brain, path, title }) => ({ brain, path, title })),
+        },
+        labels,
+      ),
+    ],
+    ctx.now(),
+  );
+  try {
+    recordSurfaced(
+      ctx.home,
+      ctx.now(),
+      pages.map((p) => ({ brain: p.brain, id: p.id })),
+    );
+  } catch {
+    /* a count is only a count */
+  }
+  // The person sees what the agent was given, under their message (§1.2): never muted, as the summary is not.
+  const said = render(recalledRow(pages, labels.label), layoutOf(config, ctx.env));
+  return harness.promptContextAnswer(recallText(pages), said);
 });

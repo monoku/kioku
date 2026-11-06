@@ -262,8 +262,11 @@ test("a newer version a look found is said once, in the next session, and muting
     recordAvailable(w.home, "9.9.9");
     const next = await session(new Date(2026, 9, 7, 10, 0, 0));
     assert.deepEqual(next.calls, [], "not looked for again the same day");
-    assert.match(next.said, /⬢ kioku\.md · 9\.9\.9 is available\n {2}⎿ run kioku update in a terminal/);
-    assert.doesNotMatch(next.said, /this machine runs/, "the summary above it says the version");
+    assert.match(
+      next.said,
+      /⬢ kioku\.md · 9\.9\.9 is available\n {2}⎿ this machine runs [\d.]+(?:-dev)?\n {2}⎿ run kioku update in a terminal/,
+      "the one place a session says a version: the newer one, and the one this machine runs",
+    );
     assert.doesNotMatch((await session(new Date(2026, 9, 7, 11, 0, 0))).said, /is available/, "once for each look");
     assert.equal(readUpdateState(w.home).checked !== undefined, true, "the day's stamp is kept");
 

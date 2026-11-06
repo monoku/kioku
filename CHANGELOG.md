@@ -4,6 +4,32 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **A session's start says its summary in one row**, as the rows of a call
+  are drawn: `⬢ kioku.md ↓ summary   session summary · 324 pages (personal,
+  project, team)`. The version of the tool is no longer said there; a session
+  says a version only when a newer one exists, with the one this machine runs.
+- **The session summary comes in two parts, each a hook of its own**, since
+  Claude Code caps what one hook injects at 10,000 characters: how to use the
+  memory (the opening, the brains, the project's front page and the Rules),
+  and what it holds (the pages to load first, the Skills, the decisions, the
+  instincts, the news and what lint has to review). A brain with many Rules no
+  longer leaves its Skills, decisions and instincts out of the session. A Rule
+  is now its Rule and its Why, without its See also.
+- **Each prompt brings the pages that stand out for it**, by meaning: up to
+  three, one line each with its title and summary, so that the agent knows the
+  brains hold something it would not have looked for. Only once the search
+  model is on the machine and the brains hold 30 pages or more; the hook gives
+  up past a second, and the prompt is kept nowhere. The conversation shows
+  what each prompt recalled in a `recalled` row under the message, and the
+  memory history lists the pages, where they open.
+- **Each part of a page has a vector of its own**, its summary and each
+  section, so that a line such as a lesson's rule of thumb is found by the
+  prompt it answers even when the rest of the page is about something else.
+  The search index is rebuilt once, and the first `sync` after the update reads
+  the meaning of every page again. `kioku page search` ranks as before.
+
 ## 0.3.1
 
 - **Releases are built with the pnpm setup action pinned to a commit**, not to

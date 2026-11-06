@@ -18,11 +18,17 @@ import { sh, world, type World } from "../world.ts";
 
 isolateGit();
 
-const summaryOf = (r: { out: any }): string => r.out.hookSpecificOutput?.additionalContext ?? "";
-const start = (w: World, o: { cwd?: string; source?: string } = {}) =>
-  w.kioku(["hook", "session-start"], {
-    stdin: JSON.stringify({ cwd: o.cwd ?? w.repo, source: o.source ?? "startup", session_id: "s" }),
-  });
+/** The summary as the agent reads it: both parts, how to use the memory then what it holds (§4.1). */
+const summaryOf = (r: { out: any; holds?: { out: any } }): string =>
+  [r.out.hookSpecificOutput?.additionalContext, r.holds?.out?.hookSpecificOutput?.additionalContext]
+    .filter((p) => p !== undefined)
+    .join("\n\n");
+/** A session's start: its two hooks, as the host runs them (§4.1). */
+const start = async (w: World, o: { cwd?: string; source?: string } = {}) => {
+  const stdin = JSON.stringify({ cwd: o.cwd ?? w.repo, source: o.source ?? "startup", session_id: "s" });
+  const r = await w.kioku(["hook", "session-start"], { stdin });
+  return { ...r, holds: await w.kioku(["hook", "session-start-holds"], { stdin }) };
+};
 
 /** Positions of the headings, which must rise in the order of §4.1. */
 function inOrder(text: string, headings: string[]): void {
@@ -59,12 +65,12 @@ test("a session in acme-api shows the summary in the order of §4.1", () =>
       "## Instincts",
       "The brains hold",
     ]);
-    // Rules of the three brains, whole; most specific first.
+    // Rules of the three brains, each its Rule and its Why; most specific first.
     inOrder(s, [
       "### No prod migrations from a session (northwind/brain-acme",
       "### Write commit messages in English (northwind",
     ]);
-    assert.match(s, /Never\.\n\n#### Why\n\nIncident of 2026-09\./, "a Rule is whole");
+    assert.match(s, /Never\.\n\nWhy: Incident of 2026-09\./, "a Rule is its Rule and its Why");
     // A Skill is one line.
     assert.match(
       s,
@@ -281,18 +287,25 @@ function big(): { acme: Made[]; sam: Made[]; team: Made[] } {
   return { acme, sam, team };
 }
 
-test("on the large fixture the summary never passes 10,000 characters, the cut falls between items and the order holds", () => {
+test("on the large fixture each part of the summary stays under 10,000 characters, the cut falls between items and the order holds (§4.1)", () => {
   const b = big();
   return world(
     async (w) => {
-      const s = summaryOf(await start(w));
-      assert.ok(s.length <= SUMMARY_CAP, `${s.length} characters`);
-      assert.ok(s.length > SUMMARY_CAP - 600, "the cut leaves little room unused");
-      assert.match(s, /this summary shows part of them/);
-      assert.ok(s.trimEnd().endsWith("not listed here."), "the closing line is whole and last");
-      inOrder(s, ["## northwind/brain-acme: front page", "## Rules"]);
+      const r = await start(w);
+      const usage: string = r.out.hookSpecificOutput.additionalContext;
+      const holds: string = r.holds.out.hookSpecificOutput.additionalContext;
+      for (const [name, part] of [
+        ["usage", usage],
+        ["holds", holds],
+      ] as const)
+        assert.ok(part.length <= SUMMARY_CAP, `${name}: ${part.length} characters`);
+      assert.ok(holds.length > SUMMARY_CAP - 600, "the cut leaves little room unused");
+      assert.match(holds, /this summary shows part of them/);
+      assert.ok(holds.trimEnd().endsWith("not listed here."), "the closing line is whole and last");
+      assert.ok(holds.startsWith("# Kioku: what the brains of this session hold"), "the second part names itself");
+      inOrder(usage, ["# Kioku: the brains of this session", "## northwind/brain-acme: front page", "## Rules"]);
       // Every list item that made it in is whole.
-      for (const line of s
+      for (const line of `${usage}\n${holds}`
         .split("\n")
         .filter(
           (l) =>
@@ -301,10 +314,10 @@ test("on the large fixture the summary never passes 10,000 characters, the cut f
         assert.match(line, /\)$/, line);
       }
       // Whatever came after the cut is absent, never a later section before an earlier one.
-      const sections = ["## Rules", "## Skills", "## Decisions in northwind/brain-acme", "## Instincts"].filter((h) =>
-        s.includes(h),
+      const sections = ["## Load first", "## Skills", "## Decisions in northwind/brain-acme", "## Instincts"].filter(
+        (h) => holds.includes(h),
       );
-      inOrder(s, sections);
+      inOrder(holds, sections);
     },
     { acmePages: b.acme, samPages: b.sam, teamPages: b.team },
   );
@@ -480,6 +493,22 @@ test("a commit pushed by a teammate is new in the next session, and not in the o
     const third = summaryOf(await start(w));
     assert.doesNotMatch(third, /since your last session/);
     assert.ok(existsSync(viewsPath(w.home)));
+  }));
+
+test("the first hook of a session's start leaves the views alone, so the second shows the news whichever runs first (§4.1)", () =>
+  world(async (w) => {
+    await start(w);
+    await teammateAdds(w, 1, "Acme's pager rota");
+    const stdin = JSON.stringify({ cwd: w.repo, source: "startup", session_id: "s" });
+    // The host runs the two at once: the first finishing before the second starts is the order that could race.
+    const first = await w.kioku(["hook", "session-start"], { stdin });
+    const holds = await w.kioku(["hook", "session-start-holds"], { stdin });
+    assert.doesNotMatch(first.out.hookSpecificOutput.additionalContext, /since your last session/);
+    assert.match(
+      holds.out.hookSpecificOutput.additionalContext,
+      /## New in northwind\/brain-acme since your last session\n\n- added: Acme's pager rota/,
+    );
+    assert.equal(holds.out.systemMessage, undefined, "the second says nothing to the person: the first does");
   }));
 
 /** A teammate, Ana, adds pages to acme in one commit and pushes it; this machine syncs. */

@@ -31,7 +31,8 @@
     "test:demo": "node --test scripts/demo/check.test.ts",
     "test:plugin": "claude plugin test plugins/claude-code",
     "bench": "node scripts/bench.mjs",
-    "eval:memory": "node scripts/eval/memory.ts"
+    "eval:memory": "node scripts/eval/memory.ts",
+    "eval:recall": "node scripts/eval/recall.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",

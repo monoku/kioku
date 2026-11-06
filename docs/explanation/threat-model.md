@@ -41,7 +41,9 @@ reach.
   bring a file of the machine's, `~/.aws/credentials` say, into the summary;
   the validator names every link (§5.1 rule 12).
 - **A page cannot restructure the summary**: its headings are pushed down when
-  the summary is built (`src/core/session/summary.ts`).
+  the summary is built (`src/core/session/summary.ts`); nor what a prompt
+  recalls, where each page is one line whatever its title holds
+  (`src/core/session/recall.ts`).
 - **Rows come from the tool's result** (principle 5): a page cannot make the
   person believe a save happened, or did not.
 - **The journal holds names, never text** (§4.6), and a session's id names its
@@ -86,8 +88,14 @@ is the remedy; rewriting history is the person's, outside Kioku.
   rewrites the files the tool owns in every brain of a machine that installs
   it; `update` keeps the previous version and says how to go back.
 - **The embedding engine and model** come from pinned URLs, checked against a
-  pinned size and checksum (`src/core/semantic/install.ts`), and no hook loads
-  them.
+  pinned size and checksum (`src/core/semantic/install.ts`). One hook loads
+  them, the prompt's recall (spec §4.7), and only once they are on the machine
+  and verified; no hook fetches them.
+- **A prompt is read and kept nowhere** (spec §4.7): the recall embeds it on the
+  machine, and neither the prompt nor its vector is written to the journal, the
+  index or a brain. A page it brings is named by its title and summary, the
+  lines a summary already shows; its text reaches the agent only through
+  `kioku page show`.
 - **`curl | sh`**: the installer checks what it downloads; a reader who wants
   more reads the script first.
 - **A brain's name is what it says of itself.** Anyone can write

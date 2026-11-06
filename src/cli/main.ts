@@ -10,7 +10,7 @@ process.stdout.on("error", (e: NodeJS.ErrnoException) => {
   throw e;
 });
 
-process.exitCode = await run(
+const code = await run(
   process.argv.slice(2),
   {
     stdout: (t) => process.stdout.write(t),
@@ -20,3 +20,7 @@ process.exitCode = await run(
   },
   defaultContext(bundle),
 );
+process.exitCode = code;
+// The host waits for a hook's process to end: once it has answered, work it gave up on (a recall past its budget, §4.7)
+// must not keep it, so it ends as soon as what it wrote is flushed. What a hook starts in the background is detached.
+if (process.argv[2] === "hook") process.stdout.write("", () => process.exit(code));

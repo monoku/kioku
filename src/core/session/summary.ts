@@ -1,7 +1,7 @@
 import { FRONT_PAGE } from "../brain/brain.ts";
 import { brainRepo } from "../config/brain-ref.ts";
 import { LOAD_FIRST_MAX, type LoadFirst } from "../brain/load-first.ts";
-import { evidenceOf, kindOf, sectionBody, withoutChangelog, type BrainFile } from "../brain/file.ts";
+import { evidenceOf, kindOf, sectionBody, withoutKept, type BrainFile } from "../brain/file.ts";
 import { placementOf } from "../brain/kinds.ts";
 import { depthOf, isUnder } from "../brain/namespace-name.ts";
 import { resolveLink } from "../brain/paths.ts";
@@ -11,18 +11,24 @@ import type { NewPage } from "./views.ts";
 import { plural } from "../util.ts";
 
 /**
- * The start-of-session summary (§4.1): composed from the files on disk with no model call, in the order of §4.1,
- * and cut so that it never passes the host's cap. An opening that is never cut names the brains and what the agent
- * must know it works without. Then, while they fit: the project brain's front page, trimmed; the Rules of the three
- * brains, whole; the Skills, one line each; the current decisions of the project brain, newest first; the instincts
- * with recent evidence, personal then project; what is new in the shared brains; the maintenance count per brain.
- * The first item that does not fit ends the summary, so nothing later jumps ahead of something earlier. A last line
- * counts the pages and says that search finds them. Memories that are facts and lessons are never in it.
+ * The start-of-session summary (§4.1): composed from the files on disk with no model call, in the order of §4.1, in
+ * two parts, each injected by a hook of its own and each cut so that it never passes the host's cap for one hook.
+ *
+ * How to use the memory: an opening that is never cut names the brains and what the agent must know it works without;
+ * then, while they fit, the project brain's front page, trimmed, and the Rules of the three brains, each its Rule and
+ * its Why. What the memory holds: a heading that names the brains; then, while they fit, the pages to load first; the
+ * Skills, one line each; the current decisions of the project brain, newest first; the instincts with recent
+ * evidence, personal then project; what is new in the shared brains; the maintenance count per brain; and a last line
+ * that counts the pages and says that search finds them. In each part the first item that does not fit ends it, so
+ * nothing later jumps ahead of something earlier. Memories that are facts and lessons are never in it.
  *
  * This composes what `summary-load.ts` read: nothing here touches the disk.
  */
 
-/** Claude Code's cap on one hook's output, in characters. Measured here in UTF-16 units, which never undercounts. */
+/**
+ * Claude Code's cap on one hook's output, in characters, which each part takes (§4.1): past it the host keeps a
+ * preview and leaves the rest in a file. Measured here in UTF-16 units, which never undercounts.
+ */
 export const SUMMARY_CAP = 10_000;
 /** How much of the project's front page goes in. Chosen, not measured. */
 export const INDEX_TRIM = 2_000;
@@ -75,12 +81,12 @@ export interface SummaryInput {
   teamFrom?: "folder" | "machine";
   /** The brains of the chain this session leaves out because it is inside a brain, which is loaded alone (§2.7). */
   notLoaded?: { tier: string; key: string }[];
-  /** Problems with `kioku.yaml` files along the chain. */
-  problems: string[];
+  /** Problems with `kioku.yaml` files along the chain; the opening's, as the next three are. */
+  problems?: string[];
   /** Shared brains whose last publication did not complete, by key, with the reason. */
-  pending: Record<string, string>;
+  pending?: Record<string, string>;
   /** Brains whose last `sync` failed, by key, with the reason. */
-  syncFailures: Record<string, string>;
+  syncFailures?: Record<string, string>;
   /** Shared brains that hold changes of this machine set aside because they conflicted with what others published. */
   conflicts?: Record<string, { path: string; branches: string[] }>;
   now: Date;
@@ -217,9 +223,21 @@ class Composer {
     return this.stopped;
   }
 
-  text(closing: string): string {
-    return `${this.parts.join("\n")}\n\n${closing}`;
+  text(closing?: string): string {
+    const body = this.parts.join("\n");
+    return closing === undefined ? body : `${body}\n\n${closing}`;
   }
+}
+
+/** The two parts of the summary (§4.1), by the hook that injects each. */
+export type SummaryPart = "usage" | "holds";
+
+/** What the summary says of a Rule (§4.1): its Rule and its Why; a Rule written without them, its body without what the tool keeps. */
+function ruleText(body: string): string {
+  const rule = sectionBody(body, "Rule");
+  if (rule === undefined || rule === "") return withoutKept(body);
+  const why = sectionBody(body, "Why");
+  return why === undefined || why === "" ? rule : `${rule}\n\nWhy: ${why}`;
 }
 
 /** Said once under the brains of the opening (§4.1, §3.2): how a page gets a namespace, and how one is made. */
@@ -279,45 +297,41 @@ export const WHEN_TO_SAVE_SHORT =
 export const SKILLS_NOTE =
   "When one fits the task at hand, run `kioku page show <path> --brain <brain>` before starting and follow its Steps; the line here is only its summary.";
 
+/** Said at the end of the first part when the cap cut the Rules (§4.1). */
+export const RULES_CUT =
+  "Not every Rule fits here: `kioku page list --kind rule` lists them, and `kioku page show` reads one.";
+
+/** Both parts, one after the other: what an agent that reads the whole sees. */
 export function composeSummary(input: SummaryInput): string {
-  return composeSummaryOffering(input).text;
+  const { usage, holds } = composeSummaryOffering(input);
+  return holds === undefined ? usage : `${usage}\n\n${holds}`;
+}
+
+/** What both parts read of the input: the brains that read, the project brain, how many pages, the cap. */
+function partsOfInput(input: SummaryInput) {
+  const readable = input.brains.filter((b) => b.config !== undefined);
+  const pages = readable.reduce((n, b) => n + b.docs.length, 0);
+  return {
+    brains: input.brains,
+    readable,
+    project: readable.find((b) => b.isProject),
+    pages,
+    // Each part takes the cap of its own hook (§4.1).
+    cap: Math.min(SUMMARY_CAP, Math.max(MIN_SUMMARY_CAP, input.cap ?? SUMMARY_CAP)),
+    loaded: { brains: readable.map((b) => b.link.key), pages, counts: readable.map((b) => b.docs.length) },
+  };
 }
 
 /**
- * The summary, the pages whose line got into it (§4.5), the brains it loaded with how many pages they hold (§1.2),
- * and the brains whose news got in whole, by key (§4.1, item 7).
+ * The summary's first part (§4.1), how to use the memory: the opening, the project's front page and the Rules; and the
+ * brains it loaded with how many pages they hold (§1.2).
  */
-export function composeSummaryOffering(input: SummaryInput): {
-  text: string;
-  offered: { brain: string; id: string | null }[];
+export function composeUsage(input: SummaryInput): {
+  usage: string;
   loaded: { brains: string[]; pages: number; counts: number[] };
-  newsShown: string[];
 } {
-  const brains = input.brains;
-  const readable = brains.filter((b) => b.config !== undefined);
-  const project = readable.find((b) => b.isProject);
-  const pages = readable.reduce((n, b) => n + b.docs.length, 0);
-  const closing = (cut: boolean) =>
-    `The brains hold ${plural(pages, "page")}${cut ? "; this summary shows part of them" : ""}. \`kioku page search <words>\` finds them; Memories that are facts and lessons are found that way, not listed here.`;
-  const cap = Math.min(SUMMARY_CAP, Math.max(MIN_SUMMARY_CAP, input.cap ?? SUMMARY_CAP));
-  const c = new Composer(cap, closing(true).length + 2);
-  // The project brain's repository is a hint by its words, `brain-acme` for acme: the word brain itself says nothing.
-  const hints = (input.hints ?? [])
-    .flatMap(wordsOf)
-    .filter((w) => w !== "brain")
-    .map(stemOfWord);
-  /** Pages that say what the session is about, first; the order they had otherwise is kept. */
-  const byRelevance = <T>(items: T[], text: (t: T) => string): T[] => {
-    if (hints.length === 0) return items;
-    const score = (t: T) => {
-      const words = new Set(wordsOf(text(t)).map(stemOfWord));
-      return hints.filter((h) => words.has(h)).length;
-    };
-    return items
-      .map((t, i) => ({ t, i, s: score(t) }))
-      .sort((a, b) => b.s - a.s || a.i - b.i)
-      .map((x) => x.t);
-  };
+  const { brains, readable, project, cap, loaded } = partsOfInput(input);
+  const c = new Composer(cap, RULES_CUT.length + 2);
 
   const opening = [
     "# Kioku: the brains of this session",
@@ -373,8 +387,8 @@ export function composeSummaryOffering(input: SummaryInput): {
     opening.push(
       `- This repository names ${n.key} as its ${n.tier} brain by name alone, and this machine does not have it, so nothing from it is loaded. Tell the person: a teammate who has it gives its address, and \`kioku init <address>\` links it.`,
     );
-  for (const p of input.problems) opening.push(`- ${clip(p, 200)}`);
-  for (const [key, reason] of Object.entries(input.pending))
+  for (const p of input.problems ?? []) opening.push(`- ${clip(p, 200)}`);
+  for (const [key, reason] of Object.entries(input.pending ?? {}))
     opening.push(`- A change to ${key} is committed but not published yet (${clip(reason, 120)}); sync retries it.`);
   for (const [key, c] of Object.entries(input.conflicts ?? {})) {
     const found = brains.find((b) => b.link.key === key);
@@ -383,10 +397,10 @@ export function composeSummaryOffering(input: SummaryInput): {
       `- ${name} holds changes of the person's that conflicted with what others published, kept on ${c.branches.join(", ")}. Tell the person; with them read both versions (\`kioku brain conflicts ${name} --branch ${c.branches[0]}\`), write what should stand with \`kioku page update\`, then \`kioku brain conflicts ${name} --resolve ${c.branches[0]}\`.`,
     );
   }
-  for (const [key, reason] of Object.entries(input.syncFailures))
+  for (const [key, reason] of Object.entries(input.syncFailures ?? {}))
     opening.push(`- The last sync of ${key} failed: ${clip(reason, 160)}`);
   // When to save (§4.1) takes the room the rest of the opening leaves under the cap: whole, else one line, else none.
-  const rest = opening.join("\n").length + closing(true).length + 2;
+  const rest = opening.join("\n").length + RULES_CUT.length + 2;
   const whenToSave = [WHEN_TO_SAVE, WHEN_TO_SAVE_SHORT].find((t) => rest + t.length + 2 <= cap);
   if (whenToSave !== undefined) opening.splice(4, 0, whenToSave, "");
   c.must(opening.join("\n"));
@@ -396,8 +410,65 @@ export function composeSummaryOffering(input: SummaryInput): {
   if (front?.front?.trim())
     c.section(`## ${nameOf(front)}: front page`, [demote(trimIndex(front.front, `${FRONT_PAGE} of ${nameOf(front)}`))]);
 
-  // 1b. The pages each namespace's index says to read first, at most five a namespace.
-  c.section(
+  // 2. The Rules of the three brains, each its Rule and its Why; most specific brain first.
+  const rules = readable.flatMap((b) => b.docs.filter((d) => kindOf(d.file) === "rule").map((d) => ({ b, d })));
+  const allRules = c.section(
+    "## Rules",
+    readable.flatMap((b) =>
+      b.docs
+        .filter((d) => kindOf(d.file) === "rule")
+        .sort((x, y) => (x.rel < y.rel ? -1 : 1))
+        .map((d) => `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`),
+    ),
+    true,
+  );
+  // Said only when a Rule did not fit, not when the front page alone did not (§4.1).
+  return { usage: c.text(rules.length > 0 && !allRules ? RULES_CUT : undefined), loaded };
+}
+
+/**
+ * The summary's second part (§4.1), what the memory holds, absent when no brain reads; the pages whose line got into it
+ * (§4.5), and the brains whose news got in whole, by key.
+ */
+export function composeHolds(input: SummaryInput): {
+  holds?: string;
+  offered: { brain: string; id: string | null }[];
+  newsShown: string[];
+} {
+  const { readable, project, pages, cap } = partsOfInput(input);
+  if (readable.length === 0) return { offered: [], newsShown: [] };
+  const closing = (cut: boolean) =>
+    `The brains hold ${plural(pages, "page")}${cut ? "; this summary shows part of them" : ""}. \`kioku page search <words>\` finds them; Memories that are facts and lessons are found that way, not listed here.`;
+  const h = new Composer(cap, closing(true).length + 2);
+  // The project brain's repository is a hint by its words, `brain-acme` for acme: the word brain itself says nothing.
+  const hints = (input.hints ?? [])
+    .flatMap(wordsOf)
+    .filter((w) => w !== "brain")
+    .map(stemOfWord);
+  /** Pages that say what the session is about, first; the order they had otherwise is kept. */
+  const byRelevance = <T>(items: T[], text: (t: T) => string): T[] => {
+    if (hints.length === 0) return items;
+    const score = (t: T) => {
+      const words = new Set(wordsOf(text(t)).map(stemOfWord));
+      return hints.filter((h) => words.has(h)).length;
+    };
+    return items
+      .map((t, i) => ({ t, i, s: score(t) }))
+      .sort((a, b) => b.s - a.s || a.i - b.i)
+      .map((x) => x.t);
+  };
+
+  // What the memory holds: a heading that stands alone, since the agent may read this part first (§4.1).
+  h.must(
+    [
+      "# Kioku: what the brains of this session hold",
+      "",
+      `From ${readable.map(nameOf).join(", ")}: the second part of Kioku's summary, beside the one that says how to use the memory. Read a page only with \`kioku page show <path> --brain <brain>\`, never through its files.`,
+    ].join("\n"),
+  );
+
+  // 1. The pages each namespace's index says to read first, at most five a namespace.
+  h.section(
     "## Load first",
     readable.flatMap((b) => {
       const out: Offer[] = [];
@@ -411,21 +482,9 @@ export function composeSummaryOffering(input: SummaryInput): {
     }),
   );
 
-  // 2. The Rules of the three brains, whole but for their Changelog; most specific brain first.
-  c.section(
-    "## Rules",
-    readable.flatMap((b) =>
-      b.docs
-        .filter((d) => kindOf(d.file) === "rule")
-        .sort((x, y) => (x.rel < y.rel ? -1 : 1))
-        .map((d) => `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(withoutChangelog(d.file.body))}`),
-    ),
-    true,
-  );
-
-  // 3. The Skills of the three brains, one line each.
+  // 2. The Skills of the three brains, one line each.
   // The line under the heading carries the one thing to do with the list, whether or not the agent loaded the skill.
-  c.section(
+  h.section(
     `## Skills\n\n${SKILLS_NOTE}`,
     readable.flatMap((b) =>
       b.docs
@@ -435,10 +494,10 @@ export function composeSummaryOffering(input: SummaryInput): {
     ),
   );
 
-  // 4. The current decisions of the project brain, newest first.
+  // 3. The current decisions of the project brain, newest first.
   if (project) {
     const gone = superseded(project.docs);
-    c.section(
+    h.section(
       `## Decisions in ${nameOf(project)}`,
       byRelevance(
         project.docs.filter((d) => placementOf(d.rel)?.sub === "decision" && !gone.has(d.rel)).sort(newestFirst),
@@ -447,7 +506,7 @@ export function composeSummaryOffering(input: SummaryInput): {
     );
   }
 
-  // 5. Instincts with recent evidence, personal then project.
+  // 4. Instincts with recent evidence, personal then project.
   const since = daysBefore(input.now, RECENT_EVIDENCE_DAYS);
   const order = (b: SummaryBrain) => (b.link.tier === "personal" ? 0 : 1);
   const instincts = readable
@@ -464,7 +523,7 @@ export function composeSummaryOffering(input: SummaryInput): {
         ({ d }) => `${titleOf(d)} ${str(d, "summary") ?? ""}`,
       ),
     );
-  c.section(
+  h.section(
     "## Instincts",
     instincts.map(({ d, b, evidence }) => {
       const what = str(d, "summary") ?? sectionBody(d.file.body, "Do");
@@ -479,8 +538,8 @@ export function composeSummaryOffering(input: SummaryInput): {
     }),
   );
 
-  // 6. What is new in the shared brains since this machine's last session that showed it: the newest few and how many
-  // more, so that the list fits whole and the news moves on however much accumulated (§4.1, item 7).
+  // 5. What is new in the shared brains since this machine's last session that showed it: the newest few and how many
+  // more, so that the list fits whole and the news moves on however much accumulated (§4.1).
   const newsShown: string[] = [];
   for (const b of readable.filter((x) => x.link.tier !== "personal" && (x.news?.length ?? 0) > 0)) {
     const news = b.news!;
@@ -489,21 +548,24 @@ export function composeSummaryOffering(input: SummaryInput): {
       lines.push(
         `- and ${news.length - NEWS_MAX} more: \`kioku page list --brain ${nameOf(b)}\` gives each its \`change\``,
       );
-    if (c.section(`## New in ${nameOf(b)} since your last session`, lines)) newsShown.push(b.link.key);
+    if (h.section(`## New in ${nameOf(b)} since your last session`, lines)) newsShown.push(b.link.key);
   }
 
-  // 7. What `brain lint` has to review, per brain.
-  c.section(
+  // 6. What `brain lint` has to review, per brain.
+  h.section(
     "## To review",
     readable
       .filter((b) => (b.lint ?? 0) > 0)
       .map((b) => `- ${nameOf(b)}: ${plural(b.lint!, "thing")} for \`kioku brain lint ${nameOf(b)}\``),
   );
 
-  return {
-    text: c.text(closing(c.cut)),
-    offered: c.offered,
-    loaded: { brains: readable.map((b) => b.link.key), pages, counts: readable.map((b) => b.docs.length) },
-    newsShown,
-  };
+  // 7. The last line, never cut: how many pages, and that search finds them.
+  return { holds: h.text(closing(h.cut)), offered: h.offered, newsShown };
+}
+
+/** Both parts and what each says of itself, as one; what a test of the whole reads. */
+export function composeSummaryOffering(
+  input: SummaryInput,
+): ReturnType<typeof composeUsage> & ReturnType<typeof composeHolds> {
+  return { ...composeUsage(input), ...composeHolds(input) };
 }
