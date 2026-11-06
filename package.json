@@ -30,7 +30,8 @@
     "dev:claude": "node scripts/dev/claude.ts",
     "test:demo": "node --test scripts/demo/check.test.ts",
     "test:plugin": "claude plugin test plugins/claude-code",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "eval:memory": "node scripts/eval/memory.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
