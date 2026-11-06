@@ -2,28 +2,49 @@
 
 ## 4.1 The summary
 
-A `SessionStart` hook injects a summary of the chain, once per session, with no
-model call: it only reads files. It takes the host's cap, 10,000 characters,
-and nothing lowers it; while Kioku is on, every session has it. After an
-opening that is never cut, the tool adds, in this order, until the cap:
+The summary of the chain comes in two parts, each injected by a `SessionStart`
+hook of its own, once per session, with no model call: they only read files.
+The host caps what one hook injects at 10,000 characters, and past it keeps a
+short preview and leaves the rest in a file the agent would have to open; so
+each part takes that cap, is never past it, and nothing lowers it. While Kioku
+is on, every session has both. The two hooks run at once and their parts reach
+the agent in either order, so each opens with a heading that names it and
+stands alone.
+
+**How to use the memory.** After an opening that is never cut, the tool adds,
+in this order, until the cap:
 
 1. the project brain's `BRAIN.md`, trimmed; inside a brain (§2.7), that
    brain's;
-2. the pages each namespace's `INDEX.md` names under `## Load first`, one line
+2. the Rules of the three brains, each its title, its Rule and its Why, never
+   its See also (a Rule written without those sections, its text up to the
+   sections the tool keeps); when the cap cuts them, a last line says so and how to list
+   them.
+
+**What the memory holds.** After its heading, the tool adds, in this order,
+until the cap:
+
+1. the pages each namespace's `INDEX.md` names under `## Load first`, one line
    each, five at most a namespace;
-3. the Rules of the three brains, whole;
-4. the Skills of the three brains, one line each, under a line telling the
+2. the Skills of the three brains, one line each, under a line telling the
    agent to read a Skill with `kioku page show` before a task it fits;
-5. the current decisions of the project brain, one line each, newest first,
+3. the current decisions of the project brain, one line each, newest first,
    those that name what the session is about (the repository's folder, the
    project brain's name) before the rest;
-6. the instincts with evidence in the last 90 days, personal then project, the
+4. the instincts with evidence in the last 90 days, personal then project, the
    relevant ones first within a brain;
-7. what is new in the shared brains since this machine's last session that
+5. what is new in the shared brains since this machine's last session that
    showed it, ten a brain at most, newest first, with how many more and the
    command that lists them; news the cap cut waits for the next session;
-8. how many things `brain lint` (§4.4) has to review, per brain;
-9. a last line: how many pages the brains hold and that search finds them.
+6. how many things `brain lint` (§4.4) has to review, per brain: the first
+   thing the cap cuts;
+7. a last line, never cut: how many pages the brains hold, whether this part
+   shows only some of them, and that search finds them.
+
+With no brain on the machine there is no second part; the first still says which
+brains are being cloned or were not loaded, and with none of those either, there
+is no summary. A session whose brains give the second part nothing but its last
+lines still has it.
 
 Retired and superseded pages (§3.5) are never in it, nor Memories that are
 facts and lessons, which are one search away.
@@ -50,9 +71,14 @@ the line that says what the person says about themselves is not saved in this
 session (§1.3). A brain not loaded has nothing in the summary and is not
 counted in it.
 
-The hook also tells the person which brains the summary loaded and how many
-pages they hold (§1.2), and, inside a brain, by tier, which brains of the chain
-are not loaded; a session with no summary gets no such line.
+**The second part's heading** names the brains it comes from, as the opening
+lists them, and says that a page is read with `kioku page show`, never through
+its files: an agent that reads it first knows what to do with its lines.
+
+The first part's hook also tells the person which brains the summary loaded and
+how many pages they hold (§1.2), and, inside a brain, by tier, which brains of
+the chain are not loaded; a session with no summary gets no such line. It alone
+writes the summary's entry in the journal (§4.6): the two parts are one read.
 
 ## 4.2 Sync
 
@@ -81,7 +107,11 @@ matching, a match in the title or aliases worth more than one in the body;
 several words must all match, and when no page has them all, the pages with
 some of the significant ones (stopwords left out) come instead. **Meaning**:
 one vector per page over title, summary, aliases and body without the
-Changelog, computed on the machine by one multilingual model the tool pins,
+Changelog, and one for each of its parts, its summary and each section but the
+Changelog, Evidence and See also, each under the page's title, so that a line
+such as a lesson's rule of thumb is not lost in the rest of the page when
+a prompt is recalled (§4.7); search ranks by the page's own; computed on the
+machine by one multilingual model the tool pins,
 each of its files checked against a pinned checksum. The model is fetched once
 per machine (about 250 MB), by `sync` only: `kioku setup` starts that first
 `sync` in the background (`--no-model` keeps search full text), and the
@@ -143,9 +173,9 @@ This machine keeps a count, per page, of two things, never added up:
   (`--section`, `--outline`, `--head`), by the agent or by the person. It is
   the only way to the page's text.
 - **surfaced**: the page was offered in a line of the session summary (§4.1:
-  the pages to read first, the Skills, the decisions and the instincts). A
-  Rule is whole in every summary and is not counted. A search result is not
-  counted either.
+  the pages to read first, the Skills, the decisions and the instincts), or
+  recalled at a prompt (§4.7). A Rule is whole in every summary and is not
+  counted. A search result is not counted either.
 
 One entry per page, by brain and `id`, so a rename keeps it: how many times it
 was opened and surfaced and the day of the last of each; and the day the
@@ -169,6 +199,7 @@ is a read or a write:**
 | Entry | What made it | |
 |---|---|---|
 | `summary` | the session summary (§4.1), with the brains it loaded, how many pages they hold, and why: the session started, was resumed or was compacted | read |
+| `recalled` | the pages a prompt brought (§4.7), each by brain, path and title | read |
 | `skill` | the agent loading Kioku's own skill | read |
 | `opened` | `page show`, one per page | read |
 | `searched` | `page search` | read |
@@ -191,3 +222,39 @@ that made it, so the mod can draw its rows (§1.2). Never a page's text, never
 a prompt. The journal lives with the machine's state (§2.5), one file per
 session, never in a brain or in git, dropped two days after its last entry. A
 command run in a terminal makes no entry.
+
+## 4.7 At each prompt
+
+The agent does not search for what it does not know the brains hold. So at each
+prompt the person sends, a `UserPromptSubmit` hook looks for pages that bear on
+it by meaning alone and, when some stand out, adds them to the prompt's context:
+one line each, its title, its summary, its brain and its path, under a line that
+says they were found by meaning and that a page is read with `kioku page show`
+before the agent relies on it. Never a page's text: the agent opens what it
+needs.
+
+A page **stands out** by how far its similarity to the prompt is above the mean
+of every page of the session's brains, in standard deviations, taken twice, for
+the page whole and for its part most similar to the prompt (§4.3), the better of
+the two counting: 3 or more when its title or summary shares a significant word
+with the prompt, compared by stem (`deploys` meets `deploying`), or 4 or more
+alone; three at most, the furthest out first. The model scores every page close to every
+prompt, so a similarity says little by itself, and a word in common is what
+tells a page on the subject from one that only sounds like it. Among a few pages the measure says nothing, so
+there is no recall while the brains hold fewer than 30 pages indexed by meaning:
+the summary already names most of them. These numbers are chosen, not derived:
+`pnpm eval:recall` scores them on a labelled set of prompts against the demo,
+and `pnpm eval:memory` what the agent does with them.
+
+Never recalled: a Rule, whole in every summary (§4.1); a retired or superseded
+page (§3.5); a page this session already opened or was already recalled. Nothing
+is recalled for a prompt that starts with `/`, one with fewer than three words,
+inside a brain (§2.7), or until the search model is on the machine (§4.3); the
+hook never fetches it, and never indexes: it never creates, rebuilds or writes
+the index, so an index missing or of another version, after an update, waits
+for the next `sync`, as does a page without a vector for its current text. The hook loads the model, which takes about half a second, and
+gives up past a second, adding nothing, and its process ends with its answer. The prompt is read and kept nowhere.
+
+What a prompt recalled is an entry of the journal (§4.6) and counts as surfaced
+(§4.5); the hook says it to the person under their message, in the history's
+`recalled` row (§1.2), and the memory history lists the pages, where they open.
