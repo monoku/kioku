@@ -13,7 +13,7 @@ import {
   type UpdateOutcome,
 } from "../core/setup/update.ts";
 import { runBrain } from "./brain.ts";
-import { bringForward, describeForwarded, type Forwarded } from "../core/setup/forward.ts";
+import { bringForward, describeForwarded, type Forwarded, recordForward } from "../core/setup/forward.ts";
 import type { Context, Handler } from "./run.ts";
 import { personHome } from "./home.ts";
 import { requireTerminal } from "./terminal.ts";
@@ -124,7 +124,10 @@ export const runUpdate: Handler = async (args, ctx) => {
  */
 export async function finishHere(ctx: Context): Promise<UpdateFinish> {
   const forwarded = await bringForward(ctx.home, ctx.now());
-  return { refreshed: await refreshBrains(ctx), forwarded };
+  const refreshed = await refreshBrains(ctx);
+  // Done whole, and said here: no session does it again for this version (§6.4).
+  if (readMachineConfig(ctx.home) !== undefined) recordForward(ctx.home, ctx.version ?? VERSION);
+  return { refreshed, forwarded };
 }
 
 /** `kioku update --prepare` done by this process, for the version of `bundle`: the tests' stand-in for the bundle's own. */

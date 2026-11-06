@@ -49,9 +49,13 @@ release. What it publishes is spec §6.4: the assets are `kioku.mjs`,
 `CHANGELOG.md` section. It refuses a version the plugin's manifest does not
 share, and a check that fails publishes nothing and leaves no tag: when what
 failed was passing (GitHub, the network), re-run the workflow from the Actions
-page; when it was the code, the fix is the next patch. A push to `main` that leaves
-the version as it was publishes nothing, and a tag pushed by hand publishes
-nothing either: only what reached `main` through its pull request runs with the
+page; when it was the code, the fix is the next patch. Once the release is
+published, the same run writes its formula into the Homebrew tap,
+`monoku/homebrew-kioku`, with the version and the checksums just published,
+and pushes it with the tap's deploy key; without the secret
+`HOMEBREW_TAP_DEPLOY_KEY` the step is skipped and nothing fails. A push to
+`main` that leaves the version as it was publishes nothing, and a tag pushed
+by hand publishes nothing either: only what reached `main` through its pull request runs with the
 token that publishes. **A published tag is never moved**: what comes after it
 is the next version.
 

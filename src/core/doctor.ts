@@ -6,7 +6,15 @@ import { brainFolder, brainRepoOfKey, parseName } from "./config/brain-ref.ts";
 import { resolveChain, trustCommand, trustOwnerCommand } from "./config/chain.ts";
 import { NEWER_THAN_READ, NEWEST_FORMAT } from "./brain/brain.ts";
 import { readFolderConfig } from "./config/folder-config.ts";
-import { configPath, readMachineConfig, mutes, remindsUnpublished, type MachineConfig } from "./config/machine.ts";
+import {
+  configPath,
+  readMachineConfig,
+  mutes,
+  remindsUnpublished,
+  setupPending,
+  type MachineConfig,
+} from "./config/machine.ts";
+import { readForwardState } from "./setup/forward.ts";
 import { gitQuiet } from "./git.ts";
 import { SCHEMA_VERSION } from "./index/db.ts";
 import { allHarnesses, pluginBehind, type Harness, type MarketplaceSource } from "../harness/index.ts";
@@ -472,6 +480,8 @@ function updatesCheck(env: DoctorEnv, config: MachineConfig | undefined): Check 
 const dirsOf = (env: DoctorEnv): InstallDirs => installDirs(env.hostHome ?? env.home, env.env ?? {});
 
 function launcherCheck(env: DoctorEnv): Check {
+  // Under Homebrew `kioku` is the formula's, on Homebrew's own folder of the PATH (§6.3).
+  if (env.origin === "homebrew") return ok("kioku launcher", "Homebrew's");
   const dirs = dirsOf(env);
   const path = launcherPath(dirs);
   if (!existsSync(path))
@@ -487,6 +497,8 @@ function launcherCheck(env: DoctorEnv): Check {
 
 /** The version `current` runs, and whether this tool is it (§6.4); nothing to say on a machine with no install. */
 function versionCheck(env: DoctorEnv): Check[] {
+  // Under Homebrew the version is the formula's; the installer's folder, if any, is not this tool's (§6.3).
+  if (env.origin === "homebrew") return [ok("kioku version", `${VERSION}, Homebrew's`)];
   const dirs = dirsOf(env);
   const current = currentVersion(dirs);
   if (current === undefined)
@@ -510,6 +522,26 @@ function versionCheck(env: DoctorEnv): Check[] {
   return [ok("kioku version", `${current}, under ${dirs.install}`)];
 }
 
+/**
+ * Whether the machine was brought forward to the version running (§6.4): pending until a session's `sync`, `setup` or
+ * `update` does it; a step that failed is said with its reason. Nothing to say on a machine with no configuration.
+ */
+function forwardCheck(env: DoctorEnv, config: MachineConfig | undefined): Check[] {
+  if (config === undefined) return [];
+  const version = VERSION;
+  const state = readForwardState(env.home);
+  if (state.version === version) return [ok("brought forward", `to ${version}`)];
+  if (state.failed?.version === version)
+    return [
+      warn(
+        "brought forward",
+        `not yet to ${version}: ${state.failed.reason}`,
+        "the next session tries again; or run `kioku setup`",
+      ),
+    ];
+  return [warn("brought forward", `not yet to ${version}`, "the next session does it; or run `kioku setup`")];
+}
+
 /** Check what a person needs (§6.1, §6.3) and say how to fix what is missing. Reads only. */
 export function runDoctor(env: DoctorEnv): DoctorReport {
   const checks: Check[] = [nodeCheck(env)];
@@ -520,7 +552,9 @@ export function runDoctor(env: DoctorEnv): DoctorReport {
   } else {
     try {
       config = readMachineConfig(env.home);
-      configCheck = ok("configuration", configPath(env.home));
+      configCheck = setupPending(env.home)
+        ? warn("configuration", "kioku setup has not run on this machine", "run `kioku setup`")
+        : ok("configuration", configPath(env.home));
     } catch (e) {
       configCheck = missing(
         "configuration",
@@ -529,7 +563,7 @@ export function runDoctor(env: DoctorEnv): DoctorReport {
       );
     }
   }
-  checks.push(...gitChecks(env, config), configCheck);
+  checks.push(...gitChecks(env, config), configCheck, ...forwardCheck(env, config));
   if (config !== undefined) checks.push(...brainChecks(env, config), ...trustCheck(env, config));
   checks.push(
     pendingCheck(env),

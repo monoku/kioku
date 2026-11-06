@@ -2,11 +2,14 @@ import { existsSync, mkdirSync, readdirSync, renameSync, rmdirSync } from "node:
 import { dirname, join } from "node:path";
 import { brainFolder, expandPath, legacyManagedPath, parseLegacyKey, parseName } from "../config/brain-ref.ts";
 import { CURRENT_FORMAT, readFolderConfig } from "../config/folder-config.ts";
-import { readMachineConfig, writeMachineConfig } from "../config/machine.ts";
+import { configPath, readMachineConfig, writeMachineConfig } from "../config/machine.ts";
 import { gitQuiet } from "../git.ts";
 import { knownBrains } from "../brains/list.ts";
 import { upgradeBrain, type UpgradeResult } from "../brains/upgrade.ts";
 import { firstLine } from "../errors.ts";
+import { writeAtomic } from "../fs/atomic.ts";
+import { forwardStatePath } from "../state.ts";
+import { readJson } from "../util.ts";
 
 /** What bringing a machine forward did (§2.5, §3.2, §6.4). */
 export interface Forwarded {
@@ -62,6 +65,17 @@ function tidyUp(folder: string, top: string): void {
  * or team brain of an older format is left, and said. Idempotent: a machine already forward changes nothing.
  */
 export async function bringForward(home: string, now: Date): Promise<Forwarded> {
+  const out = await bringConfigForward(home);
+  if (readMachineConfig(home) === undefined) return out;
+  return raiseOwnBrain(home, now, out);
+}
+
+/**
+ * The configuration's half of bringing forward (§2.5, §6.4): a configuration 0.1.0 wrote rewritten by name, and the
+ * brains it kept elsewhere moved to their folders. Nothing but the machine's own files, and no time: what the
+ * `SessionStart` hook does before it reads the configuration.
+ */
+export async function bringConfigForward(home: string): Promise<Forwarded> {
   const out: Forwarded = { rewrote: false, moved: [], kept: [], behind: [] };
   const config = readMachineConfig(home);
   if (config === undefined) return out;
@@ -118,6 +132,18 @@ export async function bringForward(home: string, now: Date): Promise<Forwarded> 
     await writeMachineConfig(config, home);
     out.rewrote = true;
   }
+  return out;
+}
+
+/**
+ * The brains' half of bringing forward (§3.2, §6.4): the person's own brain raised to the newest format, a project or
+ * team brain of an older format left and said. It commits, so a session leaves it to the `sync` in the background.
+ */
+export async function raiseOwnBrain(
+  home: string,
+  now: Date,
+  out: Forwarded = { rewrote: false, moved: [], kept: [], behind: [] },
+): Promise<Forwarded> {
   // The person's own brain is raised by the version that brings a newer format; a shared one, by the person (§3.2).
   for (const b of knownBrains(home)) {
     if (!b.onDisk || b.format === undefined || b.format >= CURRENT_FORMAT) continue;
@@ -133,4 +159,67 @@ export async function bringForward(home: string, now: Date): Promise<Forwarded> 
     }
   }
   return out;
+}
+
+/**
+ * What the machine keeps of bringing forward (§6.4): the version that last did it whole, and what the next session
+ * says of the last time, once: what was done, or why a step failed.
+ */
+export interface ForwardState {
+  version?: string;
+  said?: { version: string; lines: string[] };
+  failed?: { version: string; reason: string };
+}
+
+export function readForwardState(home: string): ForwardState {
+  const raw = readJson<Record<string, unknown> | null>(forwardStatePath(home));
+  if (raw === undefined || raw === null || typeof raw !== "object") return {};
+  const text = (v: unknown): string | undefined => (typeof v === "string" && v !== "" ? v : undefined);
+  const said = raw.said as { version?: unknown; lines?: unknown } | undefined;
+  const failed = raw.failed as { version?: unknown; reason?: unknown } | undefined;
+  return {
+    ...(text(raw.version) !== undefined && { version: text(raw.version)! }),
+    ...(said !== undefined &&
+      text(said.version) !== undefined &&
+      Array.isArray(said.lines) && {
+        said: { version: text(said.version)!, lines: said.lines.filter((l): l is string => typeof l === "string") },
+      }),
+    ...(failed !== undefined &&
+      text(failed.version) !== undefined &&
+      text(failed.reason) !== undefined && {
+        failed: { version: text(failed.version)!, reason: text(failed.reason)! },
+      }),
+  };
+}
+
+function writeForwardState(home: string, state: ForwardState): void {
+  mkdirSync(dirname(forwardStatePath(home)), { recursive: true });
+  writeAtomic(forwardStatePath(home), `${JSON.stringify(state)}\n`);
+}
+
+/** Whether the machine has yet to be brought forward to `version`: set up some way, and another version recorded. */
+export const forwardDue = (home: string, version: string): boolean =>
+  existsSync(configPath(home)) && readForwardState(home).version !== version;
+
+/**
+ * Bringing forward to `version` is done whole (§6.4). `lines`, what it did, are for the next session to say, when a
+ * session did it; `kioku update` and `setup` say it themselves.
+ */
+export function recordForward(home: string, version: string, lines: string[] = []): void {
+  writeForwardState(home, { version, ...(lines.length > 0 && { said: { version, lines } }) });
+}
+
+/** A step of bringing forward to `version` failed: the next session says why, and its `sync` tries again. */
+export function recordForwardFailed(home: string, version: string, reason: string): void {
+  const { said: _, failed: __, ...kept } = readForwardState(home);
+  writeForwardState(home, { ...kept, failed: { version, reason } });
+}
+
+/** What the next session says of bringing forward, once: taken and forgotten. */
+export function takeForwardSaid(home: string): Pick<ForwardState, "said" | "failed"> {
+  const state = readForwardState(home);
+  if (state.said === undefined && state.failed === undefined) return {};
+  const { said, failed, ...kept } = state;
+  writeForwardState(home, kept);
+  return { ...(said !== undefined && { said }), ...(failed !== undefined && { failed }) };
 }

@@ -15,6 +15,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      # The tap's deploy key, a secret of this repository; without it the formula is not moved and nothing fails.
+      TAP_KEY_SET: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY != '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -70,3 +73,33 @@ jobs:
           sha256sum lib/kioku.mjs | awk '{ print $1 "  kioku.mjs" }' > kioku.mjs.sha256
           sha256sum lib/kioku-plugin.tar.gz | awk '{ print $1 "  kioku-plugin.tar.gz" }' > kioku-plugin.tar.gz.sha256
           node .github/scripts/publish-release.mjs publish "$TAG" "$SHA" "$RUNNER_TEMP/notes.md" lib/kioku.mjs kioku.mjs.sha256 lib/kioku-plugin.tar.gz kioku-plugin.tar.gz.sha256
+      # The tap, <owner>/homebrew-kioku, takes the formula of this release, its version and the checksums just published
+      # (§6.3), by a commit pushed with the tap's deploy key, which writes there and nowhere else. GitHub's host keys come
+      # from its API, over TLS, so ssh trusts no key on first sight.
+      - name: Move the Homebrew formula to this release
+        if: steps.found.outputs.tag != '' && env.TAP_KEY_SET == 'true'
+        env:
+          TAG: ${{ steps.found.outputs.tag }}
+          TAP: ${{ github.repository_owner }}/homebrew-kioku
+          TAP_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          set -eu
+          umask 077
+          printf '%s\n' "$TAP_KEY" > "$RUNNER_TEMP/tap-key"
+          curl -fsSL https://api.github.com/meta \
+            | node -e 'let s="";process.stdin.on("data",(d)=>(s+=d)).on("end",()=>{for(const k of JSON.parse(s).ssh_keys)console.log(`github.com ${k}`)})' \
+            > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/tap-key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes"
+          git clone -q --depth 1 "git@github.com:$TAP.git" "$RUNNER_TEMP/tap"
+          mkdir -p "$RUNNER_TEMP/tap/Formula"
+          node scripts/homebrew-formula.mjs --version "${TAG#v}" \
+            --bundle-sha "$(cut -d' ' -f1 kioku.mjs.sha256)" \
+            --plugin-sha "$(cut -d' ' -f1 kioku-plugin.tar.gz.sha256)" \
+            > "$RUNNER_TEMP/tap/Formula/kioku.rb"
+          cd "$RUNNER_TEMP/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/kioku.rb
+          if git diff --cached --quiet; then echo "The formula is already at ${TAG#v}."; exit 0; fi
+          git commit -q -m "kioku ${TAG#v}"
+          git push -q origin HEAD:main

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isMap, parseDocument, stringify } from "yaml";
 import {
@@ -14,6 +14,7 @@ import { writeAtomic } from "../fs/atomic.ts";
 import { acquireLock } from "../fs/lock.ts";
 import { userError } from "../errors.ts";
 import { listWords } from "../util.ts";
+import { setupPendingPath } from "../state.ts";
 
 /** How search runs (§4.3): meaning on top of full text, or full text alone, with nothing downloaded. */
 export const SEARCH_MODES = ["hybrid", "full-text"] as const;
@@ -30,6 +31,7 @@ export const DISPLAY_KEYS = ["color", "mute"] as const;
 export const NOTICE_NAMES = [
   "not-set-up",
   "update-available",
+  "brought-forward",
   "plugin-version",
   "cloning",
   "untrusted",
@@ -333,11 +335,30 @@ export async function updateMachineConfig(update: (c: MachineConfig) => void, ho
   mkdirSync(dirname(path), { recursive: true });
   const lock = await acquireLock(join(dirname(path), "lock"));
   try {
-    const config = readMachineConfig(home) ?? emptyConfig();
+    const found = readMachineConfig(home);
+    const config = found ?? emptyConfig();
     update(config);
     writeAtomic(path, stringifyMachineConfig(config));
+    if (found === undefined) markSetupPending(home);
     return config;
   } finally {
     lock.release();
   }
+}
+
+/**
+ * A configuration written where there was none, by any verb, records that `kioku setup` has not run; `setup` takes the
+ * record away (§6.3). A configuration with no record, an earlier version's included, counts as set up.
+ */
+function markSetupPending(home: string): void {
+  writeFileSync(setupPendingPath(home), "kioku setup has not run on this machine\n");
+}
+
+/** Whether `kioku setup` has yet to run: no configuration, or one a verb wrote before it (§6.3). */
+export const setupPending = (home: string): boolean =>
+  !existsSync(configPath(home)) || existsSync(setupPendingPath(home));
+
+/** `kioku setup` ran: the machine is set up (§6.3). */
+export function markSetUp(home: string): void {
+  rmSync(setupPendingPath(home), { force: true });
 }
