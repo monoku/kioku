@@ -11,7 +11,9 @@ What changed in each version of Kioku. What is true now is in the
   the plugin where it does not move between versions, gives the shell its
   completion, and ends with the next steps; `brew upgrade kioku` updates it.
   Under Homebrew, `kioku setup` leaves the `PATH` and the completion to the
-  formula, and `doctor` no longer asks for the installer.
+  formula, and `doctor` no longer asks for the installer. A machine where
+  both the installer and Homebrew installed Kioku is told by `doctor` which
+  one runs, and how to keep one.
 - **A new version brings the machine forward on its own**, whatever installed
   it: the first session that runs it rewrites an older configuration, raises
   your own brain's format and refreshes the files Kioku owns in every brain,

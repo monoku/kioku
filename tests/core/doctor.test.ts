@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runDoctor, type DoctorEnv } from "../../src/core/doctor.ts";
@@ -34,6 +34,8 @@ function env(home: string, o: Partial<DoctorEnv> = {}): DoctorEnv {
     env: clean(),
     gitVersion: () => "2.50.0",
     remoteAnswers: () => true,
+    // No Homebrew but the one a test makes: what this machine has installed is not the test's.
+    brewPrefixes: [],
     ...o,
   };
 }
@@ -190,6 +192,30 @@ test("under Homebrew there is no installer's launcher to ask for: kioku is the f
     const version = byName(runDoctor(env(w.home, { origin: "homebrew" })))["kioku version"]!;
     assert.equal(version.state, "ok");
     assert.match(version.detail, /Homebrew's$/);
+  }));
+
+test("a machine where both the installer and Homebrew installed Kioku is told which one runs, and how to keep one (§6.3)", () =>
+  world(async (w) => {
+    const d = dirs(w.home);
+    ensureLauncher(d);
+    const brew = join(w.dir, "homebrew");
+    const keg = join(brew, "Cellar/kioku/0.5.0/bin");
+    mkdirSync(keg, { recursive: true });
+    writeFileSync(join(keg, "kioku"), "#!/bin/sh\n");
+    mkdirSync(join(brew, "bin"));
+    symlinkSync(join(keg, "kioku"), join(brew, "bin/kioku"));
+    const installs = (pathVar: string, prefixes = [brew]) =>
+      byName(runDoctor(env(w.home, { pathVar, brewPrefixes: prefixes })))["kioku installs"];
+
+    const first = installs(`${d.bin}:${brew}/bin:/usr/bin`)!;
+    assert.equal(first.state, "warn");
+    assert.match(
+      first.detail,
+      /installed twice, by its installer .* and by Homebrew .*; kioku on this PATH runs the installer's/,
+    );
+    assert.match(first.fix!, /^keep one: brew uninstall kioku; or rm -rf .* then kioku plugin claude-code install$/);
+    assert.match(installs(`${brew}/bin:${d.bin}`)!.detail, /runs Homebrew's/);
+    assert.equal(installs(`${d.bin}`, []), undefined, "one install: nothing to say");
   }));
 
 test("with the launcher off PATH, the fix is the command that puts it there, and the line for the shell", () =>

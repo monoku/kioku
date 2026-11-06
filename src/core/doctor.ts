@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { knownBrains } from "./brains/list.ts";
 import { brainFolder, brainRepoOfKey, parseName } from "./config/brain-ref.ts";
@@ -88,6 +88,8 @@ export interface DoctorEnv {
   pluginFolder?: string;
   /** The pinned engine and model, and this machine's platform; a test stands in its own. */
   semantic?: { pins: Pins; platform: string };
+  /** Where Homebrew may be; `HOMEBREW_PREFIX` and its usual prefixes when absent. */
+  brewPrefixes?: string[];
 }
 
 export function realDoctorEnv(
@@ -495,6 +497,54 @@ function launcherCheck(env: DoctorEnv): Check {
   return ok("kioku launcher", path);
 }
 
+/** Homebrew's usual prefixes: Apple silicon, Intel, Linux. */
+const BREW_PREFIXES = ["/opt/homebrew", "/usr/local", "/home/linuxbrew/.linuxbrew"];
+
+const real = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+
+/** Homebrew's `kioku`, the formula's command, when Homebrew installed the tool on this machine (§6.3). */
+function brewKioku(env: DoctorEnv): string | undefined {
+  const prefix = env.env?.HOMEBREW_PREFIX;
+  const prefixes = env.brewPrefixes ?? [...(prefix ? [prefix] : []), ...BREW_PREFIXES];
+  for (const p of prefixes) {
+    const bin = join(p, "bin", "kioku");
+    if (existsSync(bin) && /\/Cellar\/kioku\//.test(real(bin))) return bin;
+  }
+  return undefined;
+}
+
+/**
+ * Both the installer and Homebrew installed the tool (§6.3): the first on the `PATH` runs, the other is never run nor
+ * updated. Said with which one runs, and how to keep one; nothing to say on a machine with one install.
+ */
+function installsCheck(env: DoctorEnv): Check[] {
+  const dirs = dirsOf(env);
+  const launcher = launcherPath(dirs);
+  const brew = brewKioku(env);
+  if (brew === undefined || !existsSync(launcher)) return [];
+  let runs = "neither";
+  for (const dir of (env.pathVar ?? "").split(":")) {
+    const found = dir === "" ? "" : join(dir, "kioku");
+    if (found === "" || !existsSync(found)) continue;
+    const to = real(found);
+    runs = to === real(launcher) ? "the installer's" : /\/Cellar\/kioku\//.test(to) ? "Homebrew's" : "neither";
+    break;
+  }
+  return [
+    warn(
+      "kioku installs",
+      `installed twice, by its installer (${launcher}) and by Homebrew (${brew}); kioku on this PATH runs ${runs}, and the other is never run nor updated`,
+      `keep one: brew uninstall kioku; or rm -rf ${dirs.install} ${launcher}, then kioku plugin claude-code install`,
+    ),
+  ];
+}
+
 /** The version `current` runs, and whether this tool is it (§6.4); nothing to say on a machine with no install. */
 function versionCheck(env: DoctorEnv): Check[] {
   // Under Homebrew the version is the formula's; the installer's folder, if any, is not this tool's (§6.3).
@@ -571,6 +621,7 @@ export function runDoctor(env: DoctorEnv): DoctorReport {
     indexCheck(env),
     modelCheck(env),
     launcherCheck(env),
+    ...installsCheck(env),
     ...versionCheck(env),
     updatesCheck(env, config),
     ...(env.harnesses ?? allHarnesses(env.hostHome ?? env.home, env.env ?? {})).flatMap((h) =>
