@@ -113,7 +113,7 @@ name:
 
 | Name | The notice |
 |---|---|
-| `not-set-up` | the machine has no configuration yet, with `kioku setup` (§6.3) |
+| `not-set-up` | `kioku setup` has not run on the machine, whether it has no configuration yet or a verb wrote one first, with `kioku setup` (§6.3) |
 | `update-available` | a newer version exists, with the version this machine runs and `kioku update`; only where the installer installed the tool (§6.4) |
 | `brought-forward` | once, after a version first ran: what bringing the machine forward rewrote, raised and refreshed (§6.4); a step that failed is an error, never muted |
 | `plugin-version` | the host's plugin and the tool are of different versions, once for each pair, with the command that brings them together (§6.2) |

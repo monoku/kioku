@@ -278,7 +278,12 @@ machine forward to the version it runs (§6.4), as `kioku update` does: it
 rewrites a configuration an older version wrote (§2.5), raises the person's
 own brain to the newest format (§3.2), and refreshes every brain (§2.7),
 writing only what differs, and says what it did. The installer, run over an
-older version, so leaves the machine as `kioku update` does. Where Homebrew
+older version, so leaves the machine as `kioku update` does. A machine is set
+up once `setup` has run on it: a verb that writes the configuration where there
+was none, such as `brain create` before `setup`, records that `setup` has not
+run, and `setup` takes that record away; a configuration an earlier version
+wrote, with no such record, counts as set up. Until then a session works as
+usual and says so (`not-set-up`, §1.2), and `doctor` says it. Where Homebrew
 installed the tool, the `PATH` and the completion are the formula's: `setup`
 writes neither, and does not look for the installer's launcher.
 Neither it nor the installer makes a brain: while there is no personal brain,
