@@ -268,6 +268,13 @@ Each release moves the formula to its version and checksums; `brew upgrade
 kioku` then brings the tool and its plugin together, and the next session
 brings the machine forward (§6.4).
 
+A machine where both the installer and Homebrew installed the tool runs the
+one whose folder comes first on the `PATH`, and the other is never updated nor
+run. `doctor` says so: both installs, which one `kioku` runs, and how to keep
+one, `brew uninstall kioku`, or removing the installer's folder and launcher
+and then `kioku plugin claude-code install`, so the host's marketplace points
+at Homebrew's plugin (§6.2).
+
 `kioku setup` does, once and idempotently, what a machine needs: the machine
 configuration (§2.5); `kioku` on the `PATH`, by a link in a folder already on
 it or else by the shell's profile; the shell's completion, by a file or a
