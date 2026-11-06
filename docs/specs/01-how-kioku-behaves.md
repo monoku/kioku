@@ -115,6 +115,7 @@ name:
 |---|---|
 | `not-set-up` | the machine has no configuration yet, with `kioku setup` (§6.3) |
 | `update-available` | a newer version exists, with the version this machine runs and `kioku update`; only where the installer installed the tool (§6.4) |
+| `brought-forward` | once, after a version first ran: what bringing the machine forward rewrote, raised and refreshed (§6.4); a step that failed is an error, never muted |
 | `plugin-version` | the host's plugin and the tool are of different versions, once for each pair, with the command that brings them together (§6.2) |
 | `cloning` | brains of the chain being cloned, ready next session (§4.2) |
 | `untrusted` | a brain a repository names that this machine does not trust, with `kioku init` in the folder, or `kioku config set trust.owners +<host/owner>` for every brain of that owner (§2.4) |

@@ -87,6 +87,8 @@ the chain needs that is not on the machine, and reindexes what changed. The
 `SessionStart` hook starts it in the background, `kioku sync --cwd <dir>
 --background`, and does not wait: this session's summary uses what is on disk,
 the next has the latest, and the summary says which brains are being cloned.
+When the machine has not been brought forward to the version running (§6.4),
+that `sync` does it first, and the next session says what it did.
 
 One `sync` runs on a machine at a time. A `sync` that finds another running
 leaves its folder for that one, which syncs that folder's chain too before it
