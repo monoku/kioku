@@ -104,9 +104,9 @@ writes a brain of an older format as it is, with that name; one cloned from an
 address, on a machine that never had it, has the name of the last two segments
 of the address's path, `https://github.com/northwind/app-brain.git` is
 `northwind/app-brain`, which is the name the link must say. **The version that
-brings a newer format raises the person's own brain by itself** when `kioku
-update` hands over to it (§6.4), or when `kioku setup` first runs it (§6.3),
-and says so; it never raises a project or team
+brings a newer format raises the person's own brain by itself** when it
+brings the machine forward (§6.4): in `kioku update`, in `kioku setup` (§6.3),
+or in the `sync` of the first session that runs it, and says so; it never raises a project or team
 brain, whose teammates on an older version could then no longer write to it
 (§5.1): `kioku brain upgrade` does, in a terminal, when the person says, and
 until then `doctor` and the session say it can be raised (`format-behind`,

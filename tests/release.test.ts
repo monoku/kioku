@@ -9,6 +9,8 @@ import { dirname, join } from "node:path";
 // @ts-expect-error: a plain script, without types
 import { tagProblem } from "../scripts/check-tag.mjs";
 // @ts-expect-error: a plain script, without types
+import { formula } from "../scripts/homebrew-formula.mjs";
+// @ts-expect-error: a plain script, without types
 import { githubApi, publishRelease, releaseIn, releaseNotes } from "../.github/scripts/publish-release.mjs";
 // @ts-expect-error: a plain script, without types
 import { withVersion } from "../scripts/json-version.mjs";
@@ -508,4 +510,36 @@ test("a release whose asset fails to upload is taken away, draft and all, and sa
   );
   assert.equal(github.calls.at(-1)!.method, "DELETE");
   assert.ok(!github.calls.some((c) => c.method === "PATCH"), "never published");
+});
+
+test("the Homebrew formula is the release's: its assets and checksums, Node, the plugin's hidden marketplace, the completion and the installer's next steps (§6.3)", () => {
+  const bundleSha = "a".repeat(64);
+  const pluginSha = "b".repeat(64);
+  const rb: string = formula({ version: "1.2.0", bundleSha, pluginSha });
+  assert.match(rb, /url "https:\/\/github\.com\/monoku\/kioku\/releases\/download\/v1\.2\.0\/kioku\.mjs"/);
+  assert.match(rb, /url "https:\/\/github\.com\/monoku\/kioku\/releases\/download\/v1\.2\.0\/kioku-plugin\.tar\.gz"/);
+  assert.match(rb, new RegExp(`sha256 "${bundleSha}"[\\s\\S]*sha256 "${pluginSha}"`));
+  assert.match(rb, /depends_on "node"/);
+  assert.match(rb, /install Dir\["\*"\], "\.claude-plugin"/, 'the hidden folder Dir["*"] leaves out');
+  assert.match(rb, /generate_completions_from_executable\(bin\/"kioku", "completion"\)/);
+  assert.match(rb, /chmod 0755, bin\/"kioku"/);
+  assert.match(rb, /#\{libexec\}\/kioku\.mjs/, "the keg's own bundle: opt is linked only once the install ends");
+  const steps = readFileSync(new URL("../docs/specs/06-the-tool.md", import.meta.url), "utf8").match(
+    /```\nTo finish, in a terminal:\n([\s\S]*?)```/,
+  );
+  assert.ok(steps, "§6.3 names the next steps");
+  assert.ok(
+    rb.includes(`To finish, in a terminal:\n${steps[1]!.replace(/^/gm, "      ").trimEnd()}`),
+    "as §6.3 says them",
+  );
+  assert.throws(() => formula({ version: "1.2.0-rc.1", bundleSha, pluginSha }), /not a release version/);
+  assert.throws(() => formula({ version: "1.2.0", bundleSha: "nope", pluginSha }), /64 hexadecimal digits/);
+});
+
+test("the release moves the tap's formula only with its deploy key, and fails nothing without it (§6.3, §6.4)", () => {
+  const release = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.match(release, /TAP_KEY_SET: \$\{\{ secrets\.HOMEBREW_TAP_DEPLOY_KEY != '' \}\}/);
+  assert.match(release, /if: steps\.found\.outputs\.tag != '' && env\.TAP_KEY_SET == 'true'/);
+  assert.match(release, /StrictHostKeyChecking=yes/, "GitHub's host keys from its API, none trusted on first sight");
+  assert.match(release, /node scripts\/homebrew-formula\.mjs --version "\$\{TAG#v\}"/);
 });

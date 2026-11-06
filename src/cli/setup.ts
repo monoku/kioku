@@ -1,14 +1,21 @@
 import { existsSync } from "node:fs";
-import { configPath, readMachineConfig, remindsUnpublished, updateMachineConfig } from "../core/config/machine.ts";
+import {
+  configPath,
+  markSetUp,
+  readMachineConfig,
+  remindsUnpublished,
+  updateMachineConfig,
+} from "../core/config/machine.ts";
 import { firstLine, userError } from "../core/errors.ts";
 import { parseVerb } from "./args.ts";
-import { installDirs, launcherPath, onPath, type InstallDirs } from "../core/setup/install.ts";
+import { installDirs, installOrigin, launcherPath, onPath, type InstallDirs } from "../core/setup/install.ts";
 import { SHELLS, applyPath, lineFor, planPath, shellOf, type PathPlan, type Shell } from "../core/setup/path.ts";
 import { applyCompletion, type CompletionPlan } from "../core/setup/completion.ts";
 import { currentPlatform, downloadMB, PINS } from "../core/semantic/pins.ts";
 import { configuredMode, readSemanticState, semanticStatus, writeSemanticState } from "../core/semantic/status.ts";
 import { INSTALL_COMMAND } from "../product.ts";
-import { bringForward, describeForwarded } from "../core/setup/forward.ts";
+import { bringForward, describeForwarded, recordForward } from "../core/setup/forward.ts";
+import { VERSION } from "../version.ts";
 import type { RefreshResult } from "../core/brains/refresh.ts";
 import { brainRepoOfKey } from "../core/config/brain-ref.ts";
 import { refreshBrains } from "./update.ts";
@@ -56,16 +63,22 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
     refreshError = firstLine(e);
   }
   const refreshes = refreshedBrains(refreshed);
+  // Brought forward whole, and said here: no session does it again for this version (§6.4). Set up (§6.3).
+  if (refreshError === undefined) recordForward(ctx.home, ctx.version ?? VERSION);
+  markSetUp(ctx.home);
 
   // The PATH: a link in a folder already on it, else the shell's profile; nothing when `kioku` resolves.
   const person = personHome(ctx);
   const dirs = installDirs(person, ctx.env);
   const launcher = { path: launcherPath(dirs), present: existsSync(launcherPath(dirs)) };
   const reachable = onPath(dirs, ctx.env.PATH);
+  // Under Homebrew the PATH and the completion are the formula's, and there is no installer's launcher (§6.3).
+  const origin = installOrigin(dirs, ctx.bundle);
+  const brewed = origin === "homebrew";
   const shell = values.shell as Shell | "all" | undefined;
   let shellPath: PathPlan | undefined;
   const where = { dirs, person, env: ctx.env };
-  if (launcher.present && !reachable) {
+  if (!brewed && launcher.present && !reachable) {
     shellPath = applyPath(
       planPath(where, shell === undefined ? {} : { shell }),
       where,
@@ -73,9 +86,8 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
     );
   }
   // The shell's completion: a file or a line that sources `kioku completion <shell>`, written once (§6.3).
-  const completion: CompletionPlan | undefined = launcher.present
-    ? applyCompletion(where, shell === undefined ? {} : { shell })
-    : undefined;
+  const completion: CompletionPlan | undefined =
+    !brewed && launcher.present ? applyCompletion(where, shell === undefined ? {} : { shell }) : undefined;
 
   // The search model (§4.3): the first sync, which fetches it, started in the background and said once; or full text by choice.
   const model = await modelStep(ctx, values["no-model"] === true);
@@ -115,7 +127,7 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
   if (configuration === "created") items.push(["done", `Wrote the configuration, ${configPath(ctx.home)}`]);
   else if (unchanged) then.push("Already set up. Nothing to do.");
   if (shellPath !== undefined) items.push(...describePath(shellPath, dirs, shellOf(ctx.env)));
-  else if (!launcher.present)
+  else if (!brewed && !launcher.present)
     items.push(["todo", `The launcher ${launcher.path} is not installed: run the installer (${INSTALL_COMMAND}).`]);
   if (completion?.action === "written")
     items.push([
@@ -167,6 +179,7 @@ export const runSetup: Handler = async (args, ctx): Promise<Outcome> => {
       forwarded,
       refreshed,
       ...(refreshError !== undefined && { refreshError }),
+      origin,
       launcher: { path: launcher.path, present: launcher.present, onPath: reachable },
       ...(shellPath !== undefined && {
         shellPath: {

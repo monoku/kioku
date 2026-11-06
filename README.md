@@ -31,6 +31,10 @@ kioku brain create sam/memory
 kioku plugin claude-code install
 ```
 
+Where Homebrew is, `brew install monoku/kioku/kioku` installs the tool
+instead of the first line, then `kioku setup` finishes it, and `brew upgrade
+kioku` updates it.
+
 The first line installs the tool; the second makes your personal brain, which
 you name, on this machine alone; the third connects Claude Code, showing the two commands
 it will run and asking first. The plugin travels with the tool, so every

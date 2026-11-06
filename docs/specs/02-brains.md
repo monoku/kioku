@@ -253,12 +253,13 @@ repositories:
 
 A configuration 0.1.0 wrote, by `host/owner/repo` and with a `path` or `url` for
 each repository, is rewritten in this form by the version that first reads it,
-in `kioku setup` (§6.3), which the installer runs, or in the hand-over of `kioku
-update` (§6.4), saying so: each brain takes the name
+when it brings the machine forward (§6.4): in `kioku setup` (§6.3), which the
+installer runs, in `kioku update`, or at the start of the first session that
+runs it, saying so: each brain takes the name
 its key gave it, `github.com/sam/brain` is `sam/brain`, and one kept elsewhere,
 in a `path` of the person's or under its host, moves to its folder under that
 name, its files unchanged. Two brains whose keys give one name, from two hosts,
-are left as they were, and `setup`, the hand-over and `doctor` say so and how
+are left as they were, and `setup`, `update`, the session and `doctor` say so and how
 to remove one. Until then, a verb that writes the file keeps each of those
 entries as 0.1.0 wrote it, for the rewrite to bring forward, and records no
 address the key only suggests.
@@ -327,8 +328,9 @@ what each agent host the tool knows needs (§6.2), for Claude Code a `CLAUDE.md`
 of one line importing `AGENTS.md` and `.claude/commands/ingest.md`, the
 `/ingest` command of §1.7. `brain create` writes them; the validator warns when
 one is missing (§5.1). `kioku brain refresh` rewrites them to the current
-version's text; `--all` does it for every brain on the machine, which `kioku
-setup` and `kioku update` run (§6.3, §6.4). In a project or team brain they
+version's text; `--all` does it for every brain on the machine, as bringing the
+machine forward does, in `kioku setup`, `kioku update` or a session's `sync`
+(§6.3, §6.4). In a project or team brain they
 only move forward: `brain refresh` rewrites them only when the running version
 is the one `AGENTS.md` names or a later one (the same version writes back a
 file a person edited); a version below it leaves them and says which version

@@ -49,7 +49,12 @@ release. What it publishes is spec §6.4: the assets are `kioku.mjs`,
 `CHANGELOG.md` section. It refuses a version the plugin's manifest does not
 share, and a check that fails publishes nothing and leaves no tag: when what
 failed was passing (GitHub, the network), re-run the workflow from the Actions
-page; when it was the code, the fix is the next patch. A push to `main` that leaves
+page; when it was the code, the fix is the next patch. Once the release is
+published, the same run writes its formula into the Homebrew tap,
+`monoku/homebrew-kioku`, with the version and the checksums just published,
+and pushes it with the tap's deploy key; without the secret
+`HOMEBREW_TAP_DEPLOY_KEY` the step is skipped and nothing fails (see "The
+Homebrew tap", below). A push to `main` that leaves
 the version as it was publishes nothing, and a tag pushed by hand publishes
 nothing either: only what reached `main` through its pull request runs with the
 token that publishes. **A published tag is never moved**: what comes after it
@@ -81,6 +86,26 @@ When a fix must not wait for what `develop` holds, a hotfix:
 3. Push it, open its pull request into `main` and merge it, as in 3: that is
    the release.
 4. Back to `develop`, as in 4: that brings the fix there too.
+
+## The Homebrew tap
+
+Done once. The tap is a public repository of its own, `monoku/homebrew-kioku`,
+so that `brew install monoku/kioku/kioku` finds it with no account; its one
+file, `Formula/kioku.rb`, is written by each release and by nothing else.
+
+```bash
+gh repo create monoku/homebrew-kioku --public --add-readme --description "Homebrew tap for Kioku"
+ssh-keygen -t ed25519 -N "" -C "kioku release" -f tap-key
+gh repo deploy-key add tap-key.pub --repo monoku/homebrew-kioku --allow-write --title "kioku release"
+gh secret set HOMEBREW_TAP_DEPLOY_KEY --repo monoku/kioku < tap-key
+rm tap-key tap-key.pub
+```
+
+The deploy key writes to the tap and nowhere else, and does not expire. A
+ruleset on the tap's `main` must let it push. To try a formula before a
+release, on files of this machine: `pnpm build`, then `node
+scripts/homebrew-formula.mjs --bundle-sha … --plugin-sha … --base
+file://<folder>` into a tap made with `brew tap-new`.
 
 ## After
 

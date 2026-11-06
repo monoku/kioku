@@ -30,6 +30,7 @@ names the parts and how they meet; what each does exactly is in the
 | **The plugin** | `plugins/claude-code/`, beside the tool once installed | Hooks, one skill, one command, and the mod, which draws from the session's journal (spec §1.2, §6.2); its files are below |
 | **The index** | `~/.kioku/` | A disposable SQLite file for full text, and from a local model one vector per page and one per section of it (spec §4.3) |
 | **The installer** | `install.sh` | Fetches the latest release, checks it and installs it; `kioku update` does the same from inside (spec §6.3, §6.4) |
+| **The formula** | `scripts/homebrew-formula.mjs`, written into the tap `monoku/homebrew-kioku` at each release | Homebrew's way to install the same release: the bundle, the plugin under a folder that does not move, the completion (spec §6.3) |
 | **The demo** | `scripts/demo/` | Three brains seeded through the tool's own verbs ([how-to](../how-to/demo.md)) |
 
 ## Inside the tool

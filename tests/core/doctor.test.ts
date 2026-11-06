@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runDoctor, type DoctorEnv } from "../../src/core/doctor.ts";
 import { ensureLauncher, installDirs, launcherPath, pathLine } from "../../src/core/setup/install.ts";
 import { indexPath, syncLockPath } from "../../src/core/state.ts";
+import { recordForward } from "../../src/core/setup/forward.ts";
+import { VERSION } from "../../src/version.ts";
 import { run } from "../../src/cli/run.ts";
 import { ctx } from "../fixtures.ts";
 import { isolateGit } from "../remotes.ts";
@@ -32,6 +34,8 @@ function env(home: string, o: Partial<DoctorEnv> = {}): DoctorEnv {
     env: clean(),
     gitVersion: () => "2.50.0",
     remoteAnswers: () => true,
+    // No Homebrew but the one a test makes: what this machine has installed is not the test's.
+    brewPrefixes: [],
     ...o,
   };
 }
@@ -87,6 +91,8 @@ test("on a configured machine with the §2.5 brains every item is fine and the e
   world(async (w) => {
     await w.kioku(["sync", "--cwd", w.repo]);
     ensureLauncher(dirs(w.home));
+    // Brought forward to this version, as a session's sync, setup or update leaves it (§6.4).
+    recordForward(w.home, VERSION);
     // Claude Code's own record of what it has installed: the Kioku plugin is there.
     mkdirSync(join(w.home, ".claude/plugins"), { recursive: true });
     writeFileSync(
@@ -174,6 +180,42 @@ test("with the index removed doctor says it will be rebuilt, and does not rebuil
     assert.equal(r.ok, true);
     const { existsSync } = await import("node:fs");
     assert.equal(existsSync(indexPath(w.home)), false);
+  }));
+
+test("under Homebrew there is no installer's launcher to ask for: kioku is the formula's (§6.3)", () =>
+  world(async (w) => {
+    const c = byName(runDoctor(env(w.home, { pathVar: "/usr/bin", origin: "homebrew" })))["kioku launcher"]!;
+    assert.equal(c.state, "ok");
+    assert.equal(c.detail, "Homebrew's");
+    // The installer's folder, there from an earlier install, is not this tool's.
+    ensureLauncher(dirs(w.home));
+    const version = byName(runDoctor(env(w.home, { origin: "homebrew" })))["kioku version"]!;
+    assert.equal(version.state, "ok");
+    assert.match(version.detail, /Homebrew's$/);
+  }));
+
+test("a machine where both the installer and Homebrew installed Kioku is told which one runs, and how to keep one (§6.3)", () =>
+  world(async (w) => {
+    const d = dirs(w.home);
+    ensureLauncher(d);
+    const brew = join(w.dir, "homebrew");
+    const keg = join(brew, "Cellar/kioku/0.5.0/bin");
+    mkdirSync(keg, { recursive: true });
+    writeFileSync(join(keg, "kioku"), "#!/bin/sh\n");
+    mkdirSync(join(brew, "bin"));
+    symlinkSync(join(keg, "kioku"), join(brew, "bin/kioku"));
+    const installs = (pathVar: string, prefixes = [brew]) =>
+      byName(runDoctor(env(w.home, { pathVar, brewPrefixes: prefixes })))["kioku installs"];
+
+    const first = installs(`${d.bin}:${brew}/bin:/usr/bin`)!;
+    assert.equal(first.state, "warn");
+    assert.match(
+      first.detail,
+      /installed twice, by its installer .* and by Homebrew .*; kioku on this PATH runs the installer's/,
+    );
+    assert.match(first.fix!, /^keep one: brew uninstall kioku; or rm -rf .* then kioku plugin claude-code install$/);
+    assert.match(installs(`${brew}/bin:${d.bin}`)!.detail, /runs Homebrew's/);
+    assert.equal(installs(`${d.bin}`, []), undefined, "one install: nothing to say");
   }));
 
 test("with the launcher off PATH, the fix is the command that puts it there, and the line for the shell", () =>

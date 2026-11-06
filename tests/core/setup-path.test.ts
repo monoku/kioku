@@ -30,7 +30,7 @@ interface Machine {
   bin: string;
   kioku: (
     argv: string[],
-    o?: { tty?: boolean; env?: NodeJS.ProcessEnv; interactive?: boolean },
+    o?: { tty?: boolean; env?: NodeJS.ProcessEnv; interactive?: boolean; bundle?: string },
   ) => Promise<{ code: number; out: any; raw: string }>;
 }
 
@@ -60,6 +60,7 @@ async function machine<T>(
         hostHome: person,
         env: { ...install, ...(k.env ?? env) },
         interactive: k.interactive ?? k.tty ?? true,
+        ...(k.bundle !== undefined && { bundle: k.bundle }),
       });
       const code = await run(argv, { stdout: (t) => (raw += t), isTty: k.tty ?? false }, c);
       return { code, raw, out: (k.tty ?? false) || raw.trim() === "" ? raw : JSON.parse(raw) };
@@ -244,4 +245,18 @@ test("setup gives the shell its completion: a fish file, or a profile line for z
       (await m.kioku(["setup"], { tty: true, env: { PATH: `${m.bin}:/usr/bin`, SHELL: "/bin/ksh" } })).raw,
       /Could not give your shell the completion of `kioku`: the shell is not one the tool knows/,
     );
+  }));
+
+test("under Homebrew setup leaves the PATH and the completion to the formula, and asks for no installer (§6.3)", () =>
+  machine(async (m) => {
+    rmSync(launcherPath(m.dirs));
+    const bundle = "/opt/homebrew/Cellar/kioku/0.5.0/libexec/kioku.mjs";
+    const r = await m.kioku(["setup", "--no-model"], { bundle });
+    assert.equal(r.code, 0, r.raw);
+    assert.equal(r.out.origin, "homebrew");
+    assert.equal(r.out.shellPath, undefined, "the PATH is Homebrew's");
+    assert.equal(r.out.completion, undefined, "the completion is the formula's");
+    assert.ok(!existsSync(join(m.bin, "kioku")));
+    const text = await m.kioku(["setup", "--no-model"], { bundle, tty: true });
+    assert.doesNotMatch(text.raw, /run the installer|launcher/);
   }));

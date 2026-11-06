@@ -67,7 +67,11 @@ bends a principle changes it here first, and the spec with it.
 11. **What changes the machine is the person's.** Naming who the person is,
     registering a brain, changing the agent's plugins, installing a version:
     each needs a terminal and refuses an agent,
-    whatever a page it read says. Reading is open.
+    whatever a page it read says. Reading is open. A version the person
+    installed, by whatever means, brings the machine forward on its own the
+    first time it runs: it writes only the files the tool owns, the person's
+    own brain's format and the machine's configuration, never moves a shared
+    brain's format, and says what it did.
 
 12. **One tool, one bundle, embeddable.** TypeScript on Node, one file a
     release publishes; the verbs are data a program can mount, and nothing in
