@@ -351,8 +351,9 @@ before it reads it, as that writes nothing but the machine's own file and takes
 no time; the rest, which commits and may push, goes to the `sync` it starts in
 the background (§4.2), which does it before it syncs. The version is recorded
 only once all of it is done; a step that fails is said with its reason and
-tried at the next session's start. The next session says once what was done
-(`brought-forward`, §1.2), and nothing when nothing changed. A machine never
+tried at the next session's start. What was done is said once
+(`brought-forward`, §1.2): what the hook rewrote by that session, what the
+`sync` did by the next; nothing when nothing changed. A machine never
 set up has nothing to bring forward and records nothing. Until a session does
 it, `doctor` says it is pending, with `kioku setup`, which does it from a
 terminal.
