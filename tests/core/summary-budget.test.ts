@@ -10,14 +10,17 @@ type W = Parameters<Parameters<typeof stdinWorld>[0]>[0];
 
 isolateGit();
 
-const start = (w: W, args: string[] = [], env: Record<string, string> = {}) =>
-  w.kioku(
-    ["hook", "session-start", ...args],
-    JSON.stringify({ cwd: w.repo, source: "startup", session_id: "s" }),
-    false,
-    { env },
-  );
-const summaryOf = (r: { out: any }): string => r.out.hookSpecificOutput?.additionalContext ?? "";
+/** A session's start: its two hooks, as the host runs them (§4.1). */
+const start = async (w: W, args: string[] = [], env: Record<string, string> = {}) => {
+  const stdin = JSON.stringify({ cwd: w.repo, source: "startup", session_id: "s" });
+  const r = await w.kioku(["hook", "session-start", ...args], stdin, false, { env });
+  return { ...r, holds: await w.kioku(["hook", "session-start-holds", ...args], stdin, false, { env }) };
+};
+/** The summary as the agent reads it: both parts, how to use the memory then what it holds. */
+const summaryOf = (r: { out: any; holds?: { out: any } }): string =>
+  [r.out.hookSpecificOutput?.additionalContext, r.holds?.out?.hookSpecificOutput?.additionalContext]
+    .filter((p) => p !== undefined)
+    .join("\n\n");
 const SOURCE = ["--source", "Session 2026-10-07 in acme-api", "--evidence", "said so"];
 const DECISION = (title: string) => [
   "page",
@@ -36,17 +39,20 @@ const DECISION = (title: string) => [
 ];
 const BODY = "## Decision\n\nYes.\n\n## Why\n\nBecause.\n\n## Consequences\n\nNone.\n";
 
-test("a namespace's `## Load first` is listed after the front page, before the Rules, with its pages' summaries (§4.1)", () =>
+test("a namespace's `## Load first` opens what the memory holds, with its pages' summaries (§4.1)", () =>
   stdinWorld(async (w) => {
     writeFileSync(
       join(w.acme, "knowledge/acme/INDEX.md"),
       "# acme\n\nWhat is true of acme.\n\n## Load first\n\n- [Postgres over MySQL](decisions/postgres-over-mysql.md)\n- [Migrate](playbooks/migrate.md)\n",
     );
     const s = summaryOf(await start(w));
-    const front = s.indexOf("## northwind/brain-acme: front page");
+    const holds = s.indexOf("# Kioku: what the brains of this session hold");
     const first = s.indexOf("## Load first");
-    const rules = s.indexOf("## Rules");
-    assert.ok(front >= 0 && first > front && rules > first, "front page, then Load first, then Rules");
+    const skills = s.indexOf("## Skills");
+    assert.ok(
+      holds >= 0 && first > holds && skills > first,
+      "the second part opens with Load first, before the Skills",
+    );
     assert.match(
       s,
       /^- Postgres over MySQL: .* \(northwind\/brain-acme, knowledge\/acme\/decisions\/postgres-over-mysql\.md\)$/m,
@@ -76,7 +82,7 @@ test("more than five links, a link to a page that is not there, and a namespace 
     assert.ok(warnings.includes("load-first-long"));
     assert.ok(warnings.includes("load-first-broken"));
     const s = summaryOf(await start(w));
-    const block = s.slice(s.indexOf("## Load first"), s.indexOf("## Rules"));
+    const block = s.slice(s.indexOf("## Load first"), s.indexOf("## Skills"));
     assert.equal(block.split("\n").filter((l) => l.startsWith("- ")).length, 5, "five at most");
   }));
 

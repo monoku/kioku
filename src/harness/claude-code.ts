@@ -19,6 +19,7 @@ import {
   parseSkillUse,
   parseToolResult,
   parseUserPrompt,
+  promptContextAnswer,
   sessionStartAnswer,
 } from "./hook-json.ts";
 
@@ -68,6 +69,7 @@ export function claudeCode(home: string, env: NodeJS.ProcessEnv): Harness {
     parseSessionStart,
     sessionStartAnswer,
     parseUserPrompt,
+    promptContextAnswer,
     parseToolResult: wholeToolResult(claudeConfigDir(home, configDir)),
     parseSkillUse,
     parseSessionId,

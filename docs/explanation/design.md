@@ -53,9 +53,11 @@ bends a principle changes it here first, and the spec with it.
    lists what a brain accumulates, without a model; the agent acts on it with
    the same verbs.
 
-9. **What a session reads first is bounded.** The summary takes a share of the
-   host's context; search brings the rest when the agent asks, and nothing is
-   added at each prompt (§4.1).
+9. **What a session reads is bounded, and the memory comes to the agent.** The
+   summary takes a share of the host's context (§4.1); at each prompt, the few
+   pages that stand out by meaning are named, never their text (§4.7); search
+   brings the rest when the agent asks. An agent does not look for what it does
+   not know is there, so the memory does not wait to be asked.
 
 10. **A brain receives before it sends, and a conflict is kept aside.** A write
     starts from what was published; commits that cannot go on top are kept on
@@ -71,4 +73,5 @@ bends a principle changes it here first, and the spec with it.
     release publishes; the verbs are data a program can mount, and nothing in
     the core reads the home or the environment on its own. One adapter knows
     the agent host. The embedding engine, the one native piece, is fetched once
-    in the background, pinned, and never loaded by a hook.
+    in the background, pinned, and loaded by one hook only, the prompt's
+    (§4.7), within a time it gives up past.

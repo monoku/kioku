@@ -202,14 +202,15 @@ with `commit`, `date`, `author` and `message`; a slice adds `slice`
 ## The session's journal
 
 The file the plugin's hooks write and the mod reads (spec §4.6), one JSON
-line per entry: `at`, `turn`, `what` (`summary`, `skill`, `opened`,
+line per entry: `at`, `turn`, `what` (`summary`, `recalled`, `skill`, `opened`,
 `searched`, `listed`, `log`, `stats`, `lint`, `saved`, `instinct`, `updated`,
 `instinct again`, `replaced`, `forgot`, `retired`, `confirmed`, `renamed`,
 `moved`, `linked`, `promoted`, `evolved`), `arrow` (`read`, `write`), `brain`
-(comma-separated for a search, a list or the summary) and `label`, the brain
+(comma-separated for a search, a recall, a list or the summary) and `label`, the brain
 as the person is shown it, one per name in `brain`; for a page, `path`,
 `title`, `kind` and `subkind`; for a search, `words`, `count` and `hits`, each
-with `brain`, `path` and `title`; for a list or the summary, `count` and, for
+with `brain`, `path` and `title`; for what a prompt recalled (spec §4.7), `count`
+and `hits`, and never the prompt; for a list or the summary, `count` and, for
 a window of a list, `total`; `candidate` on an instinct seen again that is now
 a candidate, `became` on `evolved` (`skill`, `rule`, `playbook`), `source` on
 `summary` (why it loaded) and `call`, the id the host gave the shell call that

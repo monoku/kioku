@@ -74,6 +74,22 @@ export function withoutChangelog(body: string): string {
   return (at < 0 ? body : body.slice(0, at)).trim();
 }
 
+/**
+ * The sections the tool keeps on a page (§3.3): its history, the evidence it gathered and the links it wrote, not what
+ * the page says. What the summary shows of a Rule (§4.1) and a page's parts (§4.3) leave them out.
+ */
+const KEPT_HEADINGS: readonly string[] = ["Changelog", "Evidence", "See also"];
+
+/** Whether a `## ` section is one the tool keeps. */
+export const isKeptSection = (heading: string): boolean => KEPT_HEADINGS.includes(heading.trim());
+
+/** The body up to the first section the tool keeps: what the page says. */
+export function withoutKept(body: string): string {
+  const lines = body.split("\n");
+  const at = lines.findIndex((l) => /^##[ \t]+/.test(l) && isKeptSection(l.replace(/^##[ \t]+/, "")));
+  return (at < 0 ? body : lines.slice(0, at).join("\n")).trim();
+}
+
 /** The kind, when present and in its list. */
 export function kindOf(file: BrainFile): Kind | undefined {
   const k = file.front.getString("kind");

@@ -220,7 +220,7 @@ _kioku() {
     hook)
       case "$prev" in
       esac
-      if (( COMP_CWORD == 2 )) && [[ "$cur" != -* ]]; then COMPREPLY=( $(compgen -W "session-start user-prompt-submit pre-tool-use post-tool-use" -- "$cur") ); return; fi
+      if (( COMP_CWORD == 2 )) && [[ "$cur" != -* ]]; then COMPREPLY=( $(compgen -W "session-start session-start-holds user-prompt-submit pre-tool-use post-tool-use" -- "$cur") ); return; fi
       COMPREPLY=( $(compgen -W "--host --json" -- "$cur") ); return ;;
   esac
 }

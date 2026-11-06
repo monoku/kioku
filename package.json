@@ -1,6 +1,6 @@
 {
   "name": "kioku",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Memory for coding agents",
   "license": "Apache-2.0",
   "private": true,
@@ -30,7 +30,9 @@
     "dev:claude": "node scripts/dev/claude.ts",
     "test:demo": "node --test scripts/demo/check.test.ts",
     "test:plugin": "claude plugin test plugins/claude-code",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "eval:memory": "node scripts/eval/memory.ts",
+    "eval:recall": "node scripts/eval/recall.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",

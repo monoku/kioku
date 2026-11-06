@@ -11,13 +11,14 @@ import { startDetached } from "../core/session/background.ts";
 import { loadEmbedder } from "../core/semantic/embedder.ts";
 import { httpDownload } from "../core/semantic/install.ts";
 import type { SemanticDeps } from "../core/semantic/meaning.ts";
+import type { RecallTuning } from "../core/session/recall.ts";
 import { runBrain } from "./brain.ts";
 import { runPage } from "./page.ts";
 import { runNamespace } from "./namespace.ts";
 import { runConfig } from "./config.ts";
 import { misuse, runHelp, unknownVerb, verbIn } from "./help.ts";
 import { runCompletion } from "./completion.ts";
-import { postToolUse, preToolUse, sessionStart, userPromptSubmit } from "./hook.ts";
+import { postToolUse, preToolUse, sessionStart, sessionStartHolds, userPromptSubmit } from "./hook.ts";
 import { runSync } from "./sync.ts";
 import { runInit } from "./init.ts";
 import { runDoctorVerb } from "./doctor.ts";
@@ -74,6 +75,8 @@ export interface Context {
   prepareUpdate?: (bundle: string) => Promise<void>;
   /** The version the files a brain refresh writes are taken to be (§2.7); absent, this build's. For tests. */
   version?: string;
+  /** How a prompt's recall is tuned (§4.7); absent, as the spec says. For tests, which work on a few pages. */
+  recall?: RecallTuning;
   /** The machine configuration, read at most once in this run: for the hooks, which write nothing to it. A verb that writes it reads the file. */
   machine?: () => MachineConfig | undefined;
 }
@@ -92,6 +95,7 @@ export type Handler = (args: string[], ctx: Context) => Outcome | undefined | Pr
 // Hook subcommands read the host's JSON on stdin and answer in the host's format: one per hook the table declares.
 const hookSubcommands = {
   "session-start": sessionStart,
+  "session-start-holds": sessionStartHolds,
   "post-tool-use": postToolUse,
   "pre-tool-use": preToolUse,
   "user-prompt-submit": userPromptSubmit,

@@ -79,7 +79,8 @@ test("page show counts a page opened, whole or in part; the web's reading does n
 
 test("a session's summary counts the pages it offered, apart from the opened (§4.5)", () =>
   world(async (w) => {
-    const start = await w.kioku(["hook", "session-start"], {
+    // The second part offers the pages; the first, Rules and the front page, offers none (§4.1, §4.5).
+    const start = await w.kioku(["hook", "session-start-holds"], {
       stdin: JSON.stringify({ cwd: w.repo, source: "startup", hook_event_name: "SessionStart" }),
     });
     assert.equal(start.code, 0, start.raw);

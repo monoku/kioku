@@ -246,9 +246,13 @@ test("a superseded decision that links to a retired replacement is history, not 
 
 test("a retired Rule and a retired Skill leave the session summary; lint says who still links to a retired page (§4.1, §4.4)", () =>
   stdinWorld(async (w) => {
-    const start = () =>
-      w.kioku(["hook", "session-start"], JSON.stringify({ cwd: w.repo, source: "startup", session_id: "s" }));
-    const summary = async () => (await start()).out.hookSpecificOutput.additionalContext as string;
+    const stdin = JSON.stringify({ cwd: w.repo, source: "startup", session_id: "s" });
+    // Both parts of the summary: the Rules are in the first, the Skills in the second (§4.1).
+    const summary = async () =>
+      [
+        (await w.kioku(["hook", "session-start"], stdin)).out.hookSpecificOutput.additionalContext,
+        (await w.kioku(["hook", "session-start-holds"], stdin)).out.hookSpecificOutput.additionalContext,
+      ].join("\n\n") as string;
     assert.match(await summary(), /No prod migrations from a session/);
     assert.match(await summary(), /Release a hotfix/);
 

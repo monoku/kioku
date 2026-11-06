@@ -64,13 +64,16 @@ test("the plugin's hooks run its own wrapper, one handler per event, the journal
   const { hooks } = pluginHooks();
   const run = (verb: string): string => `bash "\${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh" hook ${verb}`;
   assert.deepEqual(Object.keys(hooks).sort(), ["PostToolUse", "PreToolUse", "SessionStart", "UserPromptSubmit"]);
-  for (const [event, verb] of [
-    ["SessionStart", "session-start"],
-    ["UserPromptSubmit", "user-prompt-submit"],
+  for (const [event, verbs] of [
+    // The summary in two parts, a hook each, since the host caps what one hook injects (§4.1).
+    ["SessionStart", ["session-start", "session-start-holds"]],
+    ["UserPromptSubmit", ["user-prompt-submit"]],
   ] as const) {
-    assert.equal(hooks[event]!.length, 1);
-    assert.equal(hooks[event]![0]!.matcher, undefined, `${event} runs for every session or prompt`);
-    assert.deepEqual(hooks[event]![0]!.hooks, [{ type: "command", command: run(verb) }]);
+    assert.equal(hooks[event]!.length, verbs.length);
+    verbs.forEach((verb, i) => {
+      assert.equal(hooks[event]![i]!.matcher, undefined, `${event} runs for every session or prompt`);
+      assert.deepEqual(hooks[event]![i]!.hooks, [{ type: "command", command: run(verb) }]);
+    });
   }
   assert.equal(hooks.PreToolUse![0]!.matcher, "Skill", "only the skill tool");
   assert.deepEqual(hooks.PreToolUse![0]!.hooks, [{ type: "command", command: run("pre-tool-use") }]);

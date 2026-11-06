@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { indexPath } from "../state.ts";
 import type { DatabaseSync } from "node:sqlite";
@@ -10,7 +10,7 @@ import type { DatabaseSync } from "node:sqlite";
 export { indexPath };
 
 /** Bump when the tables, the tokenizer or what is indexed changes: an index of another version is rebuilt. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export interface Index {
   db: DatabaseSync;
@@ -75,6 +75,15 @@ function create(sqlite: SqliteModule, path: string): DatabaseSync {
         vector BLOB NOT NULL,
         PRIMARY KEY (brain, path)
       );
+      CREATE TABLE parts (
+        brain TEXT NOT NULL,
+        path TEXT NOT NULL,
+        part INTEGER NOT NULL,
+        hash TEXT NOT NULL,
+        model TEXT NOT NULL,
+        vector BLOB NOT NULL,
+        PRIMARY KEY (brain, path, part)
+      );
       PRAGMA user_version = ${SCHEMA_VERSION};
     `);
   }
@@ -85,6 +94,32 @@ function create(sqlite: SqliteModule, path: string): DatabaseSync {
 const removeFiles = (path: string): void => {
   for (const suffix of ["", "-wal", "-shm"]) rmSync(path + suffix, { force: true });
 };
+
+/**
+ * Open the index only as it is: undefined when there is none, or one of another version or that does not read. Never
+ * creates, rebuilds or deletes it, so a reader that must not index (the prompt's recall, §4.7) leaves it to `sync`,
+ * which may be writing it at that moment.
+ */
+export async function openIndexAsItIs(home: string): Promise<Index | undefined> {
+  const path = indexPath(home);
+  if (!existsSync(path)) return undefined;
+  const sqlite = await loadSqlite();
+  let db: DatabaseSync | undefined;
+  try {
+    db = new sqlite.DatabaseSync(path);
+    db.exec("PRAGMA busy_timeout = 5000");
+    const version = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+    if (version !== SCHEMA_VERSION) {
+      db.close();
+      return undefined;
+    }
+    const open = db;
+    return { db: open, close: () => open.close() };
+  } catch {
+    db?.close();
+    return undefined;
+  }
+}
 
 /**
  * Open the index, creating it. A missing file is created; one of another schema version, or a corrupt one, is

@@ -697,7 +697,7 @@ the brain are not rewritten.
 ### `kioku hook`
 
 ```text
-kioku hook session-start|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]
+kioku hook session-start|session-start-holds|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]
 ```
 
 What the plugin's hooks call.
