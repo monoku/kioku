@@ -31,6 +31,7 @@ const doctorOf = (home: string, name: string) =>
     env: {},
     gitVersion: () => "2.50.0",
     remoteAnswers: () => true,
+    brewPrefixes: [],
   }).checks.find((c) => c.name === name);
 
 test("the first session of a version has its sync bring the machine forward, and the next session says it once (§6.4)", () =>
