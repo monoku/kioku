@@ -40,6 +40,7 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
   const removePage = db.prepare("DELETE FROM pages WHERE rowid = ?");
   const removeText = db.prepare("DELETE FROM fts WHERE rowid = ?");
   const removeVector = db.prepare("DELETE FROM vectors WHERE brain = ? AND path = ?");
+  const removeParts = db.prepare("DELETE FROM parts WHERE brain = ? AND path = ?");
   const insertPage = db.prepare(
     "INSERT INTO pages (brain, path, id, kind, sub, namespace, status, title, aliases, summary, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING rowid",
   );
@@ -65,6 +66,7 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
         }
         if (!parsed.ok) {
           removeVector.run(brain.key, path);
+          removeParts.run(brain.key, path);
           continue;
         }
         const { front, body } = parsed.file;
@@ -92,6 +94,7 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
         removePage.run(gone.rowid);
         removeText.run(gone.rowid);
         removeVector.run(brain.key, gone.path);
+        removeParts.run(brain.key, gone.path);
         report.removed++;
       }
     }
@@ -110,6 +113,7 @@ export function dropFromIndex(index: Index, keys: string[]): number {
   const removePage = db.prepare("DELETE FROM pages WHERE rowid = ?");
   const removeText = db.prepare("DELETE FROM fts WHERE rowid = ?");
   const removeVectors = db.prepare("DELETE FROM vectors WHERE brain = ?");
+  const removeAllParts = db.prepare("DELETE FROM parts WHERE brain = ?");
   let dropped = 0;
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -120,6 +124,7 @@ export function dropFromIndex(index: Index, keys: string[]): number {
         dropped++;
       }
       removeVectors.run(key);
+      removeAllParts.run(key);
     }
     db.exec("COMMIT");
   } catch (e) {

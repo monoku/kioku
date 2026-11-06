@@ -82,6 +82,8 @@ export interface Harness {
   parseToolResult: (raw: string) => ToolResult | undefined;
   /** Read the prompt-submit hook's input; undefined when it is unreadable or holds no prompt. */
   parseUserPrompt: (raw: string) => UserPromptInput | undefined;
+  /** The answer to a prompt: `context` added to it for the agent, and what the person is told of it (§4.7, §1.2). */
+  promptContextAnswer: (context: string, said?: string) => HookAnswer;
   /** Read which skill a skill-load hook is told about; undefined when it is unreadable. */
   parseSkillUse: (raw: string) => string | undefined;
   /** Read the session a hook runs in, for its journal (§4.6); undefined when the input names none. */

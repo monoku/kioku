@@ -30,11 +30,11 @@ test("the start's summary names each brain by its tier, as the history's row doe
   world(async (w) => {
     assert.equal(
       render(
-        loadedRow({ brains: ["sam", "acme"], pages: 5 }, (b) => (b === "sam" ? "personal" : "project"), "0.2.1"),
+        loadedRow({ brains: ["sam", "acme"], pages: 5 }, (b) => (b === "sam" ? "personal" : "project")),
         { color: false },
       ),
-      "⬢ kioku.md 0.2.1\n  ⎿ ↓ summary   session summary · 5 pages (personal, project)",
-      "the brand with the version, and under it the history's row",
+      "⬢ kioku.md ↓ summary   session summary · 5 pages (personal, project)",
+      "one row: the history's on the brand's line, with no version",
     );
     const started = await hook(w, "session-start", { source: "startup" });
     assert.match(started.out.systemMessage, /\(personal, project/);

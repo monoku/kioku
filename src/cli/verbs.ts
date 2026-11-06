@@ -403,9 +403,9 @@ export const SECTIONS = [
   section("Used by the agent integration, not by people", {
     hook: v(
       "what the plugin's hooks call",
-      "kioku hook session-start|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]",
+      "kioku hook session-start|session-start-holds|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]",
       { host: str("claude-code") },
-      choices("session-start", "user-prompt-submit", "pre-tool-use", "post-tool-use"),
+      choices("session-start", "session-start-holds", "user-prompt-submit", "pre-tool-use", "post-tool-use"),
     ),
   }),
 ] as const;

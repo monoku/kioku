@@ -110,6 +110,18 @@ export const askAnswer = (reason: string): HookAnswer => {
   return { data, text: JSON.stringify(data) };
 };
 
+/** A prompt's answer: what is added to its context for the agent (§4.7), and what the person is told of it (§1.2). */
+export function promptContextAnswer(context: string, said?: string): HookAnswer {
+  return {
+    data: {
+      hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context },
+      // On a line of its own, under the words the host puts before it (§1.2).
+      ...(said !== undefined && { systemMessage: `\n${said}` }),
+    },
+    text: [said, context].filter(Boolean).join("\n\n"),
+  };
+}
+
 /** The prompt the person submitted, with the folder and session it was sent from. */
 export function parseUserPrompt(raw: string): UserPromptInput | undefined {
   const r = record(raw);

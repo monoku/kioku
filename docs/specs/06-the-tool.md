@@ -152,12 +152,13 @@ marketplace of one plugin the host reads in place; its version is the tool's,
 and the host has no other way to it. The plugin holds:
 
 - hooks, each calling the launcher (found by the build a developer names, else
-  the `PATH`, else where the installer puts it). At the session's start, one
-  composes the summary (§4.1) and writes it to the journal, starts `sync`, says
-  when there is no personal brain (§1.2), starts the daily look for a new
-  version where the installer installed the tool (§6.4), and inside a brain
-  loads that brain alone (§2.7); at each prompt, one counts the session's next
-  turn (§4.6); after the shell tool, one filtered to the tool's writing and
+  the `PATH`, else where the installer puts it). At the session's start, two
+  compose the summary's two parts (§4.1), each inside a brain of that brain
+  alone (§2.7), and the first writes it to the journal, starts `sync`, says
+  when there is no personal brain (§1.2), and starts the daily look for a new
+  version where the installer installed the tool (§6.4); at each prompt, one
+  counts the session's next turn (§4.6) and adds the pages that bear on the
+  prompt (§4.7); after the shell tool, one filtered to the tool's writing and
   reading verbs writes what they did into the journal (§4.6); before the skill
   tool, one lets the host load Kioku's own skill without asking, writing that
   into the journal, and nothing for another skill; before `kioku namespace

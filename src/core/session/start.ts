@@ -11,9 +11,9 @@ import { currentPlatform, PINS } from "../semantic/pins.ts";
 import { readPending } from "../write/pending.ts";
 import { recordSurfaced } from "../reads.ts";
 import { brainsOfLinks } from "./labels.ts";
-import { cmd, dim, read, type Message } from "./message.ts";
+import { cmd, dim, historyRow, type Message } from "./message.ts";
 import { sessionReads, type SessionReads } from "./session-reads.ts";
-import { composeSummaryOffering, type SummaryBrainSource } from "./summary.ts";
+import { composeHolds, composeUsage, type SummaryBrainSource } from "./summary.ts";
 import { loadSummaryBrains } from "./summary-load.ts";
 import { holdViews, newSince, readViews, recordViews } from "./views.ts";
 import { listWords, plural, readJson } from "../util.ts";
@@ -25,7 +25,7 @@ export interface StartInput {
 }
 
 export interface StartResult {
-  /** The summary, as the hook's additional context; absent when no brain is on disk. */
+  /** The summary's first part, how to use the memory (§4.1), as the hook's additional context; absent when no brain is on disk. */
   summary?: string;
   /** What the person must see regardless of the agent (§1.6), one notice each (§1.2). */
   messages: Message[];
@@ -35,10 +35,26 @@ export interface StartResult {
   brains: Map<string, string>;
 }
 
+/** The chain of a session's folder, read once for whichever part of the opening asks. */
+function openChain(home: string, config: MachineConfig, cwd: string) {
+  const reads = sessionReads();
+  const chain = resolveChain(cwd, config, home, reads.folderConfig);
+  const cloned = chain.links.filter((l) => l.cloned);
+  const shared = cloned.filter((l) => l.tier !== "personal");
+  return { reads, chain, cloned, shared };
+}
+
+/** Words that say what the session is about: the repository's folder and the project brain's repository (§4.1). */
+const hintsOf = (chain: ReturnType<typeof resolveChain>, cwd: string, brains: SummaryBrainSource[]): string[] => [
+  basename(chain.root ?? cwd),
+  ...(chain.project !== undefined ? [brains.find((b) => b.isProject)?.link.ref.repo ?? ""] : []),
+];
+
 /**
- * Opening a session (§4.1, §4.2): resolve the chain, record what this session sees of each shared brain, start
- * `sync` in the background without waiting, and compose the summary from what is on disk now. A resumed or compacted
- * session keeps the view of the session it continues. Reads files and runs local git only: no network, no model.
+ * Opening a session (§4.1, §4.2), its first hook: resolve the chain, start `sync` in the background without waiting,
+ * say what the person must see, and compose the summary's first part, how to use the memory, from what is on disk
+ * now. What the memory holds, with the news, is the second hook's (`startHolds`): the two run at once. Reads files and
+ * runs local git only: no network, no model.
  */
 export async function startSession(
   home: string,
@@ -47,18 +63,9 @@ export async function startSession(
   now: Date,
   startSync: (cwd: string) => void,
 ): Promise<StartResult> {
-  // One opening reads each file once, whichever part of it asks: the chain, the news, the summary, the labels.
-  const reads = sessionReads();
-  const chain = resolveChain(input.cwd, config, home, reads.folderConfig);
-  const cloned = chain.links.filter((l) => l.cloned);
-  const shared = cloned.filter((l) => l.tier !== "personal");
+  // One opening reads each file once, whichever part of it asks: the chain, the summary, the labels.
+  const { reads, chain, cloned, shared } = openChain(home, config, input.cwd);
   const continuing = input.source === "resume" || input.source === "compact";
-  const views = continuing
-    ? readViews(home)
-    : await recordViews(
-        home,
-        shared.map((l) => ({ key: l.key, root: l.path })),
-      );
 
   startSync(input.cwd);
 
@@ -75,7 +82,6 @@ export async function startSession(
       .filter(([k, s]) => keys.has(k) && s.status === "failed")
       .map(([k, s]) => [k, s.message ?? "no message"]),
   );
-  const lint = readJson<Record<string, { count?: number }>>(lintReportPath(home)) ?? {};
   // Changes of this machine that could not sit on top of what others published are kept on a branch until someone
   // looks at them; the branch is the record, so the notice stays until it is deleted.
   const conflicts: Record<string, { path: string; branches: string[] }> = {};
@@ -86,12 +92,7 @@ export async function startSession(
     if (branches.length > 0) conflicts[l.key] = { path: l.path, branches };
   }
 
-  const brains: SummaryBrainSource[] = cloned.map((link) => ({
-    link,
-    isProject: link.key === chain.project,
-    ...(link.tier !== "personal" && { news: newSince(link.path, views[link.key], reads.brainFile) }),
-    ...(typeof lint[link.key]?.count === "number" && { lint: lint[link.key]!.count! }),
-  }));
+  const brains: SummaryBrainSource[] = cloned.map((link) => ({ link, isProject: link.key === chain.project }));
 
   const messages: Message[] = [];
   if (chain.missing.length > 0) {
@@ -200,12 +201,8 @@ export async function startSession(
   const named = brainsOfLinks(chain.links);
   if (cloned.length === 0 && chain.missing.length === 0 && chain.untrusted.length === 0 && chain.notHere.length === 0)
     return { messages, brains: named };
-  const hints = [
-    basename(chain.root ?? input.cwd),
-    ...(chain.project !== undefined ? [brains.find((b) => b.isProject)?.link.ref.repo ?? ""] : []),
-  ];
-  const composed = composeSummaryOffering({
-    hints,
+  const composed = composeUsage({
+    hints: hintsOf(chain, input.cwd, brains),
     brains: loadSummaryBrains(brains, reads),
     missing: chain.missing,
     untrusted: chain.untrusted,
@@ -218,7 +215,45 @@ export async function startSession(
     conflicts,
     now,
   });
-  // News this session does not show, because the cap cut it, waits for the next session (§4.1, item 7).
+  return { summary: composed.usage, messages, loaded: composed.loaded, brains: named };
+}
+
+/**
+ * Opening a session, its second hook (§4.1): record what this session sees of each shared brain, and compose the
+ * summary's second part, what the memory holds, with what is new since this machine's last session. A resumed or
+ * compacted session keeps the view of the session it continues. It alone reads and records the views, so the two
+ * hooks, which run at once, never race for them; it says nothing to the person, and absent when no brain reads.
+ */
+export async function startHolds(
+  home: string,
+  config: MachineConfig,
+  input: StartInput,
+  now: Date,
+): Promise<string | undefined> {
+  const { reads, chain, cloned, shared } = openChain(home, config, input.cwd);
+  if (cloned.length === 0) return undefined;
+  const continuing = input.source === "resume" || input.source === "compact";
+  const views = continuing
+    ? readViews(home)
+    : await recordViews(
+        home,
+        shared.map((l) => ({ key: l.key, root: l.path })),
+      );
+  const lint = readJson<Record<string, { count?: number }>>(lintReportPath(home)) ?? {};
+  const brains: SummaryBrainSource[] = cloned.map((link) => ({
+    link,
+    isProject: link.key === chain.project,
+    ...(link.tier !== "personal" && { news: newSince(link.path, views[link.key], reads.brainFile) }),
+    ...(typeof lint[link.key]?.count === "number" && { lint: lint[link.key]!.count! }),
+  }));
+  const composed = composeHolds({
+    hints: hintsOf(chain, input.cwd, brains),
+    brains: loadSummaryBrains(brains, reads),
+    missing: chain.missing,
+    ...(chain.inside !== undefined && { inside: chain.inside }),
+    now,
+  });
+  // News this session does not show, because the cap cut it, waits for the next session (§4.1).
   if (!continuing) {
     const shown = new Set(composed.newsShown);
     await holdViews(
@@ -232,7 +267,7 @@ export async function startSession(
   } catch {
     /* a count is only a count */
   }
-  return { summary: composed.text, messages, loaded: composed.loaded, brains: named };
+  return composed.holds;
 }
 
 /** How many days pass between two reminders that the personal brain has no backup, or that there is none. */
@@ -336,34 +371,14 @@ function settleModelNotice(home: string, config: MachineConfig): void {
 }
 
 /**
- * The widest word of the history's rows, `confirmed`: the history pads every word to it, and the summary's line is
- * laid out as the history's row is, so that the two read alike (§1.2). A test holds it to the mod's words.
- */
-export const HISTORY_WORD_WIDTH = 9;
-
-/**
- * The message of a session's start (§1.2, §4.1): the brand with the tool's version, and under it the history's
- * `summary` row, in its words and its columns: the arrow, the word padded, why it was loaded, its pages and its
- * brains.
+ * The message of a session's start (§1.2, §4.1): the history's `summary` row on the brand's line: why it was loaded,
+ * its pages and its brains.
  */
 export function loadedRow(
   loaded: { brains: string[]; pages: number },
   label: (brain: string) => string,
-  version: string,
   source?: string,
 ): Message {
   const why = source === "resume" ? "resumed" : source === "compact" ? "after /compact" : "session summary";
-  return {
-    version,
-    head: [],
-    details: [
-      [
-        read("↓"),
-        " ",
-        dim(`${"summary".padEnd(HISTORY_WORD_WIDTH)} `),
-        `${why} · ${plural(loaded.pages, "page")}`,
-        dim(` (${loaded.brains.map(label).join(", ")})`),
-      ],
-    ],
-  };
+  return historyRow("summary", `${why} · ${plural(loaded.pages, "page")}`, loaded.brains.map(label));
 }

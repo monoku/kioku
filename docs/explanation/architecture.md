@@ -28,7 +28,7 @@ names the parts and how they meet; what each does exactly is in the
 | **Brains** | any git repository; cloned under `~/.kioku/brains/` | Markdown pages with YAML front matter, one brain per person, project or team: the only place memory lives (spec §2, §3) |
 | **The tool** | `src/`, shipped as `lib/kioku.mjs` | All the logic: brains, the index, git, validation (spec §6.1) |
 | **The plugin** | `plugins/claude-code/`, beside the tool once installed | Hooks, one skill, one command, and the mod, which draws from the session's journal (spec §1.2, §6.2); its files are below |
-| **The index** | `~/.kioku/` | A disposable SQLite file for full text, and one vector per page from a local model (spec §4.3) |
+| **The index** | `~/.kioku/` | A disposable SQLite file for full text, and from a local model one vector per page and one per section of it (spec §4.3) |
 | **The installer** | `install.sh` | Fetches the latest release, checks it and installs it; `kioku update` does the same from inside (spec §6.3, §6.4) |
 | **The demo** | `scripts/demo/` | Three brains seeded through the tool's own verbs ([how-to](../how-to/demo.md)) |
 
@@ -75,12 +75,25 @@ finds the launcher by `KIOKU_BIN`, then the `PATH`, then `KIOKU_BIN_DIR` or
 
 ## The path of a session start
 
-1. Claude Code runs `kioku hook session-start`.
-2. The hook finds the chain (spec §2.4, §2.7), starts
-   `kioku sync --cwd <dir> --background` without waiting, and composes the
-   summary from files only (spec §4.1).
-3. It says what the person must see (spec §1.2) and writes the summary into
-   the journal; the mod draws the footer.
+1. Claude Code runs two hooks at once, one for each part of the summary
+   (spec §4.1): how to use the memory, and what it holds.
+2. Each finds the chain (spec §2.4, §2.7) and composes its part from files
+   only, to the host's cap for one hook. The first also starts
+   `kioku sync --cwd <dir> --background` without waiting.
+3. The first says what the person must see (spec §1.2) and writes the summary
+   into the journal; the mod draws the footer.
+
+## The path of a prompt
+
+1. Claude Code runs `kioku hook user-prompt-submit`, which counts the
+   session's next turn (spec §4.6).
+2. Then, within a second, the recall (spec §4.7, `src/core/session/recall.ts`,
+   imported by this hook alone): it opens the index only as it is, loads the
+   model, embeds the prompt and weighs the pages with a current vector; past
+   the second it adds nothing.
+3. The pages that stand out go to the agent as one line each, to the person as
+   one row, and into the journal; the process ends with its answer, whatever
+   the recall left running.
 
 ## Embedding the tool
 

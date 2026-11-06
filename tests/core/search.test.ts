@@ -399,8 +399,8 @@ test("words: folded, significant, and stems that meet across forms", () => {
   );
 });
 
-// No code reachable from the hooks opens the index or fetches or runs the model (§4.3): the
-// SessionStart summary and the journal read files only.
+// No code the hooks import opens the index or fetches or runs the model (§4.3): the SessionStart summary and the
+// journal read files only. The prompt's recall (§4.7) is imported by its hook when it runs, never at the start.
 test("the hooks' imports never reach the index or the model's code, and running SessionStart creates no index file", () =>
   scratch(async (home) => {
     const seen = new Set<string>();

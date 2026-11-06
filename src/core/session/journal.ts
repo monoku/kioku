@@ -15,6 +15,7 @@ import { commas, isDoneWrite, jsonLines } from "../util.ts";
 /** What an entry is (§4.6). */
 export type JournalWhat =
   | "summary"
+  | "recalled"
   | "skill"
   | "opened"
   | "searched"
@@ -56,7 +57,7 @@ export interface JournalEntry {
   words?: string;
   /** How many results a search gave, or how many pages a list or the summary hold. */
   count?: number;
-  /** The pages a search's answer brought, in its order (§4.6): never a page's text. */
+  /** The pages a search's answer or a prompt's recall (§4.7) brought, in its order (§4.6): never a page's text. */
   hits?: { brain: string; path: string; title: string }[];
   /** How many pages a list has in all, when it answered a window of them (§4.6). */
   total?: number;

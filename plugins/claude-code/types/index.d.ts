@@ -5,6 +5,7 @@ export type Frame = number;
 /** What an entry of the session's journal is (§4.6). */
 export type JournalWhat =
   | "summary"
+  | "recalled"
   | "skill"
   | "opened"
   | "searched"

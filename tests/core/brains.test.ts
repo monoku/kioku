@@ -705,8 +705,8 @@ test("brain lint reports one case per category, changes nothing in the brain, an
     );
     assert.match(text.out, /Skill candidates\n    memory\/instincts\/run-database-tests-serially\.md \(3 occasions\)/);
 
-    // The summary carries the count.
-    const s = await kioku(["hook", "session-start"], home, { cwd: join(home, "work/acme-api") });
+    // What the memory holds carries the count (§4.1).
+    const s = await kioku(["hook", "session-start-holds"], home, { cwd: join(home, "work/acme-api") });
     assert.match(
       s.out.hookSpecificOutput.additionalContext,
       /## To review\n\n- northwind\/brain-acme: 6 things for `kioku brain lint northwind\/brain-acme`/,

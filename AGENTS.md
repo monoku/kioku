@@ -35,13 +35,16 @@ pnpm typecheck:plugin # the mod, against `types/claude-code.d.ts`: what it uses 
 pnpm typecheck:plugin:real # the same against the types Claude Code laid here; skipped where there are none, not in ci
 pnpm test:plugin      # the mod, in Claude Code's engine: needs `claude`, no login
 pnpm bench            # not a check: time and answer size per command, against your last --save (--compare)
+pnpm eval:memory      # not a check: how often the agent reads and saves on its own, with `claude -p` on the demo (needs a login; costs)
+pnpm eval:recall      # not a check: how the prompt's recall scores a labelled set of prompts on the demo, by rule; no agent, no cost
 ```
 
-`ci` runs all but `test:demo`, `typecheck:plugin:real` and `bench`, with
+`ci` runs all but `test:demo`, `typecheck:plugin:real`, `bench` and the `eval:` ones, with
 Claude Code at the version `kioku.claudeCode` in `package.json` pins. A name
 the mod starts to use of the engine goes into `types/claude-code.d.ts`, in our
 words. A claim about speed or tokens is shown with `pnpm bench` (bytes are
-exact; milliseconds compare on one machine). Tests never touch the real home.
+exact; milliseconds compare on one machine); one about how the agent uses the
+memory, with `pnpm eval:memory` before and after. Tests never touch the real home.
 
 ## Conventions
 

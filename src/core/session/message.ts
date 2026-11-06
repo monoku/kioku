@@ -13,9 +13,9 @@ export type Span = string | { dim: string } | { cmd: string } | { read: string }
 export interface Message {
   /** Nothing for information; `warn` when the person has something to do or something was not loaded; `error` when Kioku failed. */
   level?: "warn" | "error";
-  /** The version of the tool, said after the brand: the summary's (§1.2). */
-  version?: string;
-  /** The headline; none in the summary, whose one line is under the brand. */
+  /** A row of the history on the brand's line, as the mod draws a call's (§1.2): the summary and a prompt's recall. */
+  row?: true;
+  /** The headline, or the row. */
   head: Span[];
   /** One fact a line, under the headline. */
   details?: Span[][];
@@ -47,7 +47,7 @@ export const layoutFor = (color: boolean): Layout => ({ color });
 export const unmuted = (messages: Message[], mute: readonly NoticeName[] | undefined): Message[] =>
   messages.filter((m) => m.name === undefined || mute?.includes(m.name) !== true);
 
-/** The message as text: the brand and the version, the level, the headline, and under it its details. */
+/** The message as text: the brand, the level, the headline or the row, and under it its details. */
 export function render(m: Message, layout: Layout): string {
   const paint = (code: string, close: string) => sgr(layout.color, code, close);
   const orange = paint(ORANGE, "39");
@@ -59,9 +59,10 @@ export function render(m: Message, layout: Layout): string {
   const line = (spans: Span[]): string => spans.map(span).join("");
   const level =
     m.level === "warn" ? `${paint("33", "39")("⚠")} ` : m.level === "error" ? `${paint("31", "39")("✕")} ` : "";
-  const version = m.version === undefined ? "" : ` ${faint(m.version)}`;
   const headed = level !== "" || m.head.length > 0;
-  const brand = `${orange("⬢")} ${bold("kioku")}${orange(".md")}${version}${headed ? `${faint(" · ")}${level}` : ""}`;
+  // A row sits on the brand's line as the mod's rows do; a notice's headline after a dot.
+  const after = m.row === true ? " " : headed ? `${faint(" · ")}${level}` : "";
+  const brand = `${orange("⬢")} ${bold("kioku")}${orange(".md")}${after}`;
   // A notice with a name ends with the command that mutes it (§1.2).
   const details = [
     ...(m.details ?? []),
@@ -72,3 +73,20 @@ export function render(m: Message, layout: Layout): string {
 
 /** A message with no colour: what a test or a log reads. */
 export const plain = (m: Message): string => render(m, { color: false });
+
+/**
+ * The widest word of the history's rows, `confirmed`: the history pads every word to it, and a hook's row is laid out
+ * as the history's is, so that the two read alike (§1.2). A test holds it to the mod's words.
+ */
+export const HISTORY_WORD_WIDTH = 9;
+
+/**
+ * A read the session made, said as the history's row on the brand's line (§1.2): the arrow, the word padded, what it
+ * read, and the brains it reached, as Kioku names them. The summary's and a prompt's recall.
+ */
+export function historyRow(word: string, what: string, brains: string[]): Message {
+  return {
+    row: true,
+    head: [read("↓"), " ", dim(`${word.padEnd(HISTORY_WORD_WIDTH)} `), what, dim(` (${brains.join(", ")})`)],
+  };
+}

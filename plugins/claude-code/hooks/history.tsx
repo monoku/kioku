@@ -24,6 +24,7 @@ const PANE_MAX_ROWS = 24;
 /** What an entry says for each thing the journal holds: its word. Every kind has one, so a new kind will not compile without. */
 const WORDS: Record<JournalWhat, string> = {
   summary: "summary",
+  recalled: "recalled",
   skill: "loaded",
   opened: "opened",
   searched: "found",
@@ -123,6 +124,11 @@ function shownNow(x: JournalEntry): Shown {
     }
     case "skill":
       return { ...base, title: "Kioku skill", note: "how to use Kioku" };
+    case "recalled": {
+      // The pages a prompt brought by meaning (§4.7): listed as a search's are, with no words, since a prompt is kept nowhere.
+      const hits = (x.hits ?? []).map((h) => ({ ...h, label: labelOf(x, h.brain) }));
+      return { ...base, title: `by meaning · ${plural(x.count, "page")}`, ...(hits.length > 0 && { hits }) };
+    }
     case "searched": {
       // Each page's brain is named as Kioku names it (§1.2).
       const hits = (x.hits ?? []).map((h) => ({ ...h, label: labelOf(x, h.brain) }));
