@@ -70,7 +70,8 @@ test("the demo builds, every brain validates, and the maintenance report has a f
       `${s.query}: ${hits.map((h) => h.title).join(" | ")}`,
     );
   }
-  const start = await kioku(["hook", "session-start"]);
+  // What the brains hold, the summary's second part, comes from the second hook (§4.1).
+  const start = await kioku(["hook", "session-start-holds"]);
   assert.ok(
     start.hookSpecificOutput.additionalContext.includes(`## Load first\n\n- ${LOAD_FIRST.app![0]}`),
     "the summary opens the project brain with what to load first",
