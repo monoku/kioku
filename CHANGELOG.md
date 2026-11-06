@@ -4,6 +4,26 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **Kioku installs with Homebrew**: `brew install monoku/kioku/kioku`, from
+  Kioku's own tap, which each release moves to its version. The formula puts
+  the plugin where it does not move between versions, gives the shell its
+  completion, and ends with the next steps; `brew upgrade kioku` updates it.
+  Under Homebrew, `kioku setup` leaves the `PATH` and the completion to the
+  formula, and `doctor` no longer asks for the installer.
+- **A new version brings the machine forward on its own**, whatever installed
+  it: the first session that runs it rewrites an older configuration, raises
+  your own brain's format and refreshes the files Kioku owns in every brain,
+  in the background, and the next session says what it did, once
+  (`brought-forward`, which `display.mute` can silence; a step that failed is
+  always said). `kioku update` and `kioku setup` still do it at once, and
+  `doctor` says when it is pending.
+- **A machine is set up once `kioku setup` has run**, not once a
+  configuration exists: a verb such as `kioku brain create` run before it no
+  longer hides that `setup` is missing. The session works and says so, as
+  `doctor` does. A machine an earlier version set up counts as set up.
+
 ## 0.4.0
 
 - **A session's start says its summary in one row**, as the rows of a call

@@ -27,6 +27,14 @@ cloned again when a machine needs it.
 rm -rf ~/.local/share/kioku ~/.local/bin/kioku ~/.kioku
 ```
 
+Installed with Homebrew, the tool is Homebrew's to remove, and only the state
+is yours; step 4 has nothing to undo, as `setup` wrote nothing in your shell:
+
+```bash
+brew uninstall kioku && brew untap monoku/kioku
+rm -rf ~/.kioku
+```
+
 The tool is under `$XDG_DATA_HOME/kioku` when that variable is set, and
 wherever `KIOKU_INSTALL_DIR` and `KIOKU_BIN_DIR` pointed when they were used.
 `~/.kioku/` also holds the machine configuration, the search index and the

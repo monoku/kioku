@@ -41,3 +41,9 @@ export const pluginSaidPath = (home: string): string => kioku(home, "plugin-said
 export const updateStatePath = (home: string): string => kioku(home, "update.json");
 /** The last failure to fetch them, and whether the person was told they are being fetched. */
 export const semanticStatePath = (home: string): string => kioku(home, "semantic.json");
+/** The version that last brought the machine forward whole, and what the next session says of it (§6.4). */
+export const forwardStatePath = (home: string): string => kioku(home, "forward.json");
+/** One bringing forward at a time, from any session's `sync` (§6.4). */
+export const forwardLockPath = (home: string): string => kioku(home, "forward.lock");
+/** Present while `kioku setup` has not run, though a verb wrote the configuration (§6.3). */
+export const setupPendingPath = (home: string): string => kioku(home, "setup-pending");

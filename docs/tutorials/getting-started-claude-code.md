@@ -14,6 +14,14 @@ The installer puts `kioku` on your `PATH` (open a new terminal if it says so),
 gives your shell its completion, and starts fetching the search model in the
 background (about 250 MB, once); search uses full text until it is there.
 
+With Homebrew, install it this way instead, then run `kioku setup`, which
+starts fetching the model; Homebrew gives `kioku` its `PATH` and completion:
+
+```bash
+brew install monoku/kioku/kioku
+kioku setup
+```
+
 Your personal brain is where the agent keeps what it learns about how you
 work. Make it:
 

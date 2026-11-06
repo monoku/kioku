@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { runDoctor, type DoctorEnv } from "../../src/core/doctor.ts";
 import { ensureLauncher, installDirs, launcherPath, pathLine } from "../../src/core/setup/install.ts";
 import { indexPath, syncLockPath } from "../../src/core/state.ts";
+import { recordForward } from "../../src/core/setup/forward.ts";
+import { VERSION } from "../../src/version.ts";
 import { run } from "../../src/cli/run.ts";
 import { ctx } from "../fixtures.ts";
 import { isolateGit } from "../remotes.ts";
@@ -87,6 +89,8 @@ test("on a configured machine with the §2.5 brains every item is fine and the e
   world(async (w) => {
     await w.kioku(["sync", "--cwd", w.repo]);
     ensureLauncher(dirs(w.home));
+    // Brought forward to this version, as a session's sync, setup or update leaves it (§6.4).
+    recordForward(w.home, VERSION);
     // Claude Code's own record of what it has installed: the Kioku plugin is there.
     mkdirSync(join(w.home, ".claude/plugins"), { recursive: true });
     writeFileSync(
@@ -174,6 +178,18 @@ test("with the index removed doctor says it will be rebuilt, and does not rebuil
     assert.equal(r.ok, true);
     const { existsSync } = await import("node:fs");
     assert.equal(existsSync(indexPath(w.home)), false);
+  }));
+
+test("under Homebrew there is no installer's launcher to ask for: kioku is the formula's (§6.3)", () =>
+  world(async (w) => {
+    const c = byName(runDoctor(env(w.home, { pathVar: "/usr/bin", origin: "homebrew" })))["kioku launcher"]!;
+    assert.equal(c.state, "ok");
+    assert.equal(c.detail, "Homebrew's");
+    // The installer's folder, there from an earlier install, is not this tool's.
+    ensureLauncher(dirs(w.home));
+    const version = byName(runDoctor(env(w.home, { origin: "homebrew" })))["kioku version"]!;
+    assert.equal(version.state, "ok");
+    assert.match(version.detail, /Homebrew's$/);
   }));
 
 test("with the launcher off PATH, the fix is the command that puts it there, and the line for the shell", () =>

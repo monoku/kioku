@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
-import { machineReader, mutes, type MachineConfig } from "../core/config/machine.ts";
+import { machineReader, mutes, setupPending, type MachineConfig } from "../core/config/machine.ts";
+import { bringConfigForward, describeForwarded, forwardDue, takeForwardSaid } from "../core/setup/forward.ts";
 import { loadedRow, startHolds, startSession } from "../core/session/start.ts";
 import { currentVersion, installDirs, installOrigin, managerCommand, newerThan } from "../core/setup/install.ts";
 import { dueForCheck, recordCheck, takeAvailable } from "../core/setup/update.ts";
@@ -70,7 +71,23 @@ export const sessionStart: Handler = async (args, ctx) => {
       unmuted(said, config?.display?.mute).map((m) => render(m, layout)),
     );
   try {
-    config = machineOf(ctx)();
+    // A version this machine has not been brought forward to rewrites the configuration before it is read; the rest
+    // commits, and the `sync` started below does it in the background (§6.4).
+    const version = ctx.version ?? VERSION;
+    let read = machineOf(ctx);
+    if (forwardDue(ctx.home, version) && read()?.legacy !== undefined) {
+      try {
+        messages.push(...forwardNow(await bringConfigForward(ctx.home), version));
+      } catch (e) {
+        messages.push({
+          level: "error",
+          head: [`could not bring this machine's configuration forward to ${version}`],
+          details: [[dim(e instanceof Error ? e.message : String(e))], ["run ", cmd("kioku setup"), " in a terminal"]],
+        });
+      }
+      read = machineReader(ctx.home);
+    }
+    config = read();
     layout = layoutOf(config, ctx.env);
     const unreachable = harness.persistPath(personHome(ctx), ctx.env);
     if (unreachable !== undefined) messages.push({ level: "warn", head: [unreachable] });
@@ -86,6 +103,15 @@ export const sessionStart: Handler = async (args, ctx) => {
         },
       ]);
     }
+    // A verb wrote the configuration before `kioku setup` ran: everything works, and the session says it (§6.3).
+    if (setupPending(ctx.home))
+      messages.push({
+        level: "warn",
+        head: ["kioku setup has not run on this machine"],
+        details: [["run ", cmd("kioku setup"), " in a terminal"]],
+        name: "not-set-up",
+      });
+    messages.push(...forwardSaid(ctx.home));
     // Where the installer installed the tool, a newer version is looked for once a day in the background, and the next
     // session says what the look found, once (§6.4); the stamp goes first, so one session looks. Nothing installs it but
     // the person. With the notice muted nothing would use the look, so there is none; a tool installed another way is
@@ -140,7 +166,7 @@ export const sessionStart: Handler = async (args, ctx) => {
       (dir) => ctx.startBackground(["sync", "--cwd", dir, "--background"]),
     );
     // The person sees which brains the summary loaded (§1.2, §4.1), and the session's journal begins with it (§4.6).
-    const labels = labelsFor(ctx.home, cwd, { machine: machineOf(ctx), ours: started.brains });
+    const labels = labelsFor(ctx.home, cwd, { machine: read, ours: started.brains });
     // The summary: one row, the history's `summary` on the brand's line (§1.2); the version only when a newer one is.
     const loaded =
       started.summary !== undefined && started.loaded !== undefined
@@ -174,6 +200,35 @@ export const sessionStart: Handler = async (args, ctx) => {
     return answer(undefined, [...messages, { level: "error", head: ["could not start"], details: [[dim(why)]] }]);
   }
 };
+
+/** What bringing the configuration forward did in this session, said at once (`brought-forward`, §1.2, §6.4). */
+function forwardNow(forwarded: Parameters<typeof describeForwarded>[0], version: string): Message[] {
+  const lines = describeForwarded(forwarded).map((s) => s.text);
+  return lines.length === 0 ? [] : [broughtForward(version, lines)];
+}
+
+const broughtForward = (version: string, lines: string[]): Message => ({
+  head: [`brought this machine forward to ${version}`],
+  details: lines.map((l) => [l]),
+  name: "brought-forward",
+});
+
+/**
+ * What a session's `sync` did bringing the machine forward, said once by the next session (§6.4): what it did, or,
+ * always said, why a step failed.
+ */
+function forwardSaid(home: string): Message[] {
+  const { said, failed } = takeForwardSaid(home);
+  const out: Message[] = [];
+  if (said !== undefined) out.push(broughtForward(said.version, said.lines));
+  if (failed !== undefined)
+    out.push({
+      level: "error",
+      head: [`could not bring this machine forward to ${failed.version}`],
+      details: [[dim(failed.reason)], ["the next session tries again; or run ", cmd("kioku setup"), " in a terminal"]],
+    });
+  return out;
+}
 
 /**
  * The second `SessionStart` hook (§4.1, §6.2): the summary's second part, what the memory holds, with the news since
