@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.4.0
 
 - **A session's start says its summary in one row**, as the rows of a call
   are drawn: `⬢ kioku.md ↓ summary   session summary · 324 pages (personal,
