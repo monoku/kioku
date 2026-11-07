@@ -420,7 +420,7 @@ More in the reference, under `kioku brain lint`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-brain-lint
 
 $ kioku help brain language
-kioku brain language <tag> [--brain <b>]
+kioku brain language <tag> --brain <b>
 
 Declares the language a brain's pages are written in; the summary tells the agent.
 
@@ -580,7 +580,7 @@ More in the reference, under `kioku namespace list`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-list
 
 $ kioku help namespace add
-kioku namespace add <path> --summary <text> [--brain <b>]
+kioku namespace add <path> --summary <text> --brain <b>
 
 Declares a namespace, or one under another, and writes its index with what it is for.
 

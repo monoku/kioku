@@ -79,7 +79,7 @@ Never save what is ephemeral or already in a brain, what the repository or its h
 - **project**: this project (decisions, how things are done here, the client, the people, where things are).
 - **team**: conventions that cross projects, and how the team works.
 
-When in doubt, personal: it affects nobody else. `--namespace <path>` names the area; a new one is `kioku namespace add <path> --summary "…"`, which the person confirms. To move a page up, `kioku page promote <path> --brain <b> --to project|team` with the page rewritten, in words fit for that brain, on stdin; it retires the original.
+When in doubt, personal: it affects nobody else. `--namespace <path>` names the area; `kioku namespace add <path> --summary "…" --brain <b>` makes one, which the person confirms. To move a page up, `kioku page promote <path> --brain <b> --to project|team` with the page rewritten, in words fit for that brain, on stdin; it retires the original.
 
 ## Before writing: find what exists
 
