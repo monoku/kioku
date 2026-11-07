@@ -83,3 +83,15 @@ test("creating or renaming a namespace refuses a name the brain already uses (§
     assert.equal(add.out.error?.code, "usage", add.raw);
     assert.match(add.out.error.message, /a name a brain already uses/);
   }));
+
+test("namespace add and brain language always name the brain they write to, as page save does (§6.1)", () =>
+  world(async (w) => {
+    const add = await w.kioku(["namespace", "add", "billing", "--summary", "What is charged."]);
+    assert.equal(add.out.error?.code, "usage", add.raw);
+    assert.match(add.out.error.message, /--brain is required/);
+    const language = await w.kioku(["brain", "language", "es"]);
+    assert.equal(language.out.error?.code, "usage", language.raw);
+    assert.match(language.out.error.message, /--brain is required/);
+    const named = await w.kioku(["namespace", "add", "billing", "--summary", "What is charged.", "--brain", "project"]);
+    assert.equal(named.out.error, undefined, named.raw);
+  }));
