@@ -416,7 +416,7 @@ What to review: similar pages, quiet instincts, superseded decisions, and the re
 ### `kioku brain language`
 
 ```text
-kioku brain language <tag> [--brain <b>]
+kioku brain language <tag> --brain <b>
 ```
 
 Declares the language a brain's pages are written in; the summary tells the agent.
@@ -656,7 +656,7 @@ The namespaces of the brains of this folder, with the pages in each.
 ### `kioku namespace add`
 
 ```text
-kioku namespace add <path> --summary <text> [--brain <b>]
+kioku namespace add <path> --summary <text> --brain <b>
 ```
 
 Declares a namespace, or one under another, and writes its index with what it is for.

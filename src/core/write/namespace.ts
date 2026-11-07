@@ -185,7 +185,7 @@ export interface NamespaceMade extends Partial<Applied> {
 }
 
 /**
- * `kioku namespace add <path> --summary <text>` (§3.2): a namespace is declared in `kioku.yaml` and its `INDEX.md` is
+ * `kioku namespace add <path> --summary <text> --brain <b>` (§3.2): a namespace is declared in `kioku.yaml` and its `INDEX.md` is
  * written, in one commit. Its parent must exist.
  */
 export async function addNamespace(

@@ -180,11 +180,16 @@ function holderOf(chain: ChainBrain[], namespace: string): ChainBrain | undefine
   return having[0];
 }
 
-/** The brain a namespace verb acts on: `--brain`, else the one that has the namespace, else the only brain of the chain. */
-function namespaceBrain(ctx: Context, named: string | undefined, namespace?: string): TargetBrain {
+/** The brain a write with nothing to find it by acts on, always named (§6.1): `namespace add`, `brain language`. */
+function namedBrain(ctx: Context, named: string): TargetBrain {
+  return target(pickBrain(cloned(ctx), named, ctx));
+}
+
+/** The brain `namespace describe` acts on: `--brain`, else the one that has the namespace, else the only brain of the chain. */
+function namespaceBrain(ctx: Context, named: string | undefined, namespace: string): TargetBrain {
   const chain = cloned(ctx);
   if (named !== undefined) return target(pickBrain(chain, named, ctx));
-  const holder = namespace === undefined ? undefined : holderOf(chain, namespace);
+  const holder = holderOf(chain, namespace);
   if (holder !== undefined) return target(holder);
   if (chain.length === 1) return target(chain[0]!);
   if (chain.length === 0) throw userError("no brain of this folder's chain is on this machine", "not_found");
@@ -211,7 +216,7 @@ export const runRenameNamespace = writing("namespace rename", told("namespace re
 /** `namespace add` (§3.2): a namespace is declared and its index written. */
 export const runAddNamespace = writing("namespace add", told("namespace add", 1), async (c) => {
   const summary = required(c.values.summary, "summary");
-  const brain = acting(c.at, namespaceBrain(c.ctx, c.values.brain));
+  const brain = acting(c.at, namedBrain(c.ctx, required(c.values.brain, "brain")));
   const r = await addNamespace(brain, { namespace: c.positionals[0]!, summary }, env(c.ctx));
   return {
     data: withWarnings(r),
@@ -221,7 +226,7 @@ export const runAddNamespace = writing("namespace add", told("namespace add", 1)
 
 /** `brain language` (§3.2): the language the brain's pages are written in. */
 export const runBrainLanguage = writing("brain language", told("brain language", 1), async (c) => {
-  const brain = acting(c.at, namespaceBrain(c.ctx, c.values.brain));
+  const brain = acting(c.at, namedBrain(c.ctx, required(c.values.brain, "brain")));
   const r = await setLanguage(brain, { language: c.positionals[0]! }, env(c.ctx));
   return {
     data: withWarnings(r),

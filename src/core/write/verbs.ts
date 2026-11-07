@@ -228,7 +228,7 @@ export async function save(
     const wanted = input.namespace;
     throw namedError(
       (n) =>
-        `${brainRepoOfKey(brain.key)} has no namespace "${wanted}" (it has ${declared.join(", ")})${n.cli(`; \`kioku namespace add ${wanted} --summary "…"\` makes it, once the person confirms`)}`,
+        `${brainRepoOfKey(brain.key)} has no namespace "${wanted}" (it has ${declared.join(", ")})${n.cli(`; \`kioku namespace add ${wanted} --summary "…" --brain ${brainRepoOfKey(brain.key)}\` makes it, once the person confirms`)}`,
       "namespace_unknown",
     );
   }

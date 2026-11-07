@@ -52,8 +52,8 @@ memory, with `pnpm eval:memory` before and after. Tests never touch the real hom
 - A behaviour change is two commits: the spec first (and `design.md` when a
   principle moves), "Say …", then the implementation, citing `§` sections.
 - Ask before committing; never push without being asked. Every change is its
-  own branch off `develop`, merged with `git merge --no-ff` once the checks
-  pass. Releases follow git flow: `develop` reaches `main` only through a
+  own branch off `develop`, reaching it through a pull request into `develop`,
+  merged with a merge commit once `ci` passes. Releases follow git flow: `develop` reaches `main` only through a
   branch `release/v<version>` off it (a fix that cannot wait, `hotfix/v<version>`
   off `main`) and its pull request, and `main` comes back into `develop` after
   each release. Never commit to `main`.

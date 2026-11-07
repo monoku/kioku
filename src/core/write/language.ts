@@ -11,7 +11,7 @@ export interface LanguageSet extends Partial<Applied> {
 }
 
 /**
- * `kioku brain language <tag>` (§3.2): the brain declares the language its pages are written in, in `kioku.yaml`,
+ * `kioku brain language <tag> --brain <b>` (§3.2): the brain declares the language its pages are written in, in `kioku.yaml`,
  * in one commit. A convention: nothing checks the pages against it.
  */
 export async function setLanguage(

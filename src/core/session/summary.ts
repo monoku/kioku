@@ -242,7 +242,7 @@ function ruleText(body: string): string {
 
 /** Said once under the brains of the opening (§4.1, §3.2): how a page gets a namespace, and how one is made. */
 export const NAMESPACES_NOTE =
-  'Pass `--namespace <path>` to `kioku page save`: the deepest namespace whose description fits what you save; one that fits needs no yes. When none fits, or the brain has none yet, make one with `kioku namespace add <path> --summary "…"`, named and described for the area: the host asks the person to confirm it; on a no, use a namespace that exists or ask where.';
+  'Pass `--namespace <path>` to `kioku page save`: the deepest namespace whose description fits what you save; one that fits needs no yes. When none fits, or the brain has none yet, make one with `kioku namespace add <path> --summary "…" --brain <brain>`, named and described for the area: the host asks the person to confirm it; on a no, use a namespace that exists or ask where.';
 
 /** The most the namespaces take of the opening; past it descriptions go first, then the deepest levels, never the first (§4.1). */
 const NAMESPACES_BUDGET = 1800;
