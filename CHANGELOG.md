@@ -26,6 +26,14 @@ What changed in each version of Kioku. What is true now is in the
   longer hides that `setup` is missing. The session works and says so, as
   `doctor` does. A machine an earlier version set up counts as set up.
 
+## 0.5.0
+
+- **`namespace add` and `brain language` always name the brain they write
+  to**, with `--brain`, as `page save` already did: nothing in the brain says
+  where they belong, so the same command no longer lands in the only brain of
+  the chain one day and fails the day a second brain arrives. The verbs that
+  read, or change what a brain already holds, keep `--brain` optional.
+
 ## 0.4.0
 
 - **A session's start says its summary in one row**, as the rows of a call

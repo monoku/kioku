@@ -114,12 +114,15 @@ by the name it will have; and `init`, by an address or a name (§2.2, §2.4).
 **When a brain is named.** A verb that fixes a brain's identity (`brain create`,
 `brain clone`, `brain upgrade`, `init`), takes it off the machine (`brain remove`)
 or sends it to a git host (`brain publish`, `brain sync`) always takes the brain
-named, never one inferred from the folder or the tier, and `page save` always
-names the brain it writes to. A verb that only reads, or changes a brain on this
-machine (`page`, `namespace`, `brain log`, `brain lint` and the rest), takes
-`--brain` or `[<brain>]` as an option: without it the brain the folder is inside,
-else the brains of the chain answer, and where more than one would answer a
-write, it is the error above.
+named, never one inferred from the folder or the tier. So does a write with
+nothing in the brain to find it by, which would otherwise land wherever the
+folder or the number of brains on the machine sent it: `page save`,
+`namespace add` and `brain language` always name the brain they write to,
+inside a brain too. A verb that only reads, or changes what a brain already
+holds (`page show`, `page forget`, `namespace describe`, `brain log`,
+`brain lint` and the rest), takes `--brain` or `[<brain>]` as an option:
+without it the brain the folder is inside, else the brains of the chain
+answer, and where more than one would answer a write, it is the error above.
 
 **Bounded answers.** A verb whose answer grows with a brain gives 20 entries
 unless `--limit` says otherwise, one number for all. `page list` and `brain

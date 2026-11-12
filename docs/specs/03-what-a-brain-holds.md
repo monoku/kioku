@@ -61,9 +61,9 @@ so when the brain has more than one (§4.4). The `INDEX.md` may also hold
 namespace, which the summary lists (§4.1). Nothing is inherited: each
 namespace has its own description and its own `## Load first`.
 
-**Making and moving.** `kioku namespace add <path> --summary "…"` declares a
-namespace in `kioku.yaml` and writes its `INDEX.md`, in one commit; its parent
-must exist. `kioku namespace describe` changes its description;
+**Making and moving.** `kioku namespace add <path> --summary "…" --brain <b>`
+declares a namespace in `kioku.yaml` and writes its `INDEX.md`, in one commit;
+its parent must exist, and the brain is always named (§6.1). `kioku namespace describe` changes its description;
 `kioku namespace rename <from> <to>` gives it another path, parent included,
 and takes everything under it along. `kioku page move` gives a page another
 namespace: a knowledge page's file moves, its `id` stays and the links follow.
@@ -114,7 +114,8 @@ until then `doctor` and the session say it can be raised (`format-behind`,
 
 **The language.** A brain may declare, in `kioku.yaml`, the one language its
 pages are written in, `language`, a short tag such as `en` or `es`, with
-`kioku brain language` or when it is made. It is a convention: the validator
+`kioku brain language <tag> --brain <b>`, which always names the brain
+(§6.1), or when it is made. It is a convention: the validator
 does not read a page's language, and search by meaning (§4.3) still finds a
 page in another. The summary tells the agent to write in it (§4.1); quotes in
 `evidence` stay in the person's words.

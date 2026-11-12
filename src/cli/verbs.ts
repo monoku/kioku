@@ -201,7 +201,7 @@ export const SECTIONS = [
     ),
     "brain language": v(
       "declares the language a brain's pages are written in; the summary tells the agent",
-      "kioku brain language <tag> [--brain <b>]",
+      "kioku brain language <tag> --brain <b>",
       BRAIN,
       "free",
     ),
@@ -383,7 +383,7 @@ export const SECTIONS = [
     ),
     "namespace add": v(
       "declares a namespace, or one under another, and writes its index with what it is for",
-      "kioku namespace add <path> --summary <text> [--brain <b>]",
+      "kioku namespace add <path> --summary <text> --brain <b>",
       { summary: str("<text>"), brain: str(b) },
       "free",
     ),
