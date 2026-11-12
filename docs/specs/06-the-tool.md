@@ -244,18 +244,58 @@ tool installed and says how to run it again; with no terminal it writes no
 configuration, profile or brain, and names the next step, `kioku setup`, by
 the launcher's whole path when its folder is not on the `PATH`.
 
+Where Homebrew is, it installs the same release from Kioku's own tap:
+
+```bash
+brew install monoku/kioku/kioku
+```
+
+The formula takes the release's bundle and the plugin's archive, each checked
+against the checksum the release published, depends on Homebrew's Node, and
+puts the plugin under the formula's `opt` folder, which does not move from one
+version to the next, so the host's marketplace keeps pointing at it (§6.2).
+`kioku` is on the `PATH` through Homebrew's own folder, and the formula puts
+the completion `kioku completion <shell>` prints for fish, zsh and bash where
+Homebrew's shells find it. Homebrew lets a formula write nothing in the
+person's home, so it runs no `setup`, and ends by naming the next steps, the
+same three as the installer's:
+
+```
+To finish, in a terminal:
+  kioku setup
+  kioku brain create <you>/memory
+  kioku plugin claude-code install
+```
+
+Each release moves the formula to its version and checksums; `brew upgrade
+kioku` then brings the tool and its plugin together, and the next session
+brings the machine forward (§6.4).
+
+A machine where both the installer and Homebrew installed the tool runs the
+one whose folder comes first on the `PATH`, and the other is never updated nor
+run. `doctor` says so: both installs, which one `kioku` runs, and how to keep
+one, `brew uninstall kioku`, or removing the installer's folder and launcher
+and then `kioku plugin claude-code install`, so the host's marketplace points
+at Homebrew's plugin (§6.2).
+
 `kioku setup` does, once and idempotently, what a machine needs: the machine
 configuration (§2.5); `kioku` on the `PATH`, by a link in a folder already on
 it or else by the shell's profile; the shell's completion, by a file or a
 profile line that evaluates `kioku completion <shell>`, so it follows every
 update; and the search model (§4.3), fetched by the `sync` it starts in the
-background, unless `--no-model`. Before it writes anything, it brings forward
-what an older version left, as the hand-over of `kioku update` does (§6.4): it
-rewrites a configuration an older version wrote (§2.5) and raises the person's
-own brain to the newest format (§3.2), and says so; a project or team brain of
-an older format is left as it is, and said. Then it refreshes every brain
-(§2.7), writing only what differs. The installer, run over an older version, so
-leaves the machine as `kioku update` does.
+background, unless `--no-model`. Before it writes anything, it brings the
+machine forward to the version it runs (§6.4), as `kioku update` does: it
+rewrites a configuration an older version wrote (§2.5), raises the person's
+own brain to the newest format (§3.2), and refreshes every brain (§2.7),
+writing only what differs, and says what it did. The installer, run over an
+older version, so leaves the machine as `kioku update` does. A machine is set
+up once `setup` has run on it: a verb that writes the configuration where there
+was none, such as `brain create` before `setup`, records that `setup` has not
+run, and `setup` takes that record away; a configuration an earlier version
+wrote, with no such record, counts as set up. Until then a session works as
+usual and says so (`not-set-up`, §1.2), and `doctor` says it. Where Homebrew
+installed the tool, the `PATH` and the completion are the formula's: `setup`
+writes neither, and does not look for the installer's launcher.
 Neither it nor the installer makes a brain: while there is no personal brain,
 `setup` says how to bring one or make one and, unless `unpublished` is muted
 (§1.2), that `kioku brain publish <brain> --remote <destination>` then puts it in a repository they make (§2.3). It
@@ -287,10 +327,8 @@ downloaded, twice. First, before the active version moves, that version fetches
 the plugin's archive of its own release, checks it against its checksum and
 puts the plugin beside its bundle: the version running knows nothing of how a
 newer one lays its plugin out, so a release may change it without a step
-between. Then, once it is active, it rewrites a configuration an older version wrote (§2.5), raises the
-person's own brain to the newest format and says so (§3.2), and refreshes every
-brain (§2.7); a project or team brain of an older format is left as it is, and
-said. It keeps the previous version and says that
+between. Then, once it is active, that version brings the machine forward
+(below), at once, and says what it did. It keeps the previous version and says that
 `kioku update <previous version>` goes back. `--check` says whether there is a
 newer version and `--dry-run` what it would do; both write nothing. `kioku
 update <version>` installs that release, a newer or an earlier one, only in a
@@ -307,3 +345,25 @@ looks. The stamp of the last look and the version found are machine state
 way, by Homebrew or as a build a person runs from where they put it, is updated
 by what installed it: no session looks, and `kioku update` changes nothing and
 answers `managed`, with the command that updates it.
+
+**A version brings the machine forward once, whatever installed it.** To
+bring the machine forward is to do what a new version needs of what an older
+one left: rewrite a configuration an older version wrote (§2.5), raise the
+person's own brain to the newest format (§3.2), and refresh every brain (§2.7);
+a project or team brain of an older format is left as it is, and said
+(`format-behind`, §1.2). The version that last did it whole is machine state
+(§2.5). `kioku update` and `kioku setup` do it at once; otherwise, since what
+installed the tool may write nothing in the person's home, the first session
+that runs a version other than the one recorded does it, so that `brew
+upgrade`, the installer with no terminal, or a build a person moved needs no
+other command. The `SessionStart` hook rewrites the configuration itself,
+before it reads it, as that writes nothing but the machine's own file and takes
+no time; the rest, which commits and may push, goes to the `sync` it starts in
+the background (§4.2), which does it before it syncs. The version is recorded
+only once all of it is done; a step that fails is said with its reason and
+tried at the next session's start. What was done is said once
+(`brought-forward`, §1.2): what the hook rewrote by that session, what the
+`sync` did by the next; nothing when nothing changed. A machine never
+set up has nothing to bring forward and records nothing. Until a session does
+it, `doctor` says it is pending, with `kioku setup`, which does it from a
+terminal.

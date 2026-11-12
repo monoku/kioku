@@ -1,12 +1,20 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { knownBrains } from "./brains/list.ts";
 import { brainFolder, brainRepoOfKey, parseName } from "./config/brain-ref.ts";
 import { resolveChain, trustCommand, trustOwnerCommand } from "./config/chain.ts";
 import { NEWER_THAN_READ, NEWEST_FORMAT } from "./brain/brain.ts";
 import { readFolderConfig } from "./config/folder-config.ts";
-import { configPath, readMachineConfig, mutes, remindsUnpublished, type MachineConfig } from "./config/machine.ts";
+import {
+  configPath,
+  readMachineConfig,
+  mutes,
+  remindsUnpublished,
+  setupPending,
+  type MachineConfig,
+} from "./config/machine.ts";
+import { readForwardState } from "./setup/forward.ts";
 import { gitQuiet } from "./git.ts";
 import { SCHEMA_VERSION } from "./index/db.ts";
 import { allHarnesses, pluginBehind, type Harness, type MarketplaceSource } from "../harness/index.ts";
@@ -80,6 +88,8 @@ export interface DoctorEnv {
   pluginFolder?: string;
   /** The pinned engine and model, and this machine's platform; a test stands in its own. */
   semantic?: { pins: Pins; platform: string };
+  /** Where Homebrew may be; `HOMEBREW_PREFIX` and its usual prefixes when absent. */
+  brewPrefixes?: string[];
 }
 
 export function realDoctorEnv(
@@ -472,6 +482,8 @@ function updatesCheck(env: DoctorEnv, config: MachineConfig | undefined): Check 
 const dirsOf = (env: DoctorEnv): InstallDirs => installDirs(env.hostHome ?? env.home, env.env ?? {});
 
 function launcherCheck(env: DoctorEnv): Check {
+  // Under Homebrew `kioku` is the formula's, on Homebrew's own folder of the PATH (§6.3).
+  if (env.origin === "homebrew") return ok("kioku launcher", "Homebrew's");
   const dirs = dirsOf(env);
   const path = launcherPath(dirs);
   if (!existsSync(path))
@@ -485,8 +497,58 @@ function launcherCheck(env: DoctorEnv): Check {
   return ok("kioku launcher", path);
 }
 
+/** Homebrew's usual prefixes: Apple silicon, Intel, Linux. */
+const BREW_PREFIXES = ["/opt/homebrew", "/usr/local", "/home/linuxbrew/.linuxbrew"];
+
+const real = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+
+/** Homebrew's `kioku`, the formula's command, when Homebrew installed the tool on this machine (§6.3). */
+function brewKioku(env: DoctorEnv): string | undefined {
+  const prefix = env.env?.HOMEBREW_PREFIX;
+  const prefixes = env.brewPrefixes ?? [...(prefix ? [prefix] : []), ...BREW_PREFIXES];
+  for (const p of prefixes) {
+    const bin = join(p, "bin", "kioku");
+    if (existsSync(bin) && /\/Cellar\/kioku\//.test(real(bin))) return bin;
+  }
+  return undefined;
+}
+
+/**
+ * Both the installer and Homebrew installed the tool (§6.3): the first on the `PATH` runs, the other is never run nor
+ * updated. Said with which one runs, and how to keep one; nothing to say on a machine with one install.
+ */
+function installsCheck(env: DoctorEnv): Check[] {
+  const dirs = dirsOf(env);
+  const launcher = launcherPath(dirs);
+  const brew = brewKioku(env);
+  if (brew === undefined || !existsSync(launcher)) return [];
+  let runs = "neither";
+  for (const dir of (env.pathVar ?? "").split(":")) {
+    const found = dir === "" ? "" : join(dir, "kioku");
+    if (found === "" || !existsSync(found)) continue;
+    const to = real(found);
+    runs = to === real(launcher) ? "the installer's" : /\/Cellar\/kioku\//.test(to) ? "Homebrew's" : "neither";
+    break;
+  }
+  return [
+    warn(
+      "kioku installs",
+      `installed twice, by its installer (${launcher}) and by Homebrew (${brew}); kioku on this PATH runs ${runs}, and the other is never run nor updated`,
+      `keep one: brew uninstall kioku; or rm -rf ${dirs.install} ${launcher}, then kioku plugin claude-code install`,
+    ),
+  ];
+}
+
 /** The version `current` runs, and whether this tool is it (§6.4); nothing to say on a machine with no install. */
 function versionCheck(env: DoctorEnv): Check[] {
+  // Under Homebrew the version is the formula's; the installer's folder, if any, is not this tool's (§6.3).
+  if (env.origin === "homebrew") return [ok("kioku version", `${VERSION}, Homebrew's`)];
   const dirs = dirsOf(env);
   const current = currentVersion(dirs);
   if (current === undefined)
@@ -510,6 +572,26 @@ function versionCheck(env: DoctorEnv): Check[] {
   return [ok("kioku version", `${current}, under ${dirs.install}`)];
 }
 
+/**
+ * Whether the machine was brought forward to the version running (§6.4): pending until a session's `sync`, `setup` or
+ * `update` does it; a step that failed is said with its reason. Nothing to say on a machine with no configuration.
+ */
+function forwardCheck(env: DoctorEnv, config: MachineConfig | undefined): Check[] {
+  if (config === undefined) return [];
+  const version = VERSION;
+  const state = readForwardState(env.home);
+  if (state.version === version) return [ok("brought forward", `to ${version}`)];
+  if (state.failed?.version === version)
+    return [
+      warn(
+        "brought forward",
+        `not yet to ${version}: ${state.failed.reason}`,
+        "the next session tries again; or run `kioku setup`",
+      ),
+    ];
+  return [warn("brought forward", `not yet to ${version}`, "the next session does it; or run `kioku setup`")];
+}
+
 /** Check what a person needs (§6.1, §6.3) and say how to fix what is missing. Reads only. */
 export function runDoctor(env: DoctorEnv): DoctorReport {
   const checks: Check[] = [nodeCheck(env)];
@@ -520,7 +602,9 @@ export function runDoctor(env: DoctorEnv): DoctorReport {
   } else {
     try {
       config = readMachineConfig(env.home);
-      configCheck = ok("configuration", configPath(env.home));
+      configCheck = setupPending(env.home)
+        ? warn("configuration", "kioku setup has not run on this machine", "run `kioku setup`")
+        : ok("configuration", configPath(env.home));
     } catch (e) {
       configCheck = missing(
         "configuration",
@@ -529,7 +613,7 @@ export function runDoctor(env: DoctorEnv): DoctorReport {
       );
     }
   }
-  checks.push(...gitChecks(env, config), configCheck);
+  checks.push(...gitChecks(env, config), configCheck, ...forwardCheck(env, config));
   if (config !== undefined) checks.push(...brainChecks(env, config), ...trustCheck(env, config));
   checks.push(
     pendingCheck(env),
@@ -537,6 +621,7 @@ export function runDoctor(env: DoctorEnv): DoctorReport {
     indexCheck(env),
     modelCheck(env),
     launcherCheck(env),
+    ...installsCheck(env),
     ...versionCheck(env),
     updatesCheck(env, config),
     ...(env.harnesses ?? allHarnesses(env.hostHome ?? env.home, env.env ?? {})).flatMap((h) =>

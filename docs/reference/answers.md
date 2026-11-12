@@ -71,7 +71,7 @@ pages that link to it; `rename` and `move`, `from` and `relinked` (and `move`,
 **`kioku --version`**: `version`, `contract`, the number of this JSON, and
 `formats`, the brain formats the tool reads.
 
-**`kioku setup`**: `configuration` (`created`, `nothing`), `personal`, `forwarded` and `refreshed`, as `kioku update` answers them, with `refreshError` when the refresh failed, `launcher` (`path`, `present`, `onPath`), `shellPath` when the
+**`kioku setup`**: `configuration` (`created`, `nothing`), `personal`, `forwarded` and `refreshed`, as `kioku update` answers them, with `refreshError` when the refresh failed, `origin` (`installer`, `homebrew`, `other`: how the tool was installed; under Homebrew there is no `shellPath` and no `completion`, the formula's), `launcher` (`path`, `present`, `onPath`), `shellPath` when the
 `PATH` step ran (`action`: `linked`, `profile`, `unavailable`; `target`,
 `files`, `skipped`, `line`), `completion` (`shell`, `action`: `written`,
 `present`, `unavailable`; `files`), `model` (`action`: `fetching` with `mb`,
