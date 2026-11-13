@@ -32,6 +32,13 @@ What changed in each version of Kioku. What is true now is in the
   start after it tells the agent to save them before going on. The plugin has
   a `PreCompact` hook for it, `kioku hook pre-compact`; it shows nothing and
   never stops a compaction.
+- **A subagent works under the Rules too.** A subagent the session starts
+  (to explore, to plan, any type) got none of the session's summary, so a Rule,
+  always on, did not hold for it. It is now given the Rules of the session's
+  brains at its start, and told to read the memory through the tool and to
+  leave saving to the session that started it. The plugin has a
+  `SubagentStart` hook for it, `kioku hook subagent-start`; with no Rule in
+  the brains it adds nothing.
 
 ## 0.5.0
 

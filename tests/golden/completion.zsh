@@ -56,7 +56,7 @@ _kioku() {
     'namespace add') _arguments -s '1: :(namespace)' '2: :(add)' '--json[answer in JSON]' '--summary[text]:text:' '--brain[brain]:brain:_kioku_brains' ;;
     'namespace describe') _arguments -s '1: :(namespace)' '2: :(describe)' '--json[answer in JSON]' '--summary[text]:text:' '--brain[brain]:brain:_kioku_brains' ;;
     'namespace rename') _arguments -s '1: :(namespace)' '2: :(rename)' '--json[answer in JSON]' '--brain[brain]:brain:_kioku_brains' '--dry-run[dry run]' ;;
-    'hook') _arguments -s '1: :(hook)' '2:word:(session-start session-start-holds user-prompt-submit pre-compact pre-tool-use post-tool-use)' '--json[answer in JSON]' '--host[claude-code]:claude-code:' ;;
+    'hook') _arguments -s '1: :(hook)' '2:word:(session-start session-start-holds user-prompt-submit pre-compact subagent-start pre-tool-use post-tool-use)' '--json[answer in JSON]' '--host[claude-code]:claude-code:' ;;
   esac
 }
 (( $+functions[compdef] )) || { autoload -Uz compinit && compinit -i; }

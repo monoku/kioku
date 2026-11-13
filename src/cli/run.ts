@@ -18,7 +18,15 @@ import { runNamespace } from "./namespace.ts";
 import { runConfig } from "./config.ts";
 import { misuse, runHelp, unknownVerb, verbIn } from "./help.ts";
 import { runCompletion } from "./completion.ts";
-import { postToolUse, preCompact, preToolUse, sessionStart, sessionStartHolds, userPromptSubmit } from "./hook.ts";
+import {
+  postToolUse,
+  preCompact,
+  preToolUse,
+  sessionStart,
+  sessionStartHolds,
+  subagentStart,
+  userPromptSubmit,
+} from "./hook.ts";
 import { runSync } from "./sync.ts";
 import { runInit } from "./init.ts";
 import { runDoctorVerb } from "./doctor.ts";
@@ -100,6 +108,7 @@ const hookSubcommands = {
   "pre-tool-use": preToolUse,
   "user-prompt-submit": userPromptSubmit,
   "pre-compact": preCompact,
+  "subagent-start": subagentStart,
 } satisfies Record<HookVerb, Handler>;
 
 const verbs: Record<string, Handler> = {
