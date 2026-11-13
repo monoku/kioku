@@ -94,6 +94,10 @@ export interface Harness {
   parsePreCompact: (raw: string) => PreCompactInput;
   /** The answer that asks the host's compaction to keep `instructions` in mind for its summary (§1.1). */
   compactInstructionsAnswer: (instructions: string) => HookAnswer & { raw: true };
+  /** Read the folder a subagent starts in, from the hook that runs at its start (§4.1). */
+  parseSubagentStart: (raw: string) => { cwd?: string };
+  /** The answer that adds `context` to a subagent's context before its first prompt (§4.1). */
+  subagentContextAnswer: (context: string) => HookAnswer;
   /** Read which skill a skill-load hook is told about; undefined when it is unreadable. */
   parseSkillUse: (raw: string) => string | undefined;
   /** Read the session a hook runs in, for its journal (§4.6); undefined when the input names none. */

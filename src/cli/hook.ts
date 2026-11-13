@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { machineReader, mutes, type MachineConfig } from "../core/config/machine.ts";
-import { loadedRow, startHolds, startSession } from "../core/session/start.ts";
+import { loadedRow, startHolds, startSession, startSubagent } from "../core/session/start.ts";
 import { currentVersion, installDirs, installOrigin, managerCommand, newerThan } from "../core/setup/install.ts";
 import { dueForCheck, recordCheck, takeAvailable } from "../core/setup/update.ts";
 import { entriesFor, labelled, nextTurn, ownTurn, readJournal, record } from "../core/session/journal.ts";
@@ -208,6 +208,19 @@ export const preCompact: Handler = guarded(async (harness, ctx) => {
   if (!chain.links.some((l) => l.cloned)) return undefined;
   const saved = input.sessionId === undefined ? [] : savedTitles(readJournal(ctx.home, input.sessionId));
   return harness.compactInstructionsAnswer(compactInstructions(saved));
+});
+
+/**
+ * The `SubagentStart` hook (§4.1, §6.2): a subagent runs no session start, so the Rules of the session's brains, always
+ * on, are added to its context here, with how the memory is read and that saving is the session's. Nothing where the
+ * brains hold no Rule; no entry of the journal, since it is the session's summary said again.
+ */
+export const subagentStart: Handler = guarded(async (harness, ctx) => {
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const input = harness.parseSubagentStart(await ctx.stdin());
+  const rules = startSubagent(ctx.home, config, resolve(input.cwd ?? ctx.cwd));
+  return rules === undefined ? undefined : harness.subagentContextAnswer(rules);
 });
 
 /** How messages are laid out, as the configuration's `display` and the terminal say (§1.2). */

@@ -51,6 +51,18 @@ export const compactInstructionsAnswer = (instructions: string): HookAnswer & { 
   raw: true,
 });
 
+/** What Claude Code tells a `SubagentStart` hook that Kioku reads: the folder. */
+export function parseSubagentStart(raw: string): { cwd?: string } {
+  const r = record(raw);
+  return typeof r?.cwd === "string" ? { cwd: r.cwd } : {};
+}
+
+/** A subagent's start answers as a session's does: `additionalContext`, added before its first prompt. */
+export const subagentContextAnswer = (context: string): HookAnswer => ({
+  data: { hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context } },
+  text: context,
+});
+
 /** The session any hook runs in: `session_id`. */
 export function parseSessionId(raw: string): string | undefined {
   const id = record(raw)?.session_id;

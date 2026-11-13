@@ -68,6 +68,7 @@ test("the plugin's hooks run its own wrapper, one handler per event, the journal
     "PreCompact",
     "PreToolUse",
     "SessionStart",
+    "SubagentStart",
     "UserPromptSubmit",
   ]);
   for (const [event, verbs] of [
@@ -76,6 +77,8 @@ test("the plugin's hooks run its own wrapper, one handler per event, the journal
     ["UserPromptSubmit", ["user-prompt-submit"]],
     // Before a compaction, what was not saved is kept by its summary (§1.1).
     ["PreCompact", ["pre-compact"]],
+    // A subagent runs no session start: the Rules reach it at its own (§4.1).
+    ["SubagentStart", ["subagent-start"]],
   ] as const) {
     assert.equal(hooks[event]!.length, verbs.length);
     verbs.forEach((verb, i) => {
