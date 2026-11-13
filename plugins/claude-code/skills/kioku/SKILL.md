@@ -28,14 +28,15 @@ The pipeline waits.
 EOF
 ```
 
-The answer is JSON: `status` is `done` (committed; `publication` is `pushed`, `pending` or `local`), `similar` (nothing written; see "Before writing") or `error` (nothing written; `error.message` says why, as from any verb).
+The answer is JSON: `status` is `done` (committed; `publication` is `pushed`, `pending` or `local`), `similar` (nothing written; see "Before writing") or `error` (nothing written; `error.message` says why).
 
 - `--brain`: `personal`, `project`, `team`, or a brain's name from the session summary.
 - `--title`: one line; it names the page.
 - `--summary`: one line, always: what the session summary shows.
 - `--aliases`: other names for the subject, comma-separated; search and `save` find it by them.
 - `--source`: `Session <today's date> in <repository folder>`, or a URL.
-- `--evidence`: the person's own short words, when they said it (see "Never saved").
+- `--evidence`: see "Never saved".
+- `--applies-to`: globs of the project files a project page is about (`src/billing/**`); reading or changing one names it.
 
 The other verbs, answering the same way, each `kioku page <verb>`:
 
@@ -117,7 +118,7 @@ When a Skill the summary lists applies to what you are about to do, `show` it fi
 
 ## Inside a brain
 
-The session summary says when this session is inside a brain: the person opened you in its folder to work on it. Answer with `search`, `list` and `show`; act with the verbs above; `kioku brain lint` says what to clean up, the person decides. What you write goes to that brain unless it is about the person. `/ingest` fills it from a source.
+The session summary says when this session is inside a brain, opened to work on it. Answer with `search`, `list` and `show`; act with the verbs above; `kioku brain lint` says what to clean up, the person decides. What you write goes to that brain unless it is about the person. `/ingest` fills it from a source.
 
 ## When the person talks about memory
 

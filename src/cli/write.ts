@@ -51,7 +51,7 @@ export const runSave = writing("page save", NONE, async (c) => {
     source: required(values.source, "source"),
     body: text,
     create: Boolean(values.create),
-    ...c.given(["sub", "evidence", "summary", "aliases", "namespace", "stale-after", "source-version"]),
+    ...c.given(["sub", "evidence", "summary", "aliases", "namespace", "stale-after", "source-version", "applies-to"]),
     ...(seeAlso !== undefined && { seeAlso }),
   };
   return outcome("Saved", await save(brain, input, env(ctx)));
@@ -78,7 +78,17 @@ export const runUpdate = writing("page update", PATH, async (c) => {
   const text = await stdinBody(c.ctx);
   const input = {
     ...(text.trim() !== "" && { body: text }),
-    ...c.given(["section", "evidence", "source", "note", "summary", "aliases", "stale-after", "source-version"]),
+    ...c.given([
+      "section",
+      "evidence",
+      "source",
+      "note",
+      "summary",
+      "aliases",
+      "stale-after",
+      "source-version",
+      "applies-to",
+    ]),
   };
   return outcome("Updated", await update(where.brain, where.rel, input, env(c.ctx)));
 });

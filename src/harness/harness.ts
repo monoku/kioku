@@ -26,6 +26,13 @@ export interface PreCompactInput {
   sessionId?: string;
 }
 
+/** A file one of the host's file tools is about to read or change. */
+export interface ToolPath {
+  file: string;
+  cwd?: string;
+  sessionId?: string;
+}
+
 /** What a prompt-submit hook is told. */
 export interface UserPromptInput {
   prompt: string;
@@ -98,6 +105,10 @@ export interface Harness {
   parseSubagentStart: (raw: string) => { cwd?: string };
   /** The answer that adds `context` to a subagent's context before its first prompt (§4.1). */
   subagentContextAnswer: (context: string) => HookAnswer;
+  /** Read the file a pre-tool hook is told a file tool is about to read or change; undefined for any other call. */
+  parseToolPath: (raw: string) => ToolPath | undefined;
+  /** The answer that adds `context` beside a tool's result for the agent, and tells the person (§4.7, §1.2); it decides nothing about the call. */
+  toolContextAnswer: (context: string, said?: string) => HookAnswer;
   /** Read which skill a skill-load hook is told about; undefined when it is unreadable. */
   parseSkillUse: (raw: string) => string | undefined;
   /** Read the session a hook runs in, for its journal (§4.6); undefined when the input names none. */

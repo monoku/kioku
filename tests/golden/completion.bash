@@ -143,12 +143,12 @@ _kioku() {
       --sub) COMPREPLY=( $(compgen -W "decision playbook context instinct" -- "$cur") ); return ;;
       --see-also) COMPREPLY=( $(compgen -f -- "$cur") ); return ;;
       esac
-      COMPREPLY=( $(compgen -W "--brain --kind --title --source --sub --evidence --summary --aliases --namespace --stale-after --source-version --create --see-also --json" -- "$cur") ); return ;;
+      COMPREPLY=( $(compgen -W "--brain --kind --title --source --sub --evidence --summary --aliases --namespace --stale-after --source-version --applies-to --create --see-also --json" -- "$cur") ); return ;;
     "page update")
       case "$prev" in
       --brain) COMPREPLY=( $(compgen -W "$(kioku brain list --json 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | sort -u)" -- "$cur") ); return ;;
       esac
-      COMPREPLY=( $(compgen -W "--brain --section --evidence --source --note --summary --aliases --stale-after --source-version --json" -- "$cur") ); return ;;
+      COMPREPLY=( $(compgen -W "--brain --section --evidence --source --note --summary --aliases --stale-after --source-version --applies-to --json" -- "$cur") ); return ;;
     "page supersede")
       case "$prev" in
       --brain) COMPREPLY=( $(compgen -W "$(kioku brain list --json 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | sort -u)" -- "$cur") ); return ;;
@@ -220,7 +220,7 @@ _kioku() {
     hook)
       case "$prev" in
       esac
-      if (( COMP_CWORD == 2 )) && [[ "$cur" != -* ]]; then COMPREPLY=( $(compgen -W "session-start session-start-holds user-prompt-submit pre-compact subagent-start pre-tool-use post-tool-use" -- "$cur") ); return; fi
+      if (( COMP_CWORD == 2 )) && [[ "$cur" != -* ]]; then COMPREPLY=( $(compgen -W "session-start session-start-holds user-prompt-submit pre-compact subagent-start pre-tool-use pre-tool-path post-tool-use" -- "$cur") ); return; fi
       COMPREPLY=( $(compgen -W "--host --json" -- "$cur") ); return ;;
   esac
 }

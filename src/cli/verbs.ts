@@ -258,7 +258,8 @@ export const SECTIONS = [
       [
         "kioku page save --brain <b> --kind <k> --title <t> --source <s> [--sub <decision|playbook|context|instinct>]",
         "           [--evidence <q>] [--summary <s>] [--aliases <a,b>] [--namespace <ns>]",
-        "           [--stale-after <date>] [--source-version <v>] [--create [--see-also <paths>]] < body",
+        "           [--stale-after <date>] [--source-version <v>] [--applies-to <glob,glob>]",
+        "           [--create [--see-also <paths>]] < body",
       ],
       {
         brain: str(b),
@@ -272,6 +273,7 @@ export const SECTIONS = [
         namespace: str("<ns>"),
         "stale-after": str("<date>"),
         "source-version": str("<v>"),
+        "applies-to": many("<glob,glob>"),
         create: bool(),
         "see-also": many("<paths>"),
       },
@@ -281,7 +283,7 @@ export const SECTIONS = [
       [
         "kioku page update <path> [--brain <b>] [--section <name>] [--evidence <line> --source <s>]",
         "             [--note <line>] [--summary <s>] [--aliases <a,b>] [--stale-after <date>|none]",
-        "             [--source-version <v>|none] < body",
+        "             [--source-version <v>|none] [--applies-to <glob,glob>|none] < body",
       ],
       {
         brain: str(b),
@@ -293,6 +295,7 @@ export const SECTIONS = [
         aliases: many("<a,b>"),
         "stale-after": str("<date>"),
         "source-version": str("<v>"),
+        "applies-to": many("<glob,glob>"),
       },
       "free",
     ),
@@ -403,7 +406,7 @@ export const SECTIONS = [
   section("Used by the agent integration, not by people", {
     hook: v(
       "what the plugin's hooks call",
-      "kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|post-tool-use [--host claude-code]",
+      "kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]",
       { host: str("claude-code") },
       choices(
         "session-start",
@@ -412,6 +415,7 @@ export const SECTIONS = [
         "pre-compact",
         "subagent-start",
         "pre-tool-use",
+        "pre-tool-path",
         "post-tool-use",
       ),
     ),
