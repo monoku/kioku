@@ -84,6 +84,20 @@ counted in it.
 lists them, and says that a page is read with `kioku page show`, never through
 its files: an agent that reads it first knows what to do with its lines.
 
+**A subagent** the session starts runs no session start and has none of the
+conversation. A `SubagentStart` hook (§6.2) adds to its context, before its
+first prompt and whatever its type, the Rules of the session's brains, as the
+first part says them, under the same cap and with the same last line when it
+cuts them: a Rule is always on (§3.4), for whoever works in the session. Before
+them, a few lines never cut: that the Rules hold for it, that the most specific
+brain wins, that the memory is read through the tool once the skill is loaded,
+never through a brain's files, and that it saves nothing itself, saying in its
+answer what is worth keeping, which the session that started it decides. Inside
+a brain (§2.7), that brain's Rules alone. Nothing else of the summary, and
+nothing at all where the brains hold no Rule. It is the session's summary said
+again: no entry of the journal (§4.6), no count (§4.5), nothing said to the
+person.
+
 The first part's hook also tells the person which brains the summary loaded and
 how many pages they hold (§1.2), and, inside a brain, by tier, which brains of
 the chain are not loaded; a session with no summary gets no such line. It alone
