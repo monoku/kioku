@@ -60,6 +60,15 @@ What changed in each version of Kioku. What is true now is in the
   session opened: their title and summary are all a recall shows, so they are
   the ones to reword, or to retire. Counted from this version on; nothing
   changes which pages a recall names.
+- **`kioku page save` says when another brain of the session has a page on the
+  same subject.** A personal preference that says otherwise than a decision of
+  the project's was written with no word, and "the most specific brain wins"
+  settled it without anyone knowing. A save's answer now carries `elsewhere`,
+  those pages, whether it wrote or answered `similar`; it never stops the
+  write, and the agent tells you when the two disagree. `kioku brain lint`,
+  run on the brains of a folder together, lists the pages of one on the
+  subject of a page in a more shared one, `similarElsewhere`, apart from its
+  count.
 
 ## 0.5.0
 

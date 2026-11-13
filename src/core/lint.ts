@@ -13,8 +13,8 @@ import { writeAtomic } from "./fs/atomic.ts";
 import { acquireLock } from "./fs/lock.ts";
 import { openIndex, type Index } from "./index/db.ts";
 import { updateIndex } from "./index/indexer.ts";
-import { aliasesOf, similarPages, stemsMet } from "./index/similar.ts";
-import { significantWords, stemOf } from "./index/text.ts";
+import { sameSubject, similarPages } from "./index/similar.ts";
+export { SIMILAR_REPORT_SHARE } from "./index/similar.ts";
 import { seeAlsoEntries } from "./write/body.ts";
 import { lintReportPath } from "./state.ts";
 import { lastTouched, touchedOf } from "./touched.ts";
@@ -33,8 +33,6 @@ export const UNOPENED_DAYS = 60;
 export const UNFOLLOWED_RECALLS = 5;
 /** An instinct with this many occasions is a candidate for a Skill (§3.6). */
 export const SKILL_CANDIDATE_OCCASIONS = 3;
-/** The share of the shorter title's words the other's title meets before `brain lint` reports the pair as one subject (§4.4). */
-export const SIMILAR_REPORT_SHARE = 0.6;
 /**
  * How many days a kind of page lasts without being changed or confirmed before `lint` asks. What changes
  * under people (context: who, where, which client) is asked after nine months; a way of working, a Rule or a Skill, a
@@ -89,6 +87,11 @@ export interface LintReport {
   unopened: { path: string; since: string; days: number; surfaced: number }[];
   /** Pages a recall named `UNFOLLOWED_RECALLS` times or more on this machine and no session then opened (§4.5). */
   unfollowed: { path: string; recalled: number }[];
+  /**
+   * Pages on the subject of one in a more shared brain linted with this one (§4.4): `path` here, `other` in `brain`.
+   * Not in `count`: a link cannot cross brains (§3.3), so nothing could settle it, and it is often meant.
+   */
+  similarElsewhere: { path: string; brain: string; other: string }[];
   /** The day this machine began to count what it opens, or null when it does not (§4.5). */
   counting_since: string | null;
   /** Namespaces that do not say what they are for, in a brain that has more than one (§3.2). */
@@ -136,10 +139,37 @@ export async function lintBrains(
   const index = await openIndex(home);
   const reads = readReads(home);
   try {
-    return brains.map((b) => lintBrain(b, index, now, reads));
+    const reports = brains.map((b) => lintBrain(b, index, now, reads));
+    // Each brain against the ones after it, the more shared: a pair is listed once, in the more specific brain.
+    brains.forEach((a, i) => {
+      for (const b of brains.slice(i + 1)) reports[i]!.similarElsewhere.push(...similarAcross(index, a, b));
+    });
+    return reports;
   } finally {
     index.close();
   }
+}
+
+/** The current pages of `a` that are on the subject of a current page of `b` (§4.4); both brains are in the index. */
+function similarAcross(
+  index: Index,
+  a: { key: string; root: string },
+  b: { key: string; root: string },
+): LintReport["similarElsewhere"] {
+  const out: LintReport["similarElsewhere"] = [];
+  for (const rel of listMarkdown(a.root)) {
+    if (isFrontPageAt(rel)) continue;
+    const parsed = parseBrainFile(readFileSync(join(a.root, rel), "utf8"));
+    if (!parsed.ok || isRetired(parsed.file.front)) continue;
+    const { front, body } = parsed.file;
+    const title = front.getString("title");
+    if (title === undefined || front.getString("superseded_by") !== undefined) continue;
+    const aliases = front.getList("aliases") ?? [];
+    for (const hit of similarPages(index, b.key, { title, aliases, body }))
+      if (hit.status === null && sameSubject(index, title, aliases, b.key, hit))
+        out.push({ path: rel, brain: b.key, other: hit.path });
+  }
+  return out;
 }
 
 export function lintBrain(
@@ -170,13 +200,7 @@ export function lintBrain(
     const aliases = d.file.front.getList("aliases") ?? [];
     for (const hit of similarPages(index, brain.key, { title, aliases, body: d.file.body })) {
       if (hit.path === d.rel || retired.has(hit.path) || linkEachOther(d.rel, hit.path)) continue;
-      // `save` asks "is there a page on this subject?" and answers by a loose rule, because the agent decides. A report
-      // for a person is stricter: the two titles, with their aliases, share most of what the shorter one says.
-      const mine = [...new Set(significantWords([title, ...aliases].join(" ")).map(stemOf))];
-      const theirText = `${hit.title} ${aliasesOf(index, brain.key, hit.path)}`;
-      const theirs = new Set(significantWords(theirText).map(stemOf));
-      const shared = stemsMet(mine, theirText);
-      if (shared < 2 || shared / Math.min(mine.length, theirs.size) < SIMILAR_REPORT_SHARE) continue;
+      if (!sameSubject(index, title, aliases, brain.key, hit)) continue;
       const [a, b] = [d.rel, hit.path].sort() as [string, string];
       if (seen.has(`${a}\n${b}`)) continue;
       seen.add(`${a}\n${b}`);
@@ -354,6 +378,7 @@ export function lintBrain(
     conflicts,
     unopened,
     unfollowed,
+    similarElsewhere: [],
     counting_since: reads?.counting_since ?? null,
     undescribed,
     count,
@@ -392,6 +417,7 @@ export const LINT_LISTS = [
   "conflicts",
   "unopened",
   "unfollowed",
+  "similarElsewhere",
   "undescribed",
 ] as const;
 

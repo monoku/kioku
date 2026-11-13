@@ -19,6 +19,7 @@ const report = (n: number): LintReport => ({
   conflicts: [],
   unopened: [],
   unfollowed: [],
+  similarElsewhere: [],
   counting_since: null,
   undescribed: ["a"],
   count: n + 1,
