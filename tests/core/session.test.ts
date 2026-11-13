@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { NEWS_MAX, composeSummary, SKILLS_NOTE, SUMMARY_CAP } from "../../src/core/session/summary.ts";
 import { loadSummaryBrains } from "../../src/core/session/summary-load.ts";
 import { startDetached } from "../../src/core/session/background.ts";
+import { RULE_NEWS_MAX } from "../../src/core/session/start.ts";
 import { indexPath, syncStatePath, viewsPath } from "../../src/core/state.ts";
 import { readPending } from "../../src/core/write/pending.ts";
 import { readMachineConfig, updateMachineConfig } from "../../src/core/config/machine.ts";
@@ -897,4 +898,133 @@ test("a plugin of another version than the tool: the summary still comes, and th
 
     await w.kioku(["config", "set", "display.mute", "+plugin-version"], { context: { interactive: true } });
     assert.doesNotMatch(await session("0.7.0", "0.2.0"), /different versions/, "muted");
+  }));
+
+/** A teammate's clone of acme, and the environment their commits are made in. */
+function teammateOf(w: World, name: string) {
+  const dir = join(w.dir, `teammate-${name}`);
+  execFileSync("git", ["clone", "-q", "https://github.com/northwind/brain-acme.git", dir]);
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: name,
+    GIT_AUTHOR_EMAIL: `${name.toLowerCase()}@example.com`,
+    GIT_COMMITTER_NAME: name,
+    GIT_COMMITTER_EMAIL: `${name.toLowerCase()}@example.com`,
+  };
+  const push = async (message: string) => {
+    execFileSync("git", ["-C", dir, "add", "-A"], { env });
+    execFileSync("git", ["-C", dir, "commit", "-q", "-m", message], { env });
+    execFileSync("git", ["-C", dir, "push", "-q", "origin", "main"], { env });
+    assert.equal((await w.kioku(["sync", "--cwd", w.repo])).code, 0);
+  };
+  return { dir, push };
+}
+
+test("a Rule a teammate adds, changes, retires or removes in a shared brain is said to the person once, and never muted (§1.2)", () =>
+  world(async (w) => {
+    const said = async (o: { source?: string } = {}) => (await start(w, o)).out.systemMessage ?? "";
+    assert.doesNotMatch(await said(), /Rule/, "the first session has nothing before it");
+
+    const ana = teammateOf(w, "Ana");
+    const rule = made({
+      n: 90,
+      type: RULE,
+      title: "Never deploy on Fridays",
+      summary: "No deploys on Fridays.",
+      sections: { Rule: "Never deploy on a Friday.", Why: "Nobody is there on Saturday." },
+    });
+    put(ana.dir, rule.path, rule.text);
+    await ana.push("save: Never deploy on Fridays");
+    // The person muted every notice that has a name: this one has none.
+    await updateMachineConfig((c) => void (c.display = { mute: ["cloning", "unpublished"] }), w.home);
+
+    const first = await said();
+    assert.match(first, /a Rule of a shared brain changed/);
+    assert.match(first, /added · Never deploy on Fridays · project · by Ana/);
+    assert.match(first, new RegExp(`kioku page show ${rule.path} --brain project`));
+    assert.doesNotMatch(first, /to stop this notice/);
+    assert.doesNotMatch(await said(), /Rule/, "once");
+
+    // A change is said at a resumed session too, which loads the Rules again; one that only confirms is not.
+    put(
+      ana.dir,
+      rule.path,
+      rule.text.replace("Never deploy on a Friday.", "Never deploy on a Friday or before a holiday."),
+    );
+    await ana.push("update: Never deploy on Fridays");
+    assert.match(await said({ source: "resume" }), /changed · Never deploy on Fridays · project · by Ana/);
+    put(
+      ana.dir,
+      rule.path,
+      readFileSync(join(ana.dir, rule.path), "utf8").replace(
+        "\n---\n",
+        "\nverified: { by: human:ana, at: 2026-10-07T12:00:00Z }\n---\n",
+      ),
+    );
+    await ana.push("confirm: Never deploy on Fridays");
+    assert.doesNotMatch(await said(), /Rule/);
+
+    // This machine's own Rule is not news to it.
+    const mine = await w.kioku(
+      [
+        "page",
+        "save",
+        "--brain",
+        "northwind/brain-acme",
+        "--kind",
+        "rule",
+        "--title",
+        "Ask before a migration",
+        "--summary",
+        "Ask first.",
+        "--source",
+        "s",
+        "--create",
+      ],
+      { stdin: "## Rule\n\nAsk before a migration.\n\n## Why\n\nIt cannot be undone.\n" },
+    );
+    assert.equal(mine.code, 0, mine.raw);
+    assert.doesNotMatch(await said(), /Rule/);
+
+    // Retired, then removed: both change what the agent is held to.
+    execFileSync("git", ["-C", ana.dir, "pull", "-q"]);
+    const text = readFileSync(join(ana.dir, rule.path), "utf8");
+    put(ana.dir, rule.path, text.replace("\n---\n", "\nstatus: deprecated\n---\n"));
+    await ana.push("retire: Never deploy on Fridays");
+    assert.match(await said(), /retired · Never deploy on Fridays · project · by Ana/);
+    execFileSync("git", ["-C", ana.dir, "rm", "-q", rule.path]);
+    await ana.push("forget: Never deploy on Fridays");
+    const gone = await said();
+    assert.match(gone, /removed · Never deploy on Fridays · project · by Ana/);
+    assert.doesNotMatch(gone, /kioku page show/);
+  }));
+
+test("a Rule renamed is one change, and more Rules than a notice names are counted (§1.2)", () =>
+  world(async (w) => {
+    await start(w);
+    const ana = teammateOf(w, "Ana");
+    const rules = Array.from({ length: RULE_NEWS_MAX + 2 }, (_, i) =>
+      made({
+        n: 60 + i,
+        type: RULE,
+        title: `House rule ${i}`,
+        summary: "s",
+        sections: { Rule: `Do ${i}.`, Why: "Because." },
+      }),
+    );
+    for (const r of rules) put(ana.dir, r.path, r.text);
+    await ana.push("save: House rules");
+    const many = (await start(w)).out.systemMessage;
+    assert.match(many, new RegExp(`${rules.length} Rules of the shared brains changed`));
+    assert.equal(many.match(/added · House rule/g).length, RULE_NEWS_MAX);
+    assert.match(many, /and 2 more: kioku page list --kind rule/);
+
+    const moved = rules[0]!.path.replace("house-rule-0", "the-first-house-rule");
+    execFileSync("git", ["-C", ana.dir, "mv", rules[0]!.path, moved]);
+    put(ana.dir, moved, rules[0]!.text.replace("title: House rule 0", "title: The first house rule"));
+    await ana.push("rename: The first house rule");
+    const renamed = (await start(w)).out.systemMessage;
+    assert.match(renamed, /a Rule of a shared brain changed/);
+    assert.match(renamed, /changed · The first house rule · project · by Ana/);
+    assert.doesNotMatch(renamed, /removed|added/);
   }));

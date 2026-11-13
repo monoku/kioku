@@ -35,7 +35,8 @@ until the cap:
    relevant ones first within a brain;
 5. what is new in the shared brains since this machine's last session that
    showed it, ten a brain at most, newest first, with how many more and the
-   command that lists them; news the cap cut waits for the next session;
+   command that lists them; news the cap cut waits for the next session; a
+   Rule among them is also said to the person, by itself (§1.2);
 6. how many things `brain lint` (§4.4) has to review, per brain;
 7. while the brains of the session hold fewer pages than a prompt's recall
    needs (§4.7), the Memories that are facts and lessons, one line each, the

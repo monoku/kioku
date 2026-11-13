@@ -123,6 +123,25 @@ says nothing.
 ⬢ kioku.md ↓ recalled  by meaning · 2 pages (project, personal)
 ```
 
+**A Rule that changed in a shared brain is said to the person.** A Rule goes
+whole into every session (§4.1), and anyone who can push to a project or team
+brain writes one. So a session's start, resumed or compacted too, says each
+Rule of the session's shared brains that someone else added, changed, retired
+or removed since this machine last said so: what happened to it, its title,
+its brain, who changed it as the commit names them, and the command that reads
+it; five Rules at most, then how many more and the command that lists them.
+Each change is said once. A commit of this machine's own git identity is not
+said, nor one that only confirms a Rule or links it, and a Rule renamed is one
+change. A brain this machine loads for the first time says none: no session
+came before it. The machine keeps, per brain, the commit it has said up to
+(§2.5).
+
+```
+⬢ kioku.md · a Rule of a shared brain changed
+  ⎿ added · Never deploy on Fridays · project · by Ana
+  ⎿   kioku page show rules/never-deploy-on-fridays.md --brain project
+```
+
 `display.mute` in the machine configuration (§2.5) lists, by name, the notices
 the person does not want; a muted notice is said neither in a session nor in a
 verb's answer. `doctor` still reports what it finds, except the `unpublished`
@@ -145,8 +164,8 @@ name:
 | `brain-not-here` | in a session: the folder's `kioku.yaml` names by name alone a brain this machine does not have, so it is not loaded, with `kioku init <address>` once a teammate who has it gives its address (§2.4) |
 
 The rest is never silenced: an error, changes kept aside after a conflict
-(§1.6), a question the host asks (§3.2), the summary, what a prompt recalled and
-the rows. A notice with
+(§1.6), a Rule that changed in a shared brain, a question the host asks (§3.2),
+the summary, what a prompt recalled and the rows. A notice with
 a name ends with the command that silences it,
 `kioku config set display.mute +<name>`.
 
