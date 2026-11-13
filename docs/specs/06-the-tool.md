@@ -161,7 +161,8 @@ and the host has no other way to it. The plugin holds:
   when there is no personal brain (§1.2), and starts the daily look for a new
   version where the installer installed the tool (§6.4); at each prompt, one
   counts the session's next turn (§4.6) and adds the pages that bear on the
-  prompt (§4.7); after the shell tool, one filtered to the tool's writing and
+  prompt (§4.7); before the host compacts a session, one asks its summary to
+  keep what was said and not saved (§1.1); after the shell tool, one filtered to the tool's writing and
   reading verbs writes what they did into the journal (§4.6); before the skill
   tool, one lets the host load Kioku's own skill without asking, writing that
   into the journal, and nothing for another skill; before `kioku namespace

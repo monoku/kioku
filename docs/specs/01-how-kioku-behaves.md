@@ -25,6 +25,21 @@ When the person says something should be remembered ("remember this"), the
 agent saves it regardless of the rule, in the most fitting kind, or as a Memory
 with the person's words as the body.
 
+**Before the context is compacted.** A long session's conversation becomes a
+summary, and what the person said and the agent did not save would go with it.
+The host gives the agent no turn before it compacts, so nothing is saved then:
+a `PreCompact` hook (§6.2) asks the compaction to keep, under the heading
+`Not yet saved to Kioku`, one line each and in the person's words, what the
+person said that passes the two tests above, leaving out what the session
+already saved, which the hook names by title from the session's journal (§4.6),
+secrets, the steps of the task and what the repository shows. The session's
+next start, which says it was compacted, tells the agent to save what is under
+that heading, and anything else of the kind the summary holds, before going on
+(§4.1). The hook says nothing to the person, makes no entry of the journal,
+never stops a compaction, and answers nothing where no brain is loaded. What
+the compaction keeps is the host's model's doing: this lowers what is lost, and
+promises nothing.
+
 ## 1.2 What the person sees
 
 The agent does not describe the save in its reply: no file name, no path, no
