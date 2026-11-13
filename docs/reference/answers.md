@@ -50,6 +50,10 @@ verb beside `status: "error"` in its own shape (below); any other verb as
 - `similar`: `path`, `commit` and `publication` are null, and `similar` lists
   the pages found, each with `brain`, `path`, `title`, `kind`, `subkind`,
   `summary` and `touched`.
+- `elsewhere`, from `page save` alone and only when there are some, on `done`
+  and on `similar`: the pages on the subject in the session's other brains,
+  each with `brain`, `path`, `title`, `kind`, `subkind` and `summary`. They
+  never stop a write.
 - `namespace`: nothing written; `namespaces`, each with `namespace`, `summary`
   (or null), `pages` and `below`.
 - `error`: `error` holds `code`, `message` and, when the validator refused the
@@ -141,8 +145,9 @@ and the team's with `from` (`folder`, `machine`); `inside`; `notLoaded` (`tier`,
 length of each list that was cut) and its lists: `similar`, `staleInstincts`,
 `superseded`, `brokenLinks`, `missingSummary`, `skillCandidates`, `expired`,
 `unconfirmed`, `retiredLinks`, `contradictions`, `conflicts`, `undescribed`,
-`unopened` (each with `since`, `days`, `surfaced`) and `unfollowed` (each with
-`path` and `recalled`), and `counting_since`.
+`unopened` (each with `since`, `days`, `surfaced`), `unfollowed` (each with
+`path` and `recalled`) and `similarElsewhere` (each with `path`, `brain` and
+`other`, which `count` leaves out), and `counting_since`.
 
 **`kioku brain log`**: `since`, `writes`, each with `verb`, `title`, `brain`,
 `path`, `date`, `author`, `via` and `commit`; and `total`, `offset`, `limit`,
