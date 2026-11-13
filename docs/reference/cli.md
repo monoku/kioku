@@ -233,6 +233,28 @@ By hand it fetches the search model first when it is missing. `--cwd` and
 `conflict`; exit 1 when a brain failed; another sync running is said, not
 waited for.
 
+### `kioku handoff`
+
+```text
+kioku handoff set|show|clear [--cwd <dir>] [--branch <branch>] < text
+```
+
+Where this folder's last session stopped, for the next one on this machine.
+<!-- /generated -->
+
+`set` takes the handoff on stdin, 4,000 characters at most, and replaces the
+one its place had; an empty one is `handoff_empty`, a longer one
+`handoff_too_long`, one that holds a secret `handoff_secret`. A place is a
+folder and the branch checked out there: the nearest of the project folder
+and the top of the repository or worktree that `--cwd` or the current folder
+is in, else that folder; a folder that is no repository has no branch. `show`
+says the handoff whole, and the folder's handoffs on other branches; `show`
+and `clear` take one of those with `--branch`. In a session of an agent host
+with Kioku's plugin, the handoff also names the pages of the memory that
+session wrote and opened, eight at most. A handoff is not memory and not a
+document for someone else: it is in no brain, and a session that starts anew
+in its place is given it, for thirty days.
+
 ## Brains
 
 ### `kioku brain create`
@@ -707,7 +729,7 @@ the brain are not rewritten.
 ### `kioku hook`
 
 ```text
-kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]
+kioku hook session-start|session-start-holds|session-start-handoff|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]
 ```
 
 What the plugin's hooks call.
