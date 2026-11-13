@@ -58,7 +58,7 @@ export interface JournalEntry {
   /** How many results a search gave, or how many pages a list or the summary hold. */
   count?: number;
   /** The pages a search's answer or a prompt's recall (§4.7) brought, in its order (§4.6): never a page's text. */
-  hits?: { brain: string; path: string; title: string }[];
+  hits?: { brain: string; path: string; title: string; id?: string }[];
   /** How a recall found its pages when not by meaning (§4.7): by a prompt's words, where meaning could not run, or by the path of a file the agent read or changed. */
   by?: "words" | "path";
   /** How many pages a list has in all, when it answered a window of them (§4.6). */

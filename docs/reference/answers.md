@@ -140,8 +140,9 @@ and the team's with `from` (`folder`, `machine`); `inside`; `notLoaded` (`tier`,
 **`kioku brain lint`**: `brains`, each with `brain`, `count`, `totals` (the
 length of each list that was cut) and its lists: `similar`, `staleInstincts`,
 `superseded`, `brokenLinks`, `missingSummary`, `skillCandidates`, `expired`,
-`unconfirmed`, `retiredLinks`, `contradictions`, `conflicts`, `undescribed`
-and `unopened` (each with `since`, `days`, `surfaced`), and `counting_since`.
+`unconfirmed`, `retiredLinks`, `contradictions`, `conflicts`, `undescribed`,
+`unopened` (each with `since`, `days`, `surfaced`) and `unfollowed` (each with
+`path` and `recalled`), and `counting_since`.
 
 **`kioku brain log`**: `since`, `writes`, each with `verb`, `title`, `brain`,
 `path`, `date`, `author`, `via` and `commit`; and `total`, `offset`, `limit`,
@@ -150,7 +151,8 @@ and `unopened` (each with `since`, `days`, `surfaced`), and `counting_since`.
 **`kioku brain stats`**: `since` and `brains`, each with `brain`, `writes`,
 `by_verb`, `by_via` (per `via` and `unknown`: `writes`, `saved`, `reverted`,
 `revert_rate`), `saved`, `reverted`, `revert_rate` (null when nothing was
-saved), `confirmed`, `opened`, `unopened` and `counting_since`.
+saved), `confirmed`, `opened`, `unopened`, `recalled`, `followed`,
+`follow_rate` (null when no recall named a page) and `counting_since`.
 
 **`kioku brain sources`**: one entry per source, with `brain`, `source`,
 `count`, `last`, `version` and `versions`; with a source, `pages`, each with

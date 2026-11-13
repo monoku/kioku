@@ -54,7 +54,7 @@ function describe(all: (BrainStats & ReadStats & { brain: string })[], since: Da
     "SUPERSEDED",
     "CONFIRMED",
     "FORGOTTEN",
-    ...(counting ? ["OPENED", "UNOPENED"] : []),
+    ...(counting ? ["OPENED", "UNOPENED", "RECALLED", "FOLLOWED"] : []),
   ];
   const rows = all.map((s) => [
     brainRepoOfKey(s.brain),
@@ -65,7 +65,9 @@ function describe(all: (BrainStats & ReadStats & { brain: string })[], since: Da
     String(s.by_verb.confirm),
     String(s.by_verb.forget),
     ...(counting
-      ? [s.counting_since === null ? "-" : String(s.opened), s.counting_since === null ? "-" : String(s.unopened)]
+      ? s.counting_since === null
+        ? ["-", "-", "-", "-"]
+        : [String(s.opened), String(s.unopened), String(s.recalled), String(s.followed)]
       : []),
   ]);
   const out = [
@@ -100,6 +102,11 @@ function describe(all: (BrainStats & ReadStats & { brain: string })[], since: Da
   }
   const since_ = all.find((s) => s.counting_since !== null)?.counting_since;
   if (since_ !== undefined && since_ !== null)
-    out.push("", p.dim(`Opens are counted on this machine since ${since_}.`));
+    out.push(
+      "",
+      p.dim(
+        `Opens are counted on this machine since ${since_}; recalled is the times a prompt or a file brought a page, followed the times the session then opened it.`,
+      ),
+    );
   return out.join("\n");
 }
