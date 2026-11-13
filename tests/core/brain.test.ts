@@ -99,6 +99,7 @@ test("the front matter has exactly the fields of §3.3: no state, approval or co
       "source_version",
       "evidence",
       "stale_after",
+      "applies_to",
       "status",
       "verified",
       "supersedes",

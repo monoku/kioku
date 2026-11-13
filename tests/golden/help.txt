@@ -478,7 +478,8 @@ https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-show
 $ kioku help page save
 kioku page save --brain <b> --kind <k> --title <t> --source <s> [--sub <decision|playbook|context|instinct>]
            [--evidence <q>] [--summary <s>] [--aliases <a,b>] [--namespace <ns>]
-           [--stale-after <date>] [--source-version <v>] [--create [--see-also <paths>]] < body
+           [--stale-after <date>] [--source-version <v>] [--applies-to <glob,glob>]
+           [--create [--see-also <paths>]] < body
 
 Writes a page, or answers the similar pages it found instead.
 
@@ -488,7 +489,7 @@ https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-save
 $ kioku help page update
 kioku page update <path> [--brain <b>] [--section <name>] [--evidence <line> --source <s>]
              [--note <line>] [--summary <s>] [--aliases <a,b>] [--stale-after <date>|none]
-             [--source-version <v>|none] < body
+             [--source-version <v>|none] [--applies-to <glob,glob>|none] < body
 
 Rewrites a page's body, or one section, keeping its history.
 
@@ -605,7 +606,7 @@ More in the reference, under `kioku namespace rename`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-rename
 
 $ kioku help hook
-kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|post-tool-use [--host claude-code]
+kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]
 
 What the plugin's hooks call.
 

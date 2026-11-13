@@ -21,6 +21,7 @@ import { runCompletion } from "./completion.ts";
 import {
   postToolUse,
   preCompact,
+  preToolPath,
   preToolUse,
   sessionStart,
   sessionStartHolds,
@@ -109,6 +110,7 @@ const hookSubcommands = {
   "user-prompt-submit": userPromptSubmit,
   "pre-compact": preCompact,
   "subagent-start": subagentStart,
+  "pre-tool-path": preToolPath,
 } satisfies Record<HookVerb, Handler>;
 
 const verbs: Record<string, Handler> = {

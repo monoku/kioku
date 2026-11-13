@@ -29,6 +29,8 @@ export interface NewPage {
   evidence?: string;
   /** `YYYY-MM-DD`: after it the page needs a second look (§3.3). */
   staleAfter?: string;
+  /** Globs of the project's files the page is about (§3.3). */
+  appliesTo?: string[];
   summary?: string;
   aliases?: string[];
   supersedes?: string;
@@ -52,6 +54,7 @@ export function createPage(p: NewPage): BrainFile {
   if (p.sourceVersion !== undefined) front.set("source_version", p.sourceVersion, { quoted: true });
   if (p.evidence !== undefined) front.set("evidence", p.evidence, { quoted: true });
   if (p.staleAfter !== undefined) front.set("stale_after", p.staleAfter, { raw: true });
+  if (p.appliesTo !== undefined && p.appliesTo.length > 0) front.set("applies_to", p.appliesTo);
   if (p.supersedes !== undefined) front.set("supersedes", p.supersedes);
   return { front, body: p.body ?? template(p.type) };
 }

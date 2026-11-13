@@ -39,6 +39,19 @@ What changed in each version of Kioku. What is true now is in the
   leave saving to the session that started it. The plugin has a
   `SubagentStart` hook for it, `kioku hook subagent-start`; with no Rule in
   the brains it adds nothing.
+- **A page can say which files it is about, and comes back when the agent
+  touches them.** `kioku page save --applies-to "src/billing/**,db/migrations"`
+  (and `page update --applies-to`, `none` to remove it) writes the new
+  optional field `applies_to`, globs relative to the project folder. When the
+  agent reads or changes a file one of them matches, the page of the project
+  brain is named beside the tool's result, one line, once a session, and the
+  conversation shows `recalled  by path`. What you ask for often does not name
+  the folder a lesson is about; the file does. The plugin has a `PreToolUse`
+  hook on the file tools for it, `kioku hook pre-tool-path`, which starts
+  nothing on a machine where no page uses the field. `page list` and
+  `page show` answer `applies_to`; the validator warns of a glob that matches
+  no file and of the field outside a project brain. A brain's format does not
+  move: an older Kioku ignores the field.
 
 ## 0.5.0
 

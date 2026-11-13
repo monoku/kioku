@@ -262,6 +262,57 @@ export const preToolUse: Handler = guarded(async (harness, ctx) => {
   return harness.allowSkillAnswer();
 });
 
+/**
+ * The `PreToolUse` hook on the host's file tools (§4.7, §6.2): the pages of the project brain that say they are about
+ * the file the agent is about to read or change are named beside the tool's result, one line each, once a session, as
+ * an entry of the journal. It decides nothing about the call, and never fails it.
+ */
+export const preToolPath: Handler = guarded(async (harness, ctx) => {
+  const input = harness.parseToolPath(await ctx.stdin());
+  if (input === undefined) return undefined;
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const cwd = resolve(input.cwd ?? ctx.cwd);
+  // Imported here, as the prompt's recall is: no other hook reaches the index.
+  const { recallForPath, recallText, recalledRow } = await import("../core/session/recall.ts");
+  const pages = await recallForPath(ctx.home, config, {
+    cwd,
+    file: input.file,
+    ...(input.sessionId !== undefined && { sessionId: input.sessionId }),
+  });
+  if (pages.length === 0) return undefined;
+  const labels = labelsFor(ctx.home, cwd, { machine: machineOf(ctx) });
+  record(
+    ctx.home,
+    input.sessionId,
+    [
+      labelled(
+        {
+          what: "recalled",
+          arrow: "read",
+          brain: [...new Set(pages.map((p) => p.brain))].join(", "),
+          count: pages.length,
+          hits: pages.map(({ brain, path, title }) => ({ brain, path, title })),
+          by: "path",
+        },
+        labels,
+      ),
+    ],
+    ctx.now(),
+  );
+  try {
+    recordSurfaced(
+      ctx.home,
+      ctx.now(),
+      pages.map((p) => ({ brain: p.brain, id: p.id })),
+    );
+  } catch {
+    /* a count is only a count */
+  }
+  const said = render(recalledRow(pages, labels.label, "path"), layoutOf(config, ctx.env));
+  return harness.toolContextAnswer(recallText(pages, "path"), said);
+});
+
 /** The question before a namespace is made (§3.2): its path and brain, and its description under it. */
 function namespaceQuestion(n: NamespaceAdd): Message {
   const where = n.brain === undefined ? "" : ` in ${n.brain}`;
@@ -308,7 +359,7 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
           brain: brains,
           count: pages.length,
           hits: pages.map(({ brain, path, title }) => ({ brain, path, title })),
-          ...(by === "words" && { by }),
+          ...(by !== "meaning" && { by }),
         },
         labels,
       ),

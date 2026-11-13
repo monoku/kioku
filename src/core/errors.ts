@@ -15,6 +15,7 @@ export interface Written {
  */
 export const FIELDS = [
   "aliases",
+  "applies_to",
   "evidence",
   "kind",
   "limit",

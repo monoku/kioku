@@ -16,6 +16,7 @@ import {
 import { placementOf, specFor, typeOf, isKind, isSub, type PageType } from "../brain/kinds.ts";
 import { DEPRECATED, isRetired, setVerified } from "../brain/lifecycle.ts";
 import { buildBody, createPage } from "../brain/page.ts";
+import { APPLIES_MAX, cleanGlob, globProblem, isNone } from "../brain/applies.ts";
 import { linkBetween, linksOf, pagePath, resolveLink } from "../brain/paths.ts";
 import { namespaceOverview } from "../brain/namespaces.ts";
 import { namedError, userError, type Field } from "../errors.ts";
@@ -118,8 +119,26 @@ export interface PageInput {
   namespace?: string;
   /** `YYYY-MM-DD`: after it the page needs a second look (§3.3). */
   staleAfter?: string;
+  /** Globs of the project's files the page is about (§3.3). */
+  appliesTo?: string[];
   /** The page's sections as Markdown, `## ` headings included. */
   body: string;
+}
+
+/** Globs as `applies_to` keeps them (§3.3): each one inside the project folder, ten at most, each once. */
+function globsOf(given: string[]): string[] {
+  const globs = [...new Set(given.map(cleanGlob))];
+  for (const g of globs) {
+    const problem = globProblem(g);
+    if (problem !== undefined)
+      throw namedError((n) => `${n.field("applies_to")} does not take "${g}": ${problem}`, "applies_to_invalid");
+  }
+  if (globs.length > APPLIES_MAX)
+    throw namedError(
+      (n) => `${n.field("applies_to")} takes ${APPLIES_MAX} globs at most, and this is ${globs.length}`,
+      "applies_to_invalid",
+    );
+  return globs;
 }
 
 export interface SaveInput extends PageInput {
@@ -187,6 +206,7 @@ function newPage(
     ...(input.evidence !== undefined && { evidence: oneLine(input.evidence, "evidence") }),
     ...(input.summary !== undefined && { summary: oneLine(input.summary, "summary") }),
     ...(input.staleAfter !== undefined && { staleAfter: dayOf(input.staleAfter) }),
+    ...(input.appliesTo !== undefined && input.appliesTo.length > 0 && { appliesTo: globsOf(input.appliesTo) }),
     ...(input.aliases !== undefined && input.aliases.length > 0 && { aliases: input.aliases }),
     ...(extra.supersedes !== undefined && { supersedes: extra.supersedes }),
     body: assembleBody(type, input.body),
@@ -402,6 +422,8 @@ export interface UpdateInput {
   aliases?: string[];
   /** A new date after which the page needs a second look; `none` removes it. */
   staleAfter?: string;
+  /** The globs of the project's files the page is about, replacing the ones it had; `none` removes them. */
+  appliesTo?: string[];
   /** The version of the source the page now reflects, after reading it again; `none` removes it. */
   sourceVersion?: string;
 }
@@ -412,6 +434,7 @@ const UPDATE_LINES: readonly [(input: UpdateInput) => boolean, (input: UpdateInp
   [(i) => Boolean(i.body?.trim()), () => "Rewrote the page."],
   [(i) => i.summary !== undefined, () => "Updated the summary."],
   [(i) => i.staleAfter !== undefined, () => "Updated the date after which it needs a second look."],
+  [(i) => i.appliesTo !== undefined, () => "Updated the files it applies to."],
   [(i) => i.sourceVersion !== undefined && i.aliases === undefined, () => "Read the source again."],
 ];
 const updateLine = (input: UpdateInput): string =>
@@ -437,11 +460,12 @@ export async function update(brain: TargetBrain, rel: string, input: UpdateInput
     input.summary === undefined &&
     input.aliases === undefined &&
     input.staleAfter === undefined &&
+    input.appliesTo === undefined &&
     input.sourceVersion === undefined
   ) {
     throw namedError(
       (n) =>
-        `nothing to update: send a body${n.cli(" on stdin")}, or pass ${n.field("evidence")}, ${n.field("summary")}, ${n.field("aliases")}, ${n.field("stale_after")} or ${n.field("source_version")}`,
+        `nothing to update: send a body${n.cli(" on stdin")}, or pass ${n.field("evidence")}, ${n.field("summary")}, ${n.field("aliases")}, ${n.field("stale_after")}, ${n.field("applies_to")} or ${n.field("source_version")}`,
     );
   }
   if (input.evidence !== undefined && !spec.evidence)
@@ -462,6 +486,10 @@ export async function update(brain: TargetBrain, rel: string, input: UpdateInput
   if (input.staleAfter !== undefined) {
     if (input.staleAfter.trim() === "none") file.front.delete("stale_after");
     else file.front.set("stale_after", dayOf(input.staleAfter), { raw: true });
+  }
+  if (input.appliesTo !== undefined) {
+    if (input.appliesTo.length === 0 || isNone(input.appliesTo)) file.front.delete("applies_to");
+    else file.front.set("applies_to", globsOf(input.appliesTo));
   }
   if (input.sourceVersion !== undefined) {
     if (input.sourceVersion.trim() === "none") file.front.delete("source_version");

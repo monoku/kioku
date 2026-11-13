@@ -14,8 +14,30 @@ export const SCHEMA_VERSION = 5;
 
 export interface Index {
   db: DatabaseSync;
+  /** The index's file, beside which the marker of `appliesMarkerPath` is kept. */
+  file: string;
   close(): void;
 }
+
+/**
+ * The files a page says it is about (§3.3, `applies_to`), one row a glob, with the hash of the page it was read from:
+ * a row whose hash is not its page's is not current. Made here beside the versioned tables, not by raising
+ * `SCHEMA_VERSION`, which would have every machine read the meaning of every page again for a table that starts empty:
+ * no page has the field until it is written, and a page written is indexed again.
+ */
+const APPLIES_TABLE = `
+  CREATE TABLE IF NOT EXISTS applies (
+    brain TEXT NOT NULL,
+    path TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    glob TEXT NOT NULL
+  )`;
+
+/**
+ * A file that exists while the index holds a page with `applies_to`: the plugin's wrapper looks for it before it
+ * starts the tool on every file the agent reads or changes (§4.7), so a machine with no such page pays nothing.
+ */
+export const appliesMarkerPath = (home: string): string => `${indexPath(home)}.applies`;
 
 /** `column IN (?, …)` for these brains (keys), to be given the brains as its parameters. */
 export const brainIn = (brains: string[], column = "p.brain"): string =>
@@ -87,12 +109,13 @@ function create(sqlite: SqliteModule, path: string): DatabaseSync {
       PRAGMA user_version = ${SCHEMA_VERSION};
     `);
   }
+  db.exec(APPLIES_TABLE);
   db.prepare("SELECT count(*) FROM pages").get(); // a corrupt file fails here, not later
   return db;
 }
 
 const removeFiles = (path: string): void => {
-  for (const suffix of ["", "-wal", "-shm"]) rmSync(path + suffix, { force: true });
+  for (const suffix of ["", "-wal", "-shm", ".applies"]) rmSync(path + suffix, { force: true });
 };
 
 /**
@@ -114,7 +137,7 @@ export async function openIndexAsItIs(home: string): Promise<Index | undefined> 
       return undefined;
     }
     const open = db;
-    return { db: open, close: () => open.close() };
+    return { db: open, file: path, close: () => open.close() };
   } catch {
     db?.close();
     return undefined;
@@ -135,5 +158,5 @@ export async function openIndex(home: string): Promise<Index> {
     removeFiles(path);
     db = create(sqlite, path);
   }
-  return { db, close: () => db.close() };
+  return { db, file: path, close: () => db.close() };
 }
