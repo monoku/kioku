@@ -48,6 +48,7 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `update` | brings the machine to the latest release, or to the one named (§6.4) |
 | in a project folder | `init <brain>` | writes the project brain in the folder's `kioku.yaml`, its name and its address once it has one, keeping a `team` written by hand; given an address, clones it when the machine lacks it, given a name, makes it shared; registers it and clones the chain; alone, trusts and clones what the file names and writes the address of one published since (§2.4) |
 | | `sync` | pulls and pushes the brains of this folder's chain and updates the index (§4.2) |
+| | `handoff set\|show\|clear` | the handoff of this folder and branch, where its last session stopped, for the next one on this machine, never in a brain: left, shown or dropped (§4.8) |
 | brains | `brain create <owner>/<repo>` | makes a brain on this machine, with the name given, with its files and first commit, asking no git host anything and taking no destination; personal unless `--tier` says project or team; the name is always given; one that fails leaves nothing (§2.3) |
 | | `brain clone <address>` | brings a brain that exists from any address, under the name it holds (§2.2, §2.5), and registers it as its `kioku.yaml` says, in a terminal (§2.4) |
 | | `brain sync` | pulls and pushes a brain, or every brain of the machine, and reindexes them for full text; one with no remote is `no-remote` (§4.2) |
@@ -160,12 +161,16 @@ and the host has no other way to it. The plugin holds:
   compose the summary's two parts (§4.1), each inside a brain of that brain
   alone (§2.7), and the first writes it to the journal, starts `sync`, says
   when there is no personal brain (§1.2), and starts the daily look for a new
-  version where the installer installed the tool (§6.4); at each prompt, one
+  version where the installer installed the tool (§6.4), and a third gives a
+  session that starts anew the handoff of its place (§4.8), its wrapper
+  starting nothing on a machine that holds none; at each prompt, one
   counts the session's next turn (§4.6) and adds the pages that bear on the
   prompt (§4.7); before the host compacts a session, one asks its summary to
   keep what was said and not saved (§1.1); when the session starts a subagent,
   one gives it the Rules (§4.1); after the shell tool, one filtered to the tool's writing and
-  reading verbs writes what they did into the journal (§4.6); before the skill
+  reading verbs writes what they did into the journal (§4.6), and after
+  `kioku handoff set` names on the handoff the pages the session reached
+  (§4.8); before the skill
   tool, one lets the host load Kioku's own skill without asking, writing that
   into the journal, and nothing for another skill; before the host's tools
   that read or change one file, one names the pages that say they are about

@@ -20,7 +20,8 @@ bends a principle changes it here first, and the spec with it.
 3. **A brain is plain files in a git repository, one repository per brain.**
    Markdown with front matter, readable by any editor, `grep` and the git host.
    Nothing of the memory lives only where the tool can read it: the index is
-   derived. What a machine counts about its own use lives with the machine. A
+   derived. What a machine counts about its own use lives with the machine, as does
+   a folder's handoff, where its last session stopped, which is no memory. A
    brain works whole where it was made, with no remote and no host. It is named
    by the person, `owner/repo`, and carries its name in its own files, so it is
    the same brain on every machine and at any address; it has an address only

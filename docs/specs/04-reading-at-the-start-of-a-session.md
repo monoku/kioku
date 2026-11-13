@@ -259,7 +259,9 @@ and the pages the answer brought, in order, each by brain, path and title; how
 many pages a list or a summary holds; and the id the host gave the shell call
 that made it, so the mod can draw its rows (§1.2). Never a page's text, never
 a prompt. The journal lives with the machine's state (§2.5), one file per
-session, never in a brain or in git, dropped two days after its last entry. A
+session, never in a brain or in git, dropped thirty days after its last entry,
+so that a session resumed weeks later still has its history, its footer's
+counts and what it was already given. A
 command run in a terminal makes no entry.
 
 ## 4.7 At each prompt
@@ -329,3 +331,75 @@ What a prompt recalled is an entry of the journal (§4.6) and counts as surfaced
 `recalled` row (§1.2), which says `by meaning`, `by words` or `by path`, and
 the memory history lists the pages, where they open. What a file recalled is
 the same entry, said the same way, at the tool's call.
+
+## 4.8 Where the last session left off
+
+The progress of a task is never a page (§1.1): it is not true in months. But a
+person who stops with work unfinished and opens a session some days later
+finds an agent that knows the brains and nothing of what was going on. So a
+place has one **handoff**, apart from every brain: what the agent leaves when
+the person stops for now, with `kioku handoff set`, the text on stdin, in
+place of the one there was. It says what was being done and why, what is done
+and what is left, what comes next, what is not decided, and the files and
+commands it takes to go on.
+
+**A place is a folder and, in a repository, the branch checked out there.**
+The folder is the nearest of the project folder, the one whose `kioku.yaml` a
+session there reads (§2.4), and the top of the repository or of the worktree
+the session is in; with neither, the folder itself. So a worktree has its own
+handoff, being another folder; a folder that is no repository has one, with no
+branch, asked nowhere and said nowhere; and one checkout that moves between
+branches has one a branch, so that leaving a handoff on one never replaces
+another's. A folder with no branch checked out is a place with none.
+
+It is for the next session in the same place on the same machine, to go on
+from where the last one stopped, and for nothing else. It is not a document to
+hand to another person: when the person had a fuller one written, by whatever
+means, the handoff says where that document is and does not copy it. It is the
+short memory of a place, what holds until the work is done, where the brains
+are the long one, what holds in months; nothing passes from it into a brain by
+itself.
+
+**The pages of the session.** A handoff also names the pages of the memory the
+session that left it wrote and opened: eight at most, the ones it wrote before
+the ones it only opened, the latest first, each by its brain, its path and its
+title, never one it forgot, never a page's text. The agent does not write that
+list and the tool that leaves the handoff cannot, since it does not know the
+session: the plugin's hook after `kioku handoff set` (§6.2) takes it from the
+session's journal (§4.6) and puts it on the handoff just left. So the next
+session knows which pages that work leaned on, and reads one with `kioku page
+show`. An agent host with no such hook leaves a handoff with no pages, and
+any host reads one with `kioku handoff show`.
+
+The handoff is machine state (§2.5), one file a folder, as a session's journal
+is one a session, so that two sessions in two folders never write the same
+one: never in a brain or in git, never synced, searched, recalled or counted,
+no entry of the journal (§4.6) and no row. It
+is 4,000 characters at most, and one that is empty, longer, or holds what is
+never written down (§1.5, layer 1) is refused and leaves the one there was.
+Nobody having written it for thirty days, it is neither shown nor kept; until
+then its heading says the day it was left, and that it may be stale. The pages
+it names were taken when it was left, so they do not depend on the session's
+journal still being there (§4.6).
+`kioku handoff show` says it whole, with the folder's handoffs on other
+branches, each by its branch and its day, which is how the agent answers
+"what were we doing here?"; `kioku handoff clear` drops it; both take another
+branch of the folder with `--branch`.
+
+A session that starts anew in the place, at its start or after `/clear`, is
+given its handoff **by a `SessionStart` hook of its own**, beside the
+summary's two (§4.1), so that it has that hook's whole cap, is given whole, and
+takes nothing of the room of the Rules. Its part opens with a heading that
+names it and stands alone, as the summary's do, and says what it is: a note
+the agent left on that day, on this machine, for that branch, not memory, to
+be checked against the repository before it is relied on. Then the text, its
+headings pushed down as a page's are; the pages of the session, one line each;
+and in one line the folder's handoffs on other branches. Where this branch has
+none and another has, the session is told only that, with the branches and
+their days, and that it asks the person before it goes on here when the work
+they mean is that one. A session resumed or compacted is given none: it has
+its conversation. On a machine that holds no handoff the hook's wrapper ends
+before it starts the tool, and the tool asks git for the place only where
+there is one to look for. The summary's opening tells every session when to
+leave one, in a line that is the first thing a short cap leaves out. The agent
+leaves it without asking, as it saves; nothing leaves one by itself.
