@@ -15,6 +15,8 @@ export const indexPath = (home: string): string => kioku(home, "index.sqlite");
 export const pendingPath = (home: string): string => kioku(home, "pending.json");
 /** The commit of each shared brain seen by the last sessions, for "new since your last session" (§4.1). */
 export const viewsPath = (home: string): string => kioku(home, "views.json");
+/** The commit of each shared brain up to which the person was told of its Rules' changes (§1.2). */
+export const rulesSeenPath = (home: string): string => kioku(home, "rules-seen.json");
 /** The last outcome of `sync` per brain (§4.2). */
 export const syncStatePath = (home: string): string => kioku(home, "sync.json");
 /** What the last background `sync` printed. */
