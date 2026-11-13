@@ -178,7 +178,9 @@ model:
   confirmed for longer than their kind lasts: nine months for context, a year
   for a playbook, a Rule, a Skill or a Memory, the same in every brain;
   decisions and instincts are left out;
-- the pages this machine has not opened (§4.5), saying since when it counts;
+- the pages this machine has not opened (§4.5), saying since when it counts,
+  and those a recall keeps naming and no session opens, whose title and
+  summary, all a recall shows of them, are to reword, or the page to retire;
 - in a brain with more than one namespace, the namespaces not described
   (§3.2).
 
@@ -202,15 +204,24 @@ This machine keeps a count, per page, of two things, never added up:
   counted. A search result is not counted either.
 
 One entry per page, by brain and `id`, so a rename keeps it: how many times it
-was opened and surfaced and the day of the last of each; and the day the
-machine began to count, `counting_since`. It lives with the machine's state
+was opened and surfaced and the day of the last of each; of the times it was
+surfaced, how many were a recall's (**recalled**), and of those how many the
+session that was given the page then opened (**followed**), once for each
+recall however often it opens it; and the day the machine began to count,
+`counting_since`. A recall is followed when `page show` reads the page in the
+session it was named to, after it was named: the hook that writes the opening
+into the journal (§4.6) finds the recall there. It is what tells a recall that
+helped from one that did not, where the labelled set of §4.7 only tells what
+the rule would do. It lives with the machine's state
 (§2.5), never in a brain or in git, holds no text and no prompt, and is not
 shared; `sync` drops the entries of pages no brain holds. A page is
 **unopened** when it has not been opened and sixty days have passed since the
 later of its last change and `counting_since`. Rules, retired and superseded
-pages are not asked. `brain stats` (§6.1) gives each brain's numbers and
-`brain lint` (§4.4) lists the pages, to retire or forget like any other
-finding. The count is always on. Reading never changes a brain: the only thing
+pages are not asked. A page is **unfollowed** when a recall named it five
+times or more and no session opened it after. `brain stats` (§6.1) gives each
+brain's numbers, how many times its pages were recalled and followed among
+them, and `brain lint` (§4.4) lists the pages, to retire or forget like any
+other finding. The count is always on. Reading never changes a brain: the only thing
 it changes is this count.
 
 ## 4.6 What a session did
@@ -223,7 +234,7 @@ is a read or a write:**
 | Entry | What made it | |
 |---|---|---|
 | `summary` | the session summary (§4.1), with the brains it loaded, how many pages they hold, and why: the session started, was resumed or was compacted | read |
-| `recalled` | the pages a prompt brought, or a file the agent read or changed (§4.7), each by brain, path and title, and that they were found by words or by path when they were | read |
+| `recalled` | the pages a prompt brought, or a file the agent read or changed (§4.7), each by brain, path, title and `id`, which the count of §4.5 is kept by, and that they were found by words or by path when they were | read |
 | `skill` | the agent loading Kioku's own skill | read |
 | `opened` | `page show`, one per page | read |
 | `searched` | `page search` | read |
