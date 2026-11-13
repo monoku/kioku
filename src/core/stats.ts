@@ -67,6 +67,12 @@ export interface ReadStats {
   opened: number | null;
   /** Pages `brain lint` lists as unopened. */
   unopened: number | null;
+  /** Times a recall named a page of the brain, at a prompt or at a file (§4.7). */
+  recalled: number | null;
+  /** Of those, the times the session that was given the page then opened it. */
+  followed: number | null;
+  /** `followed` over `recalled`, to two decimals; null when no recall named a page. */
+  follow_rate: number | null;
   /** The day the machine began to count; null when it does not, or has not yet. */
   counting_since: string | null;
 }
@@ -74,9 +80,14 @@ export interface ReadStats {
 /** The count of one brain: `reads` is undefined while nothing is counted, and `unopened` is its lint's list. */
 export function readStatsOf(reads: ReadsState | undefined, brainKey: string, unopened: number): ReadStats {
   const entries = Object.values(reads?.brains[brainKey] ?? {});
+  const recalled = entries.reduce((n, e) => n + (e.recalled ?? 0), 0);
+  const followed = entries.reduce((n, e) => n + (e.followed ?? 0), 0);
   return {
     opened: entries.filter((e) => e.opened > 0).length,
     unopened,
+    recalled,
+    followed,
+    follow_rate: recalled === 0 ? null : Math.round((followed / recalled) * 100) / 100,
     counting_since: reads?.counting_since ?? null,
   };
 }

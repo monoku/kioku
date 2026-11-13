@@ -5,9 +5,10 @@ import { currentVersion, installDirs, installOrigin, managerCommand, newerThan }
 import { dueForCheck, recordCheck, takeAvailable } from "../core/setup/update.ts";
 import { entriesFor, labelled, nextTurn, ownTurn, readJournal, record } from "../core/session/journal.ts";
 import { compactInstructions, savedTitles } from "../core/session/compact.ts";
+import { followedIn } from "../core/session/followed.ts";
 import { resolveChain } from "../core/config/chain.ts";
 import { labelsFor } from "../core/session/labels.ts";
-import { recordSurfaced } from "../core/reads.ts";
+import { recordFollowed, recordSurfaced } from "../core/reads.ts";
 import { newVersionPair } from "../core/session/versions.ts";
 import { VERSION } from "../version.ts";
 import {
@@ -241,6 +242,18 @@ export const postToolUse: Handler = guarded(async (harness, ctx) => {
   const entries = entriesFor(result.command, result.output, labels).map((e) =>
     result.callId === undefined ? e : { ...e, call: result.callId },
   );
+  // A page opened that a recall named to this session before is that recall followed (§4.5): counted before this
+  // opening is in the journal, so that a second opening is not counted again.
+  const opened = entries.flatMap((e) =>
+    e.what === "opened" && e.brain !== undefined && e.path !== undefined ? [{ brain: e.brain, path: e.path }] : [],
+  );
+  if (opened.length > 0 && result.sessionId !== undefined) {
+    try {
+      recordFollowed(ctx.home, ctx.now(), followedIn(readJournal(ctx.home, result.sessionId), opened));
+    } catch {
+      /* a count is only a count */
+    }
+  }
   record(ctx.home, result.sessionId, entries, ctx.now());
   return undefined;
 });
@@ -292,7 +305,8 @@ export const preToolPath: Handler = guarded(async (harness, ctx) => {
           arrow: "read",
           brain: [...new Set(pages.map((p) => p.brain))].join(", "),
           count: pages.length,
-          hits: pages.map(({ brain, path, title }) => ({ brain, path, title })),
+          // With each page's id, which the count of §4.5 is kept by: what tells, later, that the session opened it.
+          hits: pages.map(({ brain, path, title, id }) => ({ brain, path, title, ...(id !== null && { id }) })),
           by: "path",
         },
         labels,
@@ -305,6 +319,7 @@ export const preToolPath: Handler = guarded(async (harness, ctx) => {
       ctx.home,
       ctx.now(),
       pages.map((p) => ({ brain: p.brain, id: p.id })),
+      true,
     );
   } catch {
     /* a count is only a count */
@@ -358,7 +373,8 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
           arrow: "read",
           brain: brains,
           count: pages.length,
-          hits: pages.map(({ brain, path, title }) => ({ brain, path, title })),
+          // With each page's id, which the count of §4.5 is kept by: what tells, later, that the session opened it.
+          hits: pages.map(({ brain, path, title, id }) => ({ brain, path, title, ...(id !== null && { id }) })),
           ...(by !== "meaning" && { by }),
         },
         labels,
@@ -371,6 +387,7 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
       ctx.home,
       ctx.now(),
       pages.map((p) => ({ brain: p.brain, id: p.id })),
+      true,
     );
   } catch {
     /* a count is only a count */
