@@ -24,10 +24,12 @@ import {
   preToolPath,
   preToolUse,
   sessionStart,
+  sessionStartHandoff,
   sessionStartHolds,
   subagentStart,
   userPromptSubmit,
 } from "./hook.ts";
+import { runHandoff } from "./handoff.ts";
 import { runSync } from "./sync.ts";
 import { runInit } from "./init.ts";
 import { runDoctorVerb } from "./doctor.ts";
@@ -105,6 +107,7 @@ export type Handler = (args: string[], ctx: Context) => Outcome | undefined | Pr
 const hookSubcommands = {
   "session-start": sessionStart,
   "session-start-holds": sessionStartHolds,
+  "session-start-handoff": sessionStartHandoff,
   "post-tool-use": postToolUse,
   "pre-tool-use": preToolUse,
   "user-prompt-submit": userPromptSubmit,
@@ -125,6 +128,7 @@ const verbs: Record<string, Handler> = {
   page: runPage,
   namespace: runNamespace,
   sync: runSync,
+  handoff: runHandoff,
   init: runInit,
   doctor: runDoctorVerb,
   config: runConfig,

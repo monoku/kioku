@@ -107,6 +107,18 @@ folder (`recallForPath` in `src/core/session/recall.ts`), and answers the
 pages as context beside the tool's result, as a row and as a journal entry
 (spec §4.7). It gives no decision about the call.
 
+## A handoff
+
+`kioku handoff set` writes the handoff of a place, a folder and its branch,
+into the machine's state, one file a folder under `~/.kioku/handoffs/` (spec
+§4.8, `src/core/handoff.ts`). The verb does
+not know the session it runs in; the `PostToolUse` hook that follows it does,
+and puts on that handoff the pages the session's journal says it wrote and
+opened. The next session that starts anew in that place is given it by a
+`SessionStart` hook of its own, `kioku hook session-start-handoff`
+(`composeHandoff` in `src/core/session/summary.ts`), which the plugin's
+wrapper does not even start on a machine with no handoff.
+
 ## The start of a subagent
 
 Claude Code runs `kioku hook subagent-start` when the session starts a
@@ -148,6 +160,6 @@ and writes nothing.
 | `<project folder>/kioku.yaml` | the folder's project and team brains | yes, with the code |
 | `~/.kioku/config.yaml` | the machine's brains, the addresses it accepted and its preferences | no |
 | `~/.kioku/brains/<owner>/<repo>/` | every brain of the machine, by its name, made here or cloned | no |
-| `~/.kioku/` (index, model, `pending.json`, `sessions/`) | derived state and each session's journal, dropped two days after its last entry | no |
+| `~/.kioku/` (index, model, `pending.json`, `sessions/`) | derived state and each session's journal, dropped thirty days after its last entry | no |
 | `~/.local/share/kioku/versions/<v>/` | the tool and its `plugin/`; `current` points at the active one, and Claude Code reads `current/plugin` | no |
 | `~/.local/bin/kioku` | the launcher | no |

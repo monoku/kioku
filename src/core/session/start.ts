@@ -9,11 +9,12 @@ import { backupStatePath, indexPath, lintReportPath, syncStatePath } from "../st
 import { readSemanticState, semanticStatus, writeSemanticState } from "../semantic/status.ts";
 import { currentPlatform, PINS } from "../semantic/pins.ts";
 import { readPending } from "../write/pending.ts";
+import { anyHandoff, handoffsElsewhere, placeOf, pruneHandoffs, readHandoff } from "../handoff.ts";
 import { recordSurfaced } from "../reads.ts";
 import { brainsOfLinks } from "./labels.ts";
 import { cmd, dim, historyRow, type Message } from "./message.ts";
 import { sessionReads, type SessionReads } from "./session-reads.ts";
-import { composeForSubagent, composeHolds, composeUsage, type SummaryBrainSource } from "./summary.ts";
+import { composeForSubagent, composeHandoff, composeHolds, composeUsage, type SummaryBrainSource } from "./summary.ts";
 import { loadSummaryBrains } from "./summary-load.ts";
 import { holdViews, newSince, readViews, recordViews } from "./views.ts";
 import { listWords, plural, readJson } from "../util.ts";
@@ -63,6 +64,26 @@ export function startSubagent(home: string, config: MachineConfig, cwd: string):
       reads,
     ),
   );
+}
+
+/**
+ * What a session that starts anew in `cwd` is given of the handoffs of its place (§4.8), by a hook of its own: the one
+ * left for this folder and branch, whole, or that another branch of the folder has one; nothing for a session that
+ * goes on, which has its conversation, or where there is none. Git is asked for the place only where the machine
+ * holds a handoff at all.
+ */
+export function startHandoff(home: string, config: MachineConfig, input: StartInput, now: Date): string | undefined {
+  if (input.source === "resume" || input.source === "compact" || !anyHandoff(home)) return undefined;
+  pruneHandoffs(home, now);
+  const place = placeOf(input.cwd, resolveChain(input.cwd, config, home).root);
+  const left = readHandoff(home, place, now);
+  const elsewhere = handoffsElsewhere(home, place, now);
+  if (left === undefined && elsewhere.length === 0) return undefined;
+  return composeHandoff({
+    ...(place.branch !== undefined && { branch: place.branch }),
+    ...(left !== undefined && { at: left.at, text: left.text, ...(left.pages && { pages: left.pages }) }),
+    elsewhere,
+  });
 }
 
 /**

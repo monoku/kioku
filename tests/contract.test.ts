@@ -38,6 +38,7 @@ test("the verbs are data a program can list or mount, and the contract has a num
     "completion",
     "config",
     "doctor",
+    "handoff",
     "help",
     "hook",
     "init",

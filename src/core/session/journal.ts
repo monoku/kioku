@@ -76,8 +76,11 @@ export interface JournalEntry {
 /** An entry as a hook gives it: the journal adds when and the turn. */
 export type NewEntry = Omit<JournalEntry, "at" | "turn">;
 
-/** A session's journal is dropped this long after its last entry (§4.6). */
-const KEEP_MS = 2 * 86_400_000;
+/**
+ * A session's journal is dropped this long after its last entry (§4.6): thirty days, so that a session resumed weeks
+ * later still has its history, its counts and what it was already given, and as long as a handoff lasts (§4.8).
+ */
+const KEEP_MS = 30 * 86_400_000;
 
 /** What each writing verb's result is as an entry: one for each of `JOURNAL_WRITES`, the verbs the hooks watch, so a verb added there is named here or the build fails. */
 const WRITES: Record<(typeof JOURNAL_WRITES)[number], JournalWhat> = {
@@ -253,7 +256,7 @@ function dueForPrune(stamp: string, now: Date): boolean {
   }
 }
 
-/** Drops the journals whose last entry is older than two days (§4.6), looking once a day. */
+/** Drops the journals whose last entry is older than thirty days (§4.6), looking once a day. */
 function prune(dir: string, now: Date): void {
   const stamp = join(dir, PRUNED_STAMP);
   if (!dueForPrune(stamp, now)) return;

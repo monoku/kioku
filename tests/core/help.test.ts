@@ -65,7 +65,7 @@ test("the overview is short: what Kioku is, the verbs of one word, a line per gr
   const text = (await kioku([])).raw;
   const lines = text.trimEnd().split("\n");
   assert.equal(lines[0], "kioku.md · memory for coding agents", "it opens with the mark and what Kioku is");
-  assert.ok(lines.length < 27, `${lines.length} lines`);
+  assert.ok(lines.length < 28, `${lines.length} lines`);
   assert.ok(
     lines.every((l) => l.length <= 100),
     "no line wider than the terminal",
@@ -78,6 +78,7 @@ test("the overview is short: what Kioku is, the verbs of one word, a line per gr
     "config",
     "init",
     "sync",
+    "handoff",
     "brain",
     "page",
     "namespace",

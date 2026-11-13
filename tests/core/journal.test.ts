@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { entriesFor, nextTurn, readJournal, record } from "../../src/core/session/journal.ts";
 import { sessionsPath } from "../../src/core/state.ts";
@@ -223,15 +223,21 @@ test("the hooks keep the session's journal: the summary, each prompt's turn, the
     );
   }));
 
-test("a journal two days old is dropped at a prompt, and an id that is not one names no file (§4.6)", () =>
+test("a journal thirty days old is dropped at a prompt, one of some weeks is kept, and an id that is not one names no file (§4.6)", () =>
   world(async (w) => {
     // The world's clock is 2026-10-07 at noon.
-    record(w.home, "old", [{ what: "opened", arrow: "read" }], new Date(2026, 9, 4));
-    const old = join(sessionsPath(w.home), "old.jsonl");
-    const then = new Date(2026, 9, 4);
-    utimesSync(old, then, then);
+    const aged = (session: string, then: Date): string => {
+      record(w.home, session, [{ what: "opened", arrow: "read" }], then);
+      const file = join(sessionsPath(w.home), `${session}.jsonl`);
+      utimesSync(file, then, then);
+      return file;
+    };
+    const old = aged("old", new Date(2026, 8, 1));
+    const weeks = aged("weeks", new Date(2026, 8, 15));
     await hook(w, "user-prompt-submit", { prompt: "hello there" });
     assert.equal(existsSync(old), false);
+    assert.equal(existsSync(weeks), true, "a session resumed three weeks later still has its journal");
+    unlinkSync(weeks);
     record(w.home, "../escape", [{ what: "opened", arrow: "read" }], new Date());
     assert.deepEqual(
       readdirSync(sessionsPath(w.home)).filter((f) => f !== ".pruned"),
@@ -244,8 +250,10 @@ test("old journals are looked for once a day, whatever the number of prompts (§
     const at = (day: number, hour = 12) => new Date(2026, 9, day, hour);
     const old = join(sessionsPath(w.home), "old.jsonl");
     const write = () => {
-      record(w.home, "old", [{ what: "opened", arrow: "read" }], at(1));
-      utimesSync(old, at(1), at(1));
+      // Older than a journal is kept: from the August before.
+      const then = new Date(2026, 7, 20);
+      record(w.home, "old", [{ what: "opened", arrow: "read" }], then);
+      utimesSync(old, then, then);
     };
     nextTurn(w.home, "s1", at(7));
     write();
