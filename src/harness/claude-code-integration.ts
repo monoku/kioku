@@ -19,6 +19,7 @@ export type HookVerb =
   | "session-start"
   | "session-start-holds"
   | "user-prompt-submit"
+  | "pre-compact"
   | "post-tool-use"
   | "pre-tool-use";
 
@@ -54,6 +55,8 @@ export function pluginHooks(): { hooks: Record<string, HookGroup[]>; modules: st
         { hooks: [{ type: "command", command: run("session-start-holds") }] },
       ],
       UserPromptSubmit: [{ hooks: [{ type: "command", command: run("user-prompt-submit") }] }],
+      // What the conversation held and nothing saved, kept by the compaction's summary to be saved after it (§1.1).
+      PreCompact: [{ hooks: [{ type: "command", command: run("pre-compact") }] }],
       PreToolUse: [
         { matcher: "Skill", hooks: [{ type: "command", command: run("pre-tool-use") }] },
         // A namespace is structure: the person confirms each one before it is made (§3.2).

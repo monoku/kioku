@@ -89,11 +89,22 @@ finds the launcher by `KIOKU_BIN`, then the `PATH`, then `KIOKU_BIN_DIR` or
    session's next turn (spec §4.6).
 2. Then, within a second, the recall (spec §4.7, `src/core/session/recall.ts`,
    imported by this hook alone): it opens the index only as it is, loads the
-   model, embeds the prompt and weighs the pages with a current vector; past
+   model, embeds the prompt and weighs the pages with a current vector, or,
+   where the model cannot run, weighs the pages by the prompt's words; past
    the second it adds nothing.
 3. The pages that stand out go to the agent as one line each, to the person as
    one row, and into the journal; the process ends with its answer, whatever
    the recall left running.
+
+## The path of a compaction
+
+1. Before Claude Code compacts a session it runs `kioku hook pre-compact`
+   (spec §1.1, `src/core/session/compact.ts`), which prints plain text: the
+   host takes it as instructions for the compaction's summary. It asks the
+   summary to keep what the person said and nothing saved, and names what the
+   session did save, from the journal.
+2. The session then starts again with `source: compact`, and the first part of
+   the summary tells the agent to save what the compaction kept (spec §4.1).
 
 ## Embedding the tool
 
