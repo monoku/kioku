@@ -206,7 +206,7 @@ is a read or a write:**
 | Entry | What made it | |
 |---|---|---|
 | `summary` | the session summary (§4.1), with the brains it loaded, how many pages they hold, and why: the session started, was resumed or was compacted | read |
-| `recalled` | the pages a prompt brought (§4.7), each by brain, path and title | read |
+| `recalled` | the pages a prompt brought (§4.7), each by brain, path and title, and that they were found by words when they were | read |
 | `skill` | the agent loading Kioku's own skill | read |
 | `opened` | `page show`, one per page | read |
 | `searched` | `page search` | read |
@@ -234,10 +234,10 @@ command run in a terminal makes no entry.
 
 The agent does not search for what it does not know the brains hold. So at each
 prompt the person sends, a `UserPromptSubmit` hook looks for pages that bear on
-it by meaning alone and, when some stand out, adds them to the prompt's context:
-one line each, its title, its summary, its brain and its path, under a line that
-says they were found by meaning and that a page is read with `kioku page show`
-before the agent relies on it. Never a page's text: the agent opens what it
+it, by meaning or, where meaning cannot run, by the prompt's words, and, when
+some stand out, adds them to the prompt's context: one line each, its title, its
+summary, its brain and its path, under a line that says how they were found and
+that a page is read with `kioku page show` before the agent relies on it. Never a page's text: the agent opens what it
 needs.
 
 A page **stands out** by how far its similarity to the prompt is above the mean
@@ -253,15 +253,30 @@ the summary names them all while the cap allows (§4.1). These numbers are chose
 `pnpm eval:recall` scores them on a labelled set of prompts against the demo,
 and `pnpm eval:memory` what the agent does with them.
 
+**By words.** Where meaning cannot run, the search model not on the machine yet,
+`search.mode` kept to `full-text` (§4.3), or fewer than 30 pages with a vector
+for their current text, the hook reads the index's pages alone, with no model: a
+page stands out when its title, aliases and summary hold two or more significant
+words of the prompt, compared by stem as above, that together weigh 1.5 or
+more, and at least two thirds of what the heaviest page's weigh. A word weighs
+by how few of the session's pages hold it: 1 when a single page does, nothing
+when half of them do, so the project's name says little and `refund` much.
+Three at most, the heaviest first, and none while the brains hold fewer than 30
+pages, which the summary names (§4.1). Words find no page written in another
+language than the prompt's, and fewer pages than meaning does: on the labelled
+set, 13 of 20 where meaning finds 19. `pnpm eval:recall -- --words` scores these
+numbers.
+
 Never recalled: a Rule, whole in every summary (§4.1); a retired or superseded
 page (§3.5); a page this session already opened or was already recalled. Nothing
 is recalled for a prompt that starts with `/`, one with fewer than three words,
-inside a brain (§2.7), or until the search model is on the machine (§4.3); the
-hook never fetches it, and never indexes: it never creates, rebuilds or writes
+inside a brain (§2.7), or on a machine with no index; the hook never fetches
+the search model (§4.3), and never indexes: it never creates, rebuilds or writes
 the index, so an index missing or of another version, after an update, waits
-for the next `sync`, as does a page without a vector for its current text. The hook loads the model, which takes about half a second, and
+for the next `sync`, as does a page without a vector for its current text. The hook loads the model, where it is on the machine, which takes about half a second, and
 gives up past a second, adding nothing, and its process ends with its answer. The prompt is read and kept nowhere.
 
 What a prompt recalled is an entry of the journal (§4.6) and counts as surfaced
 (§4.5); the hook says it to the person under their message, in the history's
-`recalled` row (§1.2), and the memory history lists the pages, where they open.
+`recalled` row (§1.2), which says `by meaning` or `by words`, and the memory
+history lists the pages, where they open.
