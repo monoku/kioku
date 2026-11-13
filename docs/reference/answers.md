@@ -149,6 +149,13 @@ length of each list that was cut) and its lists: `similar`, `staleInstincts`,
 `path` and `recalled`) and `similarElsewhere` (each with `path`, `brain` and
 `other`, which `count` leaves out), and `counting_since`.
 
+**`kioku handoff`**: every answer has `folder` and `branch` (null outside a
+repository, or with none checked out). `set` adds `status` (`done`) and `at`;
+`clear`, `status` and `cleared`; `show`, `handoff`, null or with `at`, `text`
+and `pages`, the pages its session wrote and opened, each with `brain`,
+`path`, `title` and `did` (`wrote`, `opened`), and `elsewhere`, the folder's
+handoffs on other branches, each with `branch` and `at`.
+
 **`kioku brain log`**: `since`, `writes`, each with `verb`, `title`, `brain`,
 `path`, `date`, `author`, `via` and `commit`; and `total`, `offset`, `limit`,
 `next`.

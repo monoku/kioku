@@ -1,11 +1,14 @@
 import { resolve } from "node:path";
 import { machineReader, mutes, type MachineConfig } from "../core/config/machine.ts";
-import { loadedRow, startHolds, startSession, startSubagent } from "../core/session/start.ts";
+import { loadedRow, startHandoff, startHolds, startSession, startSubagent } from "../core/session/start.ts";
 import { currentVersion, installDirs, installOrigin, managerCommand, newerThan } from "../core/setup/install.ts";
 import { dueForCheck, recordCheck, takeAvailable } from "../core/setup/update.ts";
 import { entriesFor, labelled, nextTurn, ownTurn, readJournal, record } from "../core/session/journal.ts";
 import { compactInstructions, savedTitles } from "../core/session/compact.ts";
 import { followedIn } from "../core/session/followed.ts";
+import { attachPages, pagesOfJournal } from "../core/handoff.ts";
+import { kiokuCall } from "../core/shell-words.ts";
+import { jsonLines } from "../core/util.ts";
 import { resolveChain } from "../core/config/chain.ts";
 import { labelsFor } from "../core/session/labels.ts";
 import { recordFollowed, recordSurfaced } from "../core/reads.ts";
@@ -224,6 +227,24 @@ export const subagentStart: Handler = guarded(async (harness, ctx) => {
   return rules === undefined ? undefined : harness.subagentContextAnswer(rules);
 });
 
+/**
+ * The third `SessionStart` hook (§4.8, §6.2): the handoff of the session's place, for a session that starts anew, in a
+ * part of its own, so that it is given whole and takes no room of the summary's. It says nothing to the person and
+ * never fails the session.
+ */
+export const sessionStartHandoff: Handler = guarded(async (harness, ctx) => {
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const input = harness.parseSessionStart(await ctx.stdin());
+  const handoff = startHandoff(
+    ctx.home,
+    config,
+    { cwd: resolve(input.cwd ?? ctx.cwd), ...(input.source !== undefined && { source: input.source }) },
+    ctx.now(),
+  );
+  return handoff === undefined ? undefined : harness.sessionStartAnswer(handoff, []);
+});
+
 /** How messages are laid out, as the configuration's `display` and the terminal say (§1.2). */
 const layoutOf = (config: MachineConfig | undefined, env: NodeJS.ProcessEnv): Layout =>
   layoutFor(messageColor(config?.display?.color, env));
@@ -255,6 +276,21 @@ export const postToolUse: Handler = guarded(async (harness, ctx) => {
     }
   }
   record(ctx.home, result.sessionId, entries, ctx.now());
+  // A handoff just left takes the pages its session wrote and opened (§4.8): the tool that left it does not know the
+  // session, and this hook does.
+  if (result.sessionId !== undefined && kiokuCall(result.command ?? "", "handoff", ["set"]) !== undefined) {
+    const left = jsonLines(result.output).find(
+      (r) => r.status === "done" && typeof r.folder === "string" && typeof r.at === "string",
+    ) as { folder: string; branch?: string | null; at: string } | undefined;
+    if (left !== undefined)
+      attachPages(
+        ctx.home,
+        { folder: left.folder, ...(typeof left.branch === "string" && { branch: left.branch }) },
+        left.at,
+        pagesOfJournal(readJournal(ctx.home, result.sessionId)),
+        ctx.now(),
+      );
+  }
   return undefined;
 });
 

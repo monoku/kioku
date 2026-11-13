@@ -17,6 +17,14 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook session-start-holds"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook session-start-handoff"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -166,6 +174,11 @@
           {
             "type": "command",
             "if": "Bash(kioku brain lint *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku handoff set *)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
           }
         ]

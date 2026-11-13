@@ -17,6 +17,7 @@ In a project folder
   init        links a project folder to its project brain, cloned from an address or made by name;
               alone, accepts and clones what its kioku.yaml names
   sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
+  handoff     where this folder's last session stopped, for the next one on this machine
 
 Brains, pages and namespaces
   brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
@@ -45,6 +46,7 @@ In a project folder
   init        links a project folder to its project brain, cloned from an address or made by name;
               alone, accepts and clones what its kioku.yaml names
   sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
+  handoff     where this folder's last session stopped, for the next one on this machine
 
 Brains, pages and namespaces
   brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
@@ -73,6 +75,7 @@ In a project folder
   init        links a project folder to its project brain, cloned from an address or made by name;
               alone, accepts and clones what its kioku.yaml names
   sync        pulls the brains of this folder's chain, pushes what is pending, updates the index
+  handoff     where this folder's last session stopped, for the next one on this machine
 
 Brains, pages and namespaces
   brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
@@ -317,6 +320,14 @@ Pulls the brains of this folder's chain, pushes what is pending, updates the ind
 
 More in the reference, under `kioku sync`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-sync
+
+$ kioku help handoff
+kioku handoff set|show|clear [--cwd <dir>] [--branch <branch>] < text
+
+Where this folder's last session stopped, for the next one on this machine.
+
+More in the reference, under `kioku handoff`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-handoff
 
 $ kioku help brain create
 kioku brain create <owner>/<repo> [--tier personal|project|team] [--language <tag>]
@@ -606,7 +617,7 @@ More in the reference, under `kioku namespace rename`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-rename
 
 $ kioku help hook
-kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]
+kioku hook session-start|session-start-holds|session-start-handoff|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]
 
 What the plugin's hooks call.
 

@@ -1,5 +1,5 @@
 import { FRONT_PAGE } from "../brain/brain.ts";
-import { brainRepo } from "../config/brain-ref.ts";
+import { brainRepo, brainRepoOfKey } from "../config/brain-ref.ts";
 import { LOAD_FIRST_MAX, type LoadFirst } from "../brain/load-first.ts";
 import { evidenceOf, kindOf, sectionBody, withoutKept, type BrainFile } from "../brain/file.ts";
 import { placementOf } from "../brain/kinds.ts";
@@ -294,6 +294,12 @@ function namespaceLines(b: SummaryBrain): string[] {
  */
 export const WHEN_TO_SAVE =
   "Save on your own, without asking, the moment you learn something that will still be true in months and would change how you act in a later session: a correction and what the person wanted instead, a preference of tool, style or workflow, a decision and why, an error and how it was resolved, context the repository does not hold. At that moment load the `kioku` skill, which says what to save as and how. Never save secrets, and never personal remarks to a shared brain.";
+/**
+ * Said in the opening (§4.8): when to leave the folder's handoff, which is not memory and so is not the skill's to say.
+ * Left out before anything else when the cap is short.
+ */
+export const WHEN_TO_HANDOFF =
+  "When the person stops for now with work unfinished, load the `kioku` skill and leave a handoff with `kioku handoff set`, on stdin: what was being done and why, what is done and what is left, what comes next, what is not decided, the files and commands it takes to go on, and where a fuller handoff document is when one was written. What it takes to go on in some days, not a transcript. It is this machine's note for the next session in this folder and on this branch, not memory: nothing of it goes in a brain. When the person asks what was being done here, `kioku handoff show` says it.";
 /** The same in one line, for a cap that leaves the whole no room beside the brains (§4.1). */
 export const WHEN_TO_SAVE_SHORT =
   "Save on your own, without asking, what will still be true in months and would change how you act later (corrections, preferences, decisions, errors resolved, context the repository lacks): load the `kioku` skill then.";
@@ -305,6 +311,57 @@ export const SKILLS_NOTE =
 /** Said at the end of the first part when the cap cut the Rules (§4.1). */
 export const RULES_CUT =
   "Not every Rule fits here: `kioku page list --kind rule` lists them, and `kioku page show` reads one.";
+
+/**
+ * What a session that starts anew is given of the handoffs of its place (§4.8): the one left for this folder and this
+ * branch, when there is one, and where the folder has others, on other branches.
+ */
+export interface GivenHandoff {
+  /** The branch the folder is on, when it is in a repository. */
+  branch?: string;
+  at?: string;
+  text?: string;
+  /** The pages of the memory the session that left it wrote and opened. */
+  pages?: { brain: string; path: string; title: string; did: "wrote" | "opened" }[];
+  elsewhere: { branch: string | null; at: string }[];
+}
+
+/** The heading of the handoff's part, which stands alone as the summary's parts do: the hooks' parts reach the agent in any order. */
+const HANDOFF_TITLE = "# Kioku: where the last session here left off";
+
+/** The folder's handoffs on other branches, in one line: where each is and when it was left. */
+const elsewhereLine = (h: GivenHandoff): string =>
+  h.elsewhere.length === 0
+    ? ""
+    : `This folder has ${h.elsewhere.length === 1 ? "a handoff" : "handoffs"} on ${h.elsewhere
+        .slice(0, 5)
+        .map((e) => `${e.branch === null ? "no branch" : `\`${oneLine(e.branch)}\``} (left ${e.at.slice(0, 10)})`)
+        .join(", ")}: \`kioku handoff show --branch <branch>\` reads one.`;
+
+/**
+ * The handoff's part (§4.8), injected by a hook of its own beside the summary's two, so that it has that hook's whole
+ * cap and takes nothing of the Rules': what it is, when and for which branch it was left; its text, whole, with its
+ * headings pushed down; the pages the session that left it wrote and opened, one line each, each on one line whatever
+ * its title holds, names and never text; and the folder's handoffs on other branches. Where this branch has none and
+ * another has, only that.
+ */
+export function composeHandoff(h: GivenHandoff, cap: number = SUMMARY_CAP): string {
+  const on = h.branch === undefined ? "" : ` for the branch \`${oneLine(h.branch)}\``;
+  const other = elsewhereLine(h);
+  if (h.at === undefined)
+    return `${HANDOFF_TITLE}\n\nNo handoff was left${on === "" ? " for this folder with no branch" : on}. ${other} When the work the person means is that one, ask before going on here.`;
+  const c = new Composer(Math.min(SUMMARY_CAP, Math.max(MIN_SUMMARY_CAP, cap)), 0);
+  c.must(
+    `${HANDOFF_TITLE}\n\nA handoff the agent left on ${h.at.slice(0, 10)}, on this machine${on}, when the person stopped. It is a note, not memory, and may be stale: check it against the repository before relying on it. \`kioku handoff clear\` drops it once the work is done.\n\n${demote(h.text ?? "")}`,
+  );
+  if (h.pages !== undefined && h.pages.length > 0)
+    c.section(
+      "Pages of the memory that session wrote or opened, each read again with `kioku page show <path> --brain <brain>`:",
+      h.pages.map((p) => clip(`- ${p.did}: ${oneLine(p.title)} (${brainRepoOfKey(p.brain)}, ${oneLine(p.path)})`)),
+    );
+  if (other !== "") c.section(other, [""]);
+  return c.text().trimEnd();
+}
 
 /** Both parts, one after the other: what an agent that reads the whole sees. */
 export function composeSummary(input: SummaryInput): string {
@@ -410,6 +467,13 @@ export function composeUsage(input: SummaryInput): {
   const whenToSave = [WHEN_TO_SAVE, WHEN_TO_SAVE_SHORT].find((t) => rest + t.length + 2 <= cap);
   if (whenToSave !== undefined) opening.splice(4, 0, whenToSave, "");
   // After a compaction, what its summary kept unsaved is saved now (§1.1): with the opening, never cut.
+  // When to leave the folder's note (§4.8): the first thing a short cap leaves out.
+  if (
+    whenToSave === WHEN_TO_SAVE &&
+    readable.length > 0 &&
+    rest + WHEN_TO_SAVE.length + WHEN_TO_HANDOFF.length + 4 <= cap
+  )
+    opening.splice(6, 0, WHEN_TO_HANDOFF, "");
   if (afterCompact) opening.splice(whenToSave === undefined ? 4 : 6, 0, AFTER_COMPACT, "");
   c.must(opening.join("\n"));
 
