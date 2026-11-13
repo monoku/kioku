@@ -167,7 +167,11 @@ out of date, or when the model's pin changes.
 model:
 
 - pairs of similar pages that do not already link to each other (a link says
-  the relation was judged, §3.3);
+  the relation was judged, §3.3); and, when the brains of a chain are linted
+  together, the pages of one on the subject of a page in a more shared one,
+  listed once, in the more specific brain, and left out of the count: a link
+  cannot cross brains (§3.3), so nothing would settle it, and it is often
+  meant;
 - instincts with no new evidence for six months, except those evolved into a
   Skill; and the Skill candidates (§3.6);
 - superseded decisions, links whose target is gone, pages missing a `summary`,

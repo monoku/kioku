@@ -40,9 +40,12 @@ import {
 /** `save` (§1.4): `--see-also` narrows the pages a created page links to; `--see-also none` links none. */
 export const runSave = writing("page save", NONE, async (c) => {
   const { ctx, values } = c;
-  const brain = acting(c.at, target(pickBrain(chainBrains(ctx), required(values.brain, "brain"), ctx)));
+  const chain = chainBrains(ctx);
+  const brain = acting(c.at, target(pickBrain(chain, required(values.brain, "brain"), ctx)));
   const text = await stdinBody(ctx);
   if (text.trim() === "") throw userError("the page's body comes on stdin", "usage");
+  // The session's other brains, whose pages on the subject the answer names beside the brain's own (§1.4).
+  const others = chain.filter((b) => b.cloned && b.key !== brain.key).map((b) => ({ key: b.key, root: b.root }));
   const seeAlso = list(values["see-also"])?.filter((p) => p !== "none");
   if (seeAlso !== undefined && !values.create) throw userError("--see-also goes with --create", "usage");
   const input = {
@@ -53,6 +56,7 @@ export const runSave = writing("page save", NONE, async (c) => {
     create: Boolean(values.create),
     ...c.given(["sub", "evidence", "summary", "aliases", "namespace", "stale-after", "source-version", "applies-to"]),
     ...(seeAlso !== undefined && { seeAlso }),
+    ...(others.length > 0 && { others }),
   };
   return outcome("Saved", await save(brain, input, env(ctx)));
 });
