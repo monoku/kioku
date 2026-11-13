@@ -8,6 +8,7 @@ import { openMeaning, type SemanticDeps } from "../semantic/meaning.ts";
 import { brainRepoOfKey } from "../config/brain-ref.ts";
 import { readJournal } from "./journal.ts";
 import { historyRow, type Message } from "./message.ts";
+import { RECALL_MIN_PAGES } from "./recall-floor.ts";
 import { plural } from "../util.ts";
 
 /**
@@ -30,8 +31,6 @@ const RECALL_Z = 3;
 const RECALL_Z_ALONE = 4;
 /** The most pages one prompt recalls. */
 const RECALL_MAX = 3;
-/** Below this many pages indexed by meaning the measure says nothing, and the summary names most of them already. */
-const RECALL_MIN_PAGES = 30;
 /** A prompt with fewer words than this asks nothing a page could bear on. */
 const RECALL_MIN_WORDS = 3;
 /** Past this the hook gives up and adds nothing: every prompt waits for it. */

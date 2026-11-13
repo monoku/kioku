@@ -93,8 +93,12 @@ test("a session in acme-api shows the summary in the order of §4.1", () =>
       "- Run database tests serially: Run database tests serially. (1 occasion, last 2026-10-07; sam/brain,",
       "- Run database tests serially: Run database tests serially. (3 occasions, last 2026-10-07; northwind/brain-acme,",
     ]);
-    // Fact and lesson Memories never appear.
-    assert.doesNotMatch(s, /Prefer small commits/);
+    // The brains hold fewer pages than a prompt's recall needs, so the fact and lesson Memories are named, last (§4.7).
+    inOrder(s, ["## Instincts", "## Memories", "- Prefer small commits", "The brains hold"]);
+    assert.ok(
+      s.trimEnd().endsWith("finds them."),
+      "every Memory was listed, and the last line no longer says they are not",
+    );
     assert.ok(s.length <= SUMMARY_CAP);
     assert.deepEqual(
       w.calls,
