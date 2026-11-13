@@ -55,7 +55,8 @@ bends a principle changes it here first, and the spec with it.
 
 9. **What a session reads is bounded, and the memory comes to the agent.** The
    summary takes a share of the host's context (§4.1); at each prompt, the few
-   pages that stand out by meaning are named, never their text (§4.7); search
+   pages that stand out by meaning, or by their words where meaning cannot
+   run, are named, never their text (§4.7); search
    brings the rest when the agent asks. An agent does not look for what it does
    not know is there, so the memory does not wait to be asked.
 
