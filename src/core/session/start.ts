@@ -16,6 +16,7 @@ import { cmd, dim, historyRow, type Message } from "./message.ts";
 import { sessionReads, type SessionReads } from "./session-reads.ts";
 import { composeForSubagent, composeHandoff, composeHolds, composeUsage, type SummaryBrainSource } from "./summary.ts";
 import { loadSummaryBrains } from "./summary-load.ts";
+import { type RuleChange, takeRuleNews } from "./rule-news.ts";
 import { holdViews, newSince, readViews, recordViews } from "./views.ts";
 import { listWords, plural, readJson } from "../util.ts";
 
@@ -207,6 +208,17 @@ export async function startSession(
       details: [[dim(names)], ["they are kept aside"], ["ask the agent to look at them with you"]],
     });
   }
+  // A Rule goes whole into this session, and a teammate wrote or changed it: said once, and never muted (§1.2).
+  try {
+    const news = await takeRuleNews(
+      home,
+      shared.map((l) => ({ key: l.key, root: l.path })),
+    );
+    const told = news.flatMap((n) => n.changes.map((c) => ({ ...c, tier: shared.find((l) => l.key === n.key)!.tier })));
+    if (told.length > 0) messages.push(sayRuleNews(told));
+  } catch {
+    /* what the person is told never fails a session's start; the mark did not move, so the next one tells it */
+  }
   if (cloned.length > 0 && !existsSync(indexPath(home))) {
     messages.push({
       head: ["building the search index in the background"],
@@ -305,6 +317,31 @@ export async function startHolds(
     /* a count is only a count */
   }
   return composed.holds;
+}
+
+/** The most Rules one notice names; the rest are counted, with the command that lists them. */
+export const RULE_NEWS_MAX = 5;
+
+/**
+ * The notice of the Rules others changed in the session's shared brains (§1.2): each with what happened to it, its
+ * title, its brain as a message names one, who changed it, and the command that reads it. It has no name: a Rule acts
+ * on every session, so the notice is not one to mute.
+ */
+function sayRuleNews(told: (RuleChange & { tier: string })[]): Message {
+  const shown = told.slice(0, RULE_NEWS_MAX);
+  const more = told.length - shown.length;
+  return {
+    head: [
+      told.length === 1 ? "a Rule of a shared brain changed" : `${told.length} Rules of the shared brains changed`,
+    ],
+    details: [
+      ...shown.flatMap((c) => [
+        [`${c.change} · ${c.title}`, dim(` · ${c.tier} · by ${c.author}`)],
+        ...(c.change === "removed" ? [] : [["  ", cmd(`kioku page show ${c.path} --brain ${c.tier}`)]]),
+      ]),
+      ...(more > 0 ? [[`and ${more} more: `, cmd("kioku page list --kind rule")]] : []),
+    ],
+  };
 }
 
 /** How many days pass between two reminders that the personal brain has no backup, or that there is none. */
