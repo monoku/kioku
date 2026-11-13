@@ -7,6 +7,7 @@ import { depthOf, isUnder } from "../brain/namespace-name.ts";
 import { resolveLink } from "../brain/paths.ts";
 import { trustCommand, type ChainLink } from "../config/chain.ts";
 import type { BrainConfig } from "../config/folder-config.ts";
+import { RECALL_MIN_PAGES } from "./recall-floor.ts";
 import type { NewPage } from "./views.ts";
 import { plural } from "../util.ts";
 
@@ -18,9 +19,10 @@ import { plural } from "../util.ts";
  * then, while they fit, the project brain's front page, trimmed, and the Rules of the three brains, each its Rule and
  * its Why. What the memory holds: a heading that names the brains; then, while they fit, the pages to load first; the
  * Skills, one line each; the current decisions of the project brain, newest first; the instincts with recent
- * evidence, personal then project; what is new in the shared brains; the maintenance count per brain; and a last line
+ * evidence, personal then project; what is new in the shared brains; the maintenance count per brain; the Memories that
+ * are facts and lessons, only while the brains hold too few pages for a prompt to recall them (§4.7); and a last line
  * that counts the pages and says that search finds them. In each part the first item that does not fit ends it, so
- * nothing later jumps ahead of something earlier. Memories that are facts and lessons are never in it.
+ * nothing later jumps ahead of something earlier.
  *
  * This composes what `summary-load.ts` read: nothing here touches the disk.
  */
@@ -437,8 +439,8 @@ export function composeHolds(input: SummaryInput): {
 } {
   const { readable, project, pages, cap } = partsOfInput(input);
   if (readable.length === 0) return { offered: [], newsShown: [] };
-  const closing = (cut: boolean) =>
-    `The brains hold ${plural(pages, "page")}${cut ? "; this summary shows part of them" : ""}. \`kioku page search <words>\` finds them; Memories that are facts and lessons are found that way, not listed here.`;
+  const closing = (cut: boolean, memoriesListed = false) =>
+    `The brains hold ${plural(pages, "page")}${cut ? "; this summary shows part of them" : ""}. \`kioku page search <words>\` finds them${memoriesListed ? "." : "; Memories that are facts and lessons are found that way, not listed here."}`;
   const h = new Composer(cap, closing(true).length + 2);
   // The project brain's repository is a hint by its words, `brain-acme` for acme: the word brain itself says nothing.
   const hints = (input.hints ?? [])
@@ -559,8 +561,23 @@ export function composeHolds(input: SummaryInput): {
       .map((b) => `- ${nameOf(b)}: ${plural(b.lint!, "thing")} for \`kioku brain lint ${nameOf(b)}\``),
   );
 
-  // 7. The last line, never cut: how many pages, and that search finds them.
-  return { holds: h.text(closing(h.cut)), offered: h.offered, newsShown };
+  // 7. The Memories that are facts and lessons, while the brains hold too few pages for a prompt to recall them (§4.7):
+  // until then nothing brings them to the agent. Most specific brain first, as the chain is; the first thing the cap cuts.
+  const memories =
+    pages < RECALL_MIN_PAGES
+      ? readable.flatMap((b) =>
+          byRelevance(
+            b.docs
+              .filter((d) => kindOf(d.file) === "memory" && placementOf(d.rel)?.sub !== "instinct")
+              .sort(newestFirst),
+            (d) => `${titleOf(d)} ${str(d, "summary") ?? ""}`,
+          ).map((d) => offer(clip(`- ${withSummary(d)} (${nameOf(b)}, ${d.rel})`), b, d)),
+        )
+      : [];
+  const memoriesListed = h.section("## Memories", memories) && memories.length > 0;
+
+  // 8. The last line, never cut: how many pages, and that search finds them.
+  return { holds: h.text(closing(h.cut, memoriesListed)), offered: h.offered, newsShown };
 }
 
 /** Both parts and what each says of itself, as one; what a test of the whole reads. */
