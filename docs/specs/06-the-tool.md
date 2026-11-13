@@ -67,7 +67,7 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `brain list` | the brains this machine knows, the chain of this folder and, inside a brain, which one and what it leaves unloaded (§2.7) |
 | | `brain path` | prints the brain's folder |
 | | `brain log` | the writes of the chain's brains, newest first, from each brain's history, with who and how (`via`, §1.6); a window |
-| | `brain stats` | what the writes of the chain's brains add up to over a span, by verb and by `via`, naming no author, with how many saved pages were forgotten and this machine's count of pages opened, and of the times a recall named a page and the session then opened it (§4.5) |
+| | `brain stats` | what the writes of the chain's brains add up to over a span, by verb and by `via`, naming no author, with how many saved pages were forgotten and not restored, and this machine's count of pages opened, and of the times a recall named a page and the session then opened it (§4.5) |
 | | `brain sources` | what was ingested, per source, with the version each page was written from (§1.7) |
 | pages, reading | `page search` | the mode and the hits, each with its page and a snippet (§4.3) |
 | | `page list` | the pages of the chain's brains, or of one, with their fields, their links both ways (§3.3) and what changed since this machine's last session (§4.1); a window |
@@ -76,10 +76,12 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `page update` | edits a page in place and appends its Changelog or Evidence line; one that changes nothing is refused (§3.5) |
 | | `page supersede` | writes the new decision and marks the old one (§3.5) |
 | | `page forget` | deletes a page; git keeps it (§3.5) |
+| | `page restore` | brings back a page that was forgotten or merged away, as it was, in the brain named (§3.5) |
 | | `page confirm` | records that the page is still true, who by and when (§3.5) |
 | | `page retire` | marks a page not current, or current again (§3.5) |
 | | `page move` | gives a page another namespace of its brain; the id stays, the links follow (§3.2) |
 | | `page rename` | gives a page a new title; the links follow (§3.5) |
+| | `page merge` | makes one page of two of a brain, with the body sent; the id of the one that stays, the names of the other as aliases, and the links follow (§3.5) |
 | | `page link` | adds each page to the other's See also, with the relation when given (§3.3) |
 | | `page promote` | writes the page again in a more shared brain of the chain, by tier or name, through `save` there, then retires, forgets or keeps the original (§1.3) |
 | | `page evolve` | lists the Skill candidates with their When and occasions, or converts one (§3.6) |
@@ -118,8 +120,8 @@ or sends it to a git host (`brain publish`, `brain sync`) always takes the brain
 named, never one inferred from the folder or the tier. So does a write with
 nothing in the brain to find it by, which would otherwise land wherever the
 folder or the number of brains on the machine sent it: `page save`,
-`namespace add` and `brain language` always name the brain they write to,
-inside a brain too. A verb that only reads, or changes what a brain already
+`page restore`, `namespace add` and `brain language` always name the brain
+they write to, inside a brain too. A verb that only reads, or changes what a brain already
 holds (`page show`, `page forget`, `namespace describe`, `brain log`,
 `brain lint` and the rest), takes `--brain` or `[<brain>]` as an option:
 without it the brain the folder is inside, else the brains of the chain
@@ -137,9 +139,10 @@ lint` each list's first 20 entries and how long each list it cut is.
 state (`pushed`, `pending`, or `local` for a brain with no remote), with the
 page's `id`, `title`, `kind` and `subkind` (after the write, or before
 `forget`), the validator's warnings, and what the verb adds: the decision
-replaced, the pages that linked to a forgotten one, an instinct's candidacy
-(§3.6), and for `save` the pages on its subject in the session's other brains
-(§1.4). A refusal answers in the same shape with `status: error`, a code and
+replaced, the pages that linked to a forgotten one, the page a merge took in
+and the pages whose links followed, the commit a restore undoes, an instinct's
+candidacy (§3.6), and for `save` the pages on its subject in the session's
+other brains (§1.4). A refusal answers in the same shape with `status: error`, a code and
 the reason. The hook writes what it did into the session's journal (§4.6),
 from which the mod draws the rows (§1.2). A publication not yet pushed is kept
 as machine state (§2.5) for `sync` to retry (§1.6).
