@@ -17,6 +17,14 @@ What changed in each version of Kioku. What is true now is in the
   line with its title and summary, where before only a search found them. Once
   the brains hold more, each prompt brings the ones that bear on it, as since
   0.4.0, and the summary lists none.
+- **A machine with no search model has a recall too, by words.** Where the
+  model is not on the machine yet, or `search.mode` is `full-text`, each prompt
+  now brings the pages whose title, aliases and summary hold two or more of its
+  significant words, a rare word weighing more than a common one; three at
+  most, and none while the brains hold fewer than 30 pages. The row says
+  `recalled  by words` in place of `by meaning`. It finds fewer pages than
+  meaning does, and none written in another language than the prompt's.
+  `pnpm eval:recall -- --words` measures it.
 
 ## 0.5.0
 

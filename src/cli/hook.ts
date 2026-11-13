@@ -244,7 +244,7 @@ function namespaceQuestion(n: NamespaceAdd): Message {
 
 /**
  * The `UserPromptSubmit` hook (§4.6, §4.7): each prompt is the session's next turn in its journal, and the pages that
- * stand out by meaning for it are added to its context, one line each, and are an entry of the journal. It never
+ * stand out for it, by meaning or by its words where meaning cannot run, are added to its context, one line each, and are an entry of the journal. It never
  * fails the prompt, and adds nothing past its budget.
  */
 export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
@@ -256,7 +256,7 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
   const cwd = resolve(input.cwd ?? ctx.cwd);
   // Imported here, not above: the prompt's hook alone reaches the index and the model (§4.7); the session's start never does.
   const { recallFor, recallText, recalledRow, RECALL_TUNING } = await import("../core/session/recall.ts");
-  const pages = await recallFor(
+  const { pages, by } = await recallFor(
     ctx.home,
     config,
     { cwd, prompt: input.prompt, ...(input.sessionId !== undefined && { sessionId: input.sessionId }) },
@@ -278,6 +278,7 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
           brain: brains,
           count: pages.length,
           hits: pages.map(({ brain, path, title }) => ({ brain, path, title })),
+          ...(by === "words" && { by }),
         },
         labels,
       ),
@@ -294,6 +295,6 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
     /* a count is only a count */
   }
   // The person sees what the agent was given, under their message (§1.2): never muted, as the summary is not.
-  const said = render(recalledRow(pages, labels.label), layoutOf(config, ctx.env));
-  return harness.promptContextAnswer(recallText(pages), said);
+  const said = render(recalledRow(pages, labels.label, by), layoutOf(config, ctx.env));
+  return harness.promptContextAnswer(recallText(pages, by), said);
 });
