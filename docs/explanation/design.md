@@ -38,7 +38,7 @@ bends a principle changes it here first, and the spec with it.
    hook.** A hook runs every time, so what the agent knows and the person sees
    do not depend on compliance, and a row is drawn from the tool's real result,
    never from the agent's words. The skill holds only what is true everywhere,
-   capped at 1,500 words; what depends on the moment is in the summary.
+   capped at 2,000 words; what depends on the moment is in the summary.
 
 6. **The tool advises, the agent decides.** `save` returns the similar pages
    instead of guessing; the agent chooses to update, supersede or create. Each
