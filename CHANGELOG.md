@@ -25,6 +25,13 @@ What changed in each version of Kioku. What is true now is in the
   `recalled  by words` in place of `by meaning`. It finds fewer pages than
   meaning does, and none written in another language than the prompt's.
   `pnpm eval:recall -- --words` measures it.
+- **What you said and was not saved is kept through a compaction.** When
+  Claude Code compacts a long session, by itself or at `/compact`, Kioku asks
+  the summary to keep, under `Not yet saved to Kioku`, the corrections,
+  preferences and decisions of yours that no page holds yet, and the session's
+  start after it tells the agent to save them before going on. The plugin has
+  a `PreCompact` hook for it, `kioku hook pre-compact`; it shows nothing and
+  never stops a compaction.
 
 ## 0.5.0
 

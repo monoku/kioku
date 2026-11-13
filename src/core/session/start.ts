@@ -209,6 +209,7 @@ export async function startSession(
     notHere: chain.notHere,
     ...(chain.inside !== undefined && { inside: chain.inside, notLoaded: chain.notLoaded }),
     ...(chain.teamFrom !== undefined && { teamFrom: chain.teamFrom }),
+    ...(input.source === "compact" && { compacted: true }),
     problems: chain.problems,
     pending,
     syncFailures,

@@ -13,7 +13,9 @@ import {
 import {
   allowSkillAnswer,
   askAnswer,
+  compactInstructionsAnswer,
   parseNamespaceAdd,
+  parsePreCompact,
   parseSessionId,
   parseSessionStart,
   parseSkillUse,
@@ -71,6 +73,8 @@ export function claudeCode(home: string, env: NodeJS.ProcessEnv): Harness {
     parseUserPrompt,
     promptContextAnswer,
     parseToolResult: wholeToolResult(claudeConfigDir(home, configDir)),
+    parsePreCompact,
+    compactInstructionsAnswer,
     parseSkillUse,
     parseSessionId,
     allowSkillAnswer,

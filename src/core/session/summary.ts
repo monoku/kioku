@@ -7,6 +7,7 @@ import { depthOf, isUnder } from "../brain/namespace-name.ts";
 import { resolveLink } from "../brain/paths.ts";
 import { trustCommand, type ChainLink } from "../config/chain.ts";
 import type { BrainConfig } from "../config/folder-config.ts";
+import { AFTER_COMPACT } from "./compact.ts";
 import { RECALL_MIN_PAGES } from "./recall-floor.ts";
 import type { NewPage } from "./views.ts";
 import { plural } from "../util.ts";
@@ -77,6 +78,8 @@ export interface SummaryInput {
   untrusted?: ChainLink[];
   /** Links by name alone to a brain this machine does not have (§2.4). */
   notHere?: ChainLink[];
+  /** The session was just compacted: its opening sends the agent to what the compaction's summary kept unsaved (§1.1, §4.1). */
+  compacted?: boolean;
   /** The brain whose folder the session is in (§2.7), by key: the session works on it. */
   inside?: string;
   /** Where the team came from: the machine's when the folder names none (§2.4), which the team's line says. */
@@ -402,9 +405,12 @@ export function composeUsage(input: SummaryInput): {
   for (const [key, reason] of Object.entries(input.syncFailures ?? {}))
     opening.push(`- The last sync of ${key} failed: ${clip(reason, 160)}`);
   // When to save (§4.1) takes the room the rest of the opening leaves under the cap: whole, else one line, else none.
-  const rest = opening.join("\n").length + RULES_CUT.length + 2;
+  const afterCompact = input.compacted === true && readable.length > 0;
+  const rest = opening.join("\n").length + RULES_CUT.length + 2 + (afterCompact ? AFTER_COMPACT.length + 2 : 0);
   const whenToSave = [WHEN_TO_SAVE, WHEN_TO_SAVE_SHORT].find((t) => rest + t.length + 2 <= cap);
   if (whenToSave !== undefined) opening.splice(4, 0, whenToSave, "");
+  // After a compaction, what its summary kept unsaved is saved now (§1.1): with the opening, never cut.
+  if (afterCompact) opening.splice(whenToSave === undefined ? 4 : 6, 0, AFTER_COMPACT, "");
   c.must(opening.join("\n"));
 
   // 1. The project brain's front page, trimmed; inside a brain, that brain's.

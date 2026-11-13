@@ -1,5 +1,12 @@
 import { kiokuCall } from "../core/shell-words.ts";
-import type { HookAnswer, NamespaceAdd, SessionStartInput, ToolResult, UserPromptInput } from "./harness.ts";
+import type {
+  HookAnswer,
+  NamespaceAdd,
+  PreCompactInput,
+  SessionStartInput,
+  ToolResult,
+  UserPromptInput,
+} from "./harness.ts";
 
 /**
  * The hook JSON Claude Code sends and takes back: `cwd` and `source` to a session start, the shell command in
@@ -24,6 +31,25 @@ export function parseSessionStart(raw: string): SessionStartInput {
     ...(typeof r?.session_id === "string" && { sessionId: r.session_id }),
   };
 }
+
+/** What Claude Code tells a `PreCompact` hook that Kioku reads: the folder and the session. */
+export function parsePreCompact(raw: string): PreCompactInput {
+  const r = record(raw);
+  return {
+    ...(typeof r?.cwd === "string" && { cwd: r.cwd }),
+    ...(typeof r?.session_id === "string" && { sessionId: r.session_id }),
+  };
+}
+
+/**
+ * Claude Code takes what a `PreCompact` hook prints, as it is, for instructions to its compaction's summary: plain
+ * text, never JSON, so the answer is raw.
+ */
+export const compactInstructionsAnswer = (instructions: string): HookAnswer & { raw: true } => ({
+  data: { instructions },
+  text: instructions,
+  raw: true,
+});
 
 /** The session any hook runs in: `session_id`. */
 export function parseSessionId(raw: string): string | undefined {
