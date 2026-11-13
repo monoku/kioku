@@ -33,6 +33,15 @@ export interface World {
   ) => Promise<{ code: number; out: any; raw: string }>;
 }
 
+/** An answer as JSON, or as it came when it is the text a program wants (a hook's instructions, a script to source). */
+const parsed = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+};
+
 export interface WorldOptions {
   /** The project brain's pages; the default is the valid fixture without the migrations memory. */
   acmePages?: Made[];
@@ -145,7 +154,7 @@ export async function world<T>(fn: (w: World) => Promise<T>, o: WorldOptions = {
         ...k.context,
       });
       const { code, raw } = await runTool(argv, context, k.tty ?? false);
-      return { code, raw, out: k.tty || raw.trim() === "" ? raw : JSON.parse(raw) };
+      return { code, raw, out: k.tty || raw.trim() === "" ? raw : parsed(raw) };
     };
     return await fn({ dir, home, repo, acme, team, sam, remotes, bare, calls, kioku });
   } finally {

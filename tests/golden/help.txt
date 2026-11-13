@@ -605,7 +605,7 @@ More in the reference, under `kioku namespace rename`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-namespace-rename
 
 $ kioku help hook
-kioku hook session-start|session-start-holds|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]
+kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|pre-tool-use|post-tool-use [--host claude-code]
 
 What the plugin's hooks call.
 
