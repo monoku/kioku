@@ -44,6 +44,13 @@ reach.
   the summary is built (`src/core/session/summary.ts`); nor what a prompt
   recalls, where each page is one line whatever its title holds
   (`src/core/session/recall.ts`).
+- **A Rule a teammate changes is said to the person** (§1.2): a Rule reaches
+  every session whole, so one added, changed, retired or removed in a shared
+  brain by someone else is named at the next session's start, with who the
+  commit says changed it, in a notice that cannot be muted
+  (`src/core/session/rule-news.ts`). The name is the commit's, a label and not
+  a proof, and the notice comes with the Rule, not before it: the session that
+  says it already holds it.
 - **Rows come from the tool's result** (principle 5): a page cannot make the
   person believe a save happened, or did not.
 - **The journal holds names, never text** (§4.6), and a session's id names its
