@@ -29,6 +29,8 @@ import { readJson } from "./util.ts";
 export const STALE_INSTINCT_DAYS = 180;
 /** A page this machine has not opened is asked about after this many days, since the later of its last change and the day it began to count (§4.5). */
 export const UNOPENED_DAYS = 60;
+/** A page a recall named this many times, and no session opened after, is one to reword or retire (§4.4). Chosen, not measured. */
+export const UNFOLLOWED_RECALLS = 5;
 /** An instinct with this many occasions is a candidate for a Skill (§3.6). */
 export const SKILL_CANDIDATE_OCCASIONS = 3;
 /** The share of the shorter title's words the other's title meets before `brain lint` reports the pair as one subject (§4.4). */
@@ -85,6 +87,8 @@ export interface LintReport {
   conflicts: { branch: string; pages: string[] }[];
   /** Pages this machine has not opened in `UNOPENED_DAYS`, Rules and history left out; empty while nothing is counted (§4.5). */
   unopened: { path: string; since: string; days: number; surfaced: number }[];
+  /** Pages a recall named `UNFOLLOWED_RECALLS` times or more on this machine and no session then opened (§4.5). */
+  unfollowed: { path: string; recalled: number }[];
   /** The day this machine began to count what it opens, or null when it does not (§4.5). */
   counting_since: string | null;
   /** Namespaces that do not say what they are for, in a brain that has more than one (§3.2). */
@@ -307,6 +311,18 @@ export function lintBrain(
     }
   }
 
+  // What a recall keeps bringing and nobody opens (§4.5): its title and summary are all the recall's line shows.
+  const unfollowed: LintReport["unfollowed"] = [];
+  if (reads !== undefined) {
+    const counted = reads.brains[brain.key] ?? {};
+    for (const d of live) {
+      const entry = counted[d.file.front.getString("id") ?? ""];
+      if (entry !== undefined && (entry.recalled ?? 0) >= UNFOLLOWED_RECALLS && (entry.followed ?? 0) === 0)
+        unfollowed.push({ path: d.rel, recalled: entry.recalled! });
+    }
+    unfollowed.sort((a, b) => b.recalled - a.recalled || (a.path < b.path ? -1 : 1));
+  }
+
   const count =
     similar.length +
     staleInstincts.length +
@@ -320,6 +336,7 @@ export function lintBrain(
     contradictions.length +
     conflicts.length +
     unopened.length +
+    unfollowed.length +
     undescribed.length;
   return {
     brain: brain.key,
@@ -336,6 +353,7 @@ export function lintBrain(
     contradictions,
     conflicts,
     unopened,
+    unfollowed,
     counting_since: reads?.counting_since ?? null,
     undescribed,
     count,
@@ -373,6 +391,7 @@ export const LINT_LISTS = [
   "contradictions",
   "conflicts",
   "unopened",
+  "unfollowed",
   "undescribed",
 ] as const;
 

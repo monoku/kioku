@@ -52,6 +52,14 @@ What changed in each version of Kioku. What is true now is in the
   `page show` answer `applies_to`; the validator warns of a glob that matches
   no file and of the field outside a project brain. A brain's format does not
   move: an older Kioku ignores the field.
+- **`kioku brain stats` says how often a recall was worth it.** Beside the
+  pages opened, each brain now has `recalled`, the times a prompt or a file
+  brought one of its pages to a session on this machine, `followed`, the times
+  that session then opened the page, and `follow_rate`. `kioku brain lint`
+  lists, as `unfollowed`, the pages a recall named five times or more and no
+  session opened: their title and summary are all a recall shows, so they are
+  the ones to reword, or to retire. Counted from this version on; nothing
+  changes which pages a recall names.
 
 ## 0.5.0
 
