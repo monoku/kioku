@@ -9,6 +9,10 @@
  * measures the page whole alone, as the recall did before a page had parts (§4.3). It scores with the hook's own
  * functions, so it measures what the hook does.
  *
+ * `--words` measures the recall by words instead (§4.7), what a machine with no search model gets: a grid of the least
+ * weight a page's words in common with the prompt must have, and of how near the heaviest page's, with how many pages it names that
+ * are not the one wanted. It needs no model.
+ *
  * Not a check: a measure, to choose the recall's numbers with (§4.7), and to see whether a model's change moves them.
  * Needs `pnpm demo` and the search model on the demo's machine.
  */
@@ -17,7 +21,7 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { resolveChain } from "../../src/core/config/chain.ts";
 import { machineReader } from "../../src/core/config/machine.ts";
-import { openIndex } from "../../src/core/index/db.ts";
+import { openIndex, openIndexAsItIs } from "../../src/core/index/db.ts";
 import { updateIndex } from "../../src/core/index/indexer.ts";
 import { embedStale, keyOf, vectorStore } from "../../src/core/index/vectors.ts";
 import { loadEmbedder } from "../../src/core/semantic/embedder.ts";
@@ -25,10 +29,13 @@ import { httpDownload } from "../../src/core/semantic/install.ts";
 import { openMeaning } from "../../src/core/semantic/meaning.ts";
 import {
   currentPages,
+  indexedPages,
   RECALL_TUNING,
   recallable,
   sharesWord,
   standingOf,
+  standOutByWords,
+  wordStanding,
   zScores,
 } from "../../src/core/session/recall.ts";
 
@@ -125,7 +132,7 @@ const SET: Labelled[] = [
 ];
 
 const { values } = parseArgs({
-  options: { rule: { type: "string" }, whole: { type: "boolean" } },
+  options: { rule: { type: "string" }, whole: { type: "boolean" }, words: { type: "boolean" } },
   strict: true,
   args: process.argv.slice(2).filter((a) => a !== "--"),
 });
@@ -141,6 +148,69 @@ if (!existsSync(join(app, "kioku.yaml"))) {
 const config = machineReader(home)();
 const links = resolveChain(app, config, home).links.filter((l) => l.cloned);
 const keys = links.map((l) => l.key);
+if (values.words === true) {
+  await byWords();
+  process.exit(0);
+}
+
+/** The recall by words (§4.7), scored with the hook's own function over every page the index holds. */
+async function byWords(): Promise<void> {
+  const index = await openIndexAsItIs(home);
+  if (index === undefined) {
+    console.error("No index on the demo's machine. Run: pnpm demo");
+    process.exit(1);
+  }
+  const pages = indexedPages(index, keys).filter(recallable);
+  index.close();
+  // With one word in common, so that the page a prompt wants is shown wherever it stands; the rules ask for two or more.
+  const standing = SET.map((s) => wordStanding(s.prompt, pages, 1));
+  console.log("prompt → the page it wants: its words in common, their weight (rank), and the heaviest page");
+  SET.forEach((s, i) => {
+    const c = standing[i]!;
+    const top = c[0];
+    const head =
+      top === undefined
+        ? "nothing"
+        : `${top.words} words, ${top.weight.toFixed(2)}  ${top.page.path.split("/").pop()!.slice(0, 44)}`;
+    if (s.want === undefined) return console.log(`  none  ${s.prompt.slice(0, 58).padEnd(58)} top ${head}`);
+    const k = c.findIndex((x) => x.page.path.includes(s.want!));
+    const x = c[k];
+    console.log(
+      `  want  ${s.prompt.slice(0, 58).padEnd(58)} ${x === undefined ? "no word in common" : `${x.words} words, ${x.weight.toFixed(2)} (#${k + 1})`}`,
+    );
+  });
+  console.log("\nrule                    found      noisy      other pages named beside the one wanted");
+  for (const near of [0, 0.5, 2 / 3, 0.8])
+    for (const weight of [1, 1.25, 1.5, 1.75, 2]) {
+      let found = 0;
+      let wanted = 0;
+      let noisy = 0;
+      let quiet = 0;
+      let others = 0;
+      SET.forEach((s, i) => {
+        const got = standOutByWords(
+          standing[i]!.filter((x) => x.words >= 2),
+          () => false,
+          { weight, near, max: RECALL_TUNING.max },
+        ).map((x) => x.page.path);
+        if (s.want === undefined) {
+          quiet++;
+          if (got.length > 0) noisy++;
+          return;
+        }
+        wanted++;
+        if (got.some((p) => p.includes(s.want!))) found++;
+        others += got.filter((p) => !p.includes(s.want!)).length;
+      });
+      console.log(
+        `weight ≥${weight.toFixed(2)}, near ≥${near.toFixed(2)}  ${`${found}/${wanted}`.padEnd(10)} ${`${noisy}/${quiet}`.padEnd(10)} ${others}`,
+      );
+    }
+  console.log(
+    `\n${SET.length} prompts, ${pages.length} pages; the tool now: 2 words or more, weight ≥${RECALL_TUNING.wordsWeight}, near ≥${RECALL_TUNING.wordsNear?.toFixed(2)}, ${RECALL_TUNING.max} at most`,
+  );
+}
+
 const meaning = await openMeaning(home, { download: httpDownload, loadEmbedder });
 if ("reason" in meaning) {
   console.error(`No search model on the demo's machine: ${meaning.reason}`);

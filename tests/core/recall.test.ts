@@ -14,6 +14,8 @@ import {
   recallText,
   sharesWord,
   standOut,
+  standOutByWords,
+  wordStanding,
   zScores,
   type RecallTuning,
 } from "../../src/core/session/recall.ts";
@@ -299,6 +301,87 @@ test("what a prompt recalled is said whatever display.mute holds: a read, as the
     writeFileSync(path, `${readFileSync(path, "utf8")}display:\n  mute: [${NOTICE_NAMES.join(", ")}]\n`);
     const r = await prompt(w, f, ASK);
     assert.match(r.out.systemMessage, /⬢ kioku\.md ↓ recalled {2}by meaning · 1 page \(project\)/);
+  }));
+
+test("a page's words in common with a prompt weigh by how few pages hold each: one page alone 1, half of them nothing (§4.7)", () => {
+  const page = (title: string, summary = "", aliases = "") => ({ title, summary, aliases });
+  const pages = [
+    page("When a refund fails", "Check the provider's dashboard first."),
+    page("Deploy the app", "The steps of a deploy."),
+    page("The app's environments", "", "stages"),
+    page("Who works on the app"),
+    page("Rounding each line", "Invoices a cent off."),
+    page("Partners who call the API"),
+  ];
+  const standing = wordStanding("the customer's refund failed on the app, what now", pages);
+  // `refund` and `failed` meet one page, by stem; `app` meets half of them and weighs nothing.
+  assert.deepEqual(
+    standing.map((x) => [x.page.title, x.words, Number(x.weight.toFixed(2))]),
+    [["When a refund fails", 2, 2]],
+  );
+  // One word in common is not a subject in common, whatever it weighs.
+  assert.deepEqual(wordStanding("where are the invoices kept", pages), []);
+  // An alias is a name of the page as its title is.
+  assert.equal(wordStanding("the stages of our environments", pages)[0]?.page.title, "The app's environments");
+  // A stopword is no word, and among a page or two nothing is rare.
+  assert.deepEqual(wordStanding("what is the who of this", pages), []);
+  assert.deepEqual(wordStanding("refund fails", pages.slice(0, 2)), []);
+});
+
+test("by words a page stands out when heavy enough and near the heaviest; three at most, none skipped (§4.7)", () => {
+  const standing = [3, 2.5, 1.9, 1.6, 1.4].map((weight, i) => ({ id: i, weight }));
+  const ids = (skip: number[], t = { weight: 1.5, near: 0, max: 3 }) =>
+    standOutByWords(standing, (x) => skip.includes(x.id), t).map((x) => x.id);
+  assert.deepEqual(ids([]), [0, 1, 2], "three at most, the heaviest first");
+  assert.deepEqual(ids([0, 1]), [2, 3], "not the ones skipped, nor one too light");
+  assert.deepEqual(ids([], { weight: 1.5, near: 2 / 3, max: 3 }), [0, 1], "only those near the heaviest");
+  assert.deepEqual(ids([0], { weight: 1.5, near: 2 / 3, max: 3 }), [1], "near the heaviest, skipped or not");
+  assert.deepEqual(
+    standOutByWords([], () => false, { weight: 1.5, near: 0.5, max: 3 }),
+    [],
+  );
+});
+
+test("where meaning cannot run, a prompt brings the pages that stand out by its words, and the row and the journal say so (§4.6, §4.7)", () =>
+  recallWorld(async (w, f) => {
+    await w.kioku(["sync", "--cwd", w.repo], { context: { semantic: f.deps } });
+    // The index is there and the engine does not load: what a machine kept to full text, or still fetching, has.
+    const noModel = {
+      ...f.deps,
+      loadEmbedder: async () => {
+        throw new Error("no engine here");
+      },
+    };
+    const ask = (text: string, session: string, tuning: RecallTuning = FEW) =>
+      w.kioku(["hook", "user-prompt-submit"], {
+        stdin: JSON.stringify({ cwd: w.repo, prompt: text, session_id: session }),
+        context: { semantic: noModel, recall: tuning },
+      });
+    const r = await ask(ASK, "words");
+    assert.equal(r.code, 0);
+    const text = contextOf(r);
+    assert.match(text, /^Found by the words of this prompt in the brains of this session\./m);
+    assert.match(
+      text,
+      /^- Office wifi password location: Where the wifi password is\. \(northwind\/brain-acme, knowledge\/acme\/context\/office-wifi-password-location\.md\)$/m,
+    );
+    assert.match(r.out.systemMessage, /^\n⬢ kioku\.md ↓ recalled {2}by words · \d pages? \(/);
+    const entry = readJournal(w.home, "words").find((e) => e.what === "recalled")!;
+    assert.equal(entry.by, "words");
+    assert.ok(entry.hits?.some((h) => h.path === WIFI));
+    assert.ok(!readFileSync(join(w.home, ".kioku/sessions/words.jsonl"), "utf8").includes("these days"));
+
+    assert.equal(contextOf(await ask(ASK, "words")), "", "a page already recalled in this session is not named again");
+    assert.equal(
+      contextOf(await ask("please rename this variable to camelCase", "none")),
+      "",
+      "no page holds its words",
+    );
+    assert.equal(
+      contextOf(await ask(ASK, "few", { ...FEW, minPages: 10_000 })),
+      "",
+      "too few pages: the summary names them",
+    );
   }));
 
 test("a recalled page's line is one line whatever its title holds: a page cannot add a line or a heading (§4.7)", () => {

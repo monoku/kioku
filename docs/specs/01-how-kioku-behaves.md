@@ -98,7 +98,8 @@ place of `session summary`.
 
 What a prompt recalled (§4.7) is said the same way, under the person's message,
 as one row: the history's `recalled` row on the brand's line. The pages are
-the memory history's to list, where they open. A prompt that recalled nothing
+the memory history's to list, where they open. It says `by words` in place of
+`by meaning` where meaning could not run (§4.7). A prompt that recalled nothing
 says nothing.
 
 ```
