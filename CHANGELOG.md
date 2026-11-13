@@ -90,6 +90,20 @@ What changed in each version of Kioku. What is true now is in the
   footer's counts, and what it was already given, so nothing is recalled to
   it twice. The journal stays what it was: names and counts on this machine,
   never a page's text or a prompt.
+- **Two pages on one subject become one, and a forgotten page comes back.**
+  `kioku page merge <from> <into>` takes the merged body on stdin and, in one
+  commit, keeps the `id` of the page that stays, makes the other's title and
+  aliases its aliases, joins both pages' See also and an instinct's occasions,
+  points every link of the brain at it and deletes the other; before, it was an
+  `update` and a `forget` by hand, and the links to the forgotten page broke.
+  Decisions are not merged: they are superseded. `kioku page restore <path>
+  --brain <b>` brings back a page as it was before the `forget` or the `merge`
+  that deleted it, where before it took a `git revert` in the brain's folder;
+  it is refused when a page it linked to is gone. In a conversation: "these two
+  are the same", "bring that back". `brain log` lists both, a merge with `into`;
+  `brain stats` counts them in `by_verb`, and a save forgotten and then
+  restored is no longer a reverted save. The journal has `merged` and
+  `restored`.
 
 ## 0.5.0
 

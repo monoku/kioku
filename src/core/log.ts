@@ -12,6 +12,8 @@ export const WRITING_VERBS = [
   "retire",
   "rename",
   "move",
+  "merge",
+  "restore",
 ] as const;
 export type WritingVerb = (typeof WRITING_VERBS)[number];
 
@@ -22,7 +24,9 @@ export interface Write {
   title: string;
   /** The decision a supersede replaced, by its title. */
   replaces?: string;
-  /** The page the verb is about, relative to the brain: the one written, updated or forgotten; for `evolve`, the Skill; for `link`, the first page git lists of the two. */
+  /** The page a merge made one with, by its title. */
+  into?: string;
+  /** The page the verb is about, relative to the brain: the one written, updated, forgotten or restored; for `evolve`, the Skill; for `link`, the first page git lists of the two; for `merge`, the page taken in, which is gone. */
   path: string;
   date: string;
   author: string;
@@ -43,6 +47,8 @@ const STATUS: Record<WritingVerb, string> = {
   retire: "M",
   rename: "A",
   move: "A",
+  merge: "D",
+  restore: "A",
 };
 const SUBJECT = new RegExp(`^(${WRITING_VERBS.join("|")}): (.*)$`);
 
@@ -84,10 +90,12 @@ export function writesSince(root: string, since: Date): Write[] {
     const page = changed.find(([s]) => s === STATUS[verb]) ?? changed[0];
     if (page === undefined) continue;
     const replaced = verb === "supersede" ? /^(.*) \(replaces (.*)\)$/.exec(m[2]!) : null;
+    const merged = verb === "merge" ? /^(.*) \(into (.*)\)$/.exec(m[2]!) : null;
     writes.push({
       verb,
-      title: replaced?.[1] ?? m[2]!,
+      title: replaced?.[1] ?? merged?.[1] ?? m[2]!,
       ...(replaced && { replaces: replaced[2]! }),
+      ...(merged && { into: merged[2]! }),
       path: page[1],
       date,
       author,

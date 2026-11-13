@@ -88,11 +88,13 @@ export interface Done extends Applied {
   supersedes?: string;
   /** `link`: the other page. */
   to?: string;
-  /** `rename`: the path the page had. */
+  /** `rename`, `move`: the path the page had. `merge`: the page taken in, which is gone. */
   from?: string;
+  /** `restore`: the commit that deleted the page, which this one undoes. */
+  undoes?: string;
   /** The namespace the page went to (`save`, `move`). */
   namespace?: string;
-  /** `rename`: the pages whose links now point at the new path. */
+  /** `rename`, `move`: the pages whose links now point at the new path. `merge`: those that now point at the page that holds both. */
   relinked?: string[];
   /** `forget`: the pages whose links now point at nothing. */
   linkedFrom?: string[];

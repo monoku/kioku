@@ -191,7 +191,7 @@ model:
 Each list shows its first 20 entries and says how many there are (§6.1).
 `sync` refreshes the report and the summary carries its count (§4.1). The
 action happens in conversation, with the verbs of §6.1, when the person asks:
-linking a pair, forgetting a page or a stale instinct, evolving a candidate,
+linking a pair or merging it, forgetting a page or a stale instinct, evolving a candidate,
 confirming a page that is still true or retiring one that is not.
 
 ## 4.5 What is opened
@@ -248,6 +248,8 @@ is a read or a write:**
 | `updated` | `page update`; `instinct again` when it adds an occasion to an instinct (`--evidence`), with whether the instinct is a candidate for a Skill (§3.6) | write |
 | `replaced`, `forgot`, `retired`, `confirmed`, `renamed`, `moved`, `linked`, `promoted` | `page supersede`, `forget`, `retire`, `confirm`, `rename`, `move`, `link`, `promote` | write |
 | `evolved` | `page evolve`, with what the instinct became: a Skill, a Rule or a playbook | write |
+| `merged` | `page merge`, on the page that holds both, with the path of the one taken in | write |
+| `restored` | `page restore` | write |
 
 Reading a Skill is `opened`, like any page. Only a result the tool gave makes
 an entry: a refusal, a `similar` answer or one that asks for a namespace makes

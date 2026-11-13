@@ -21,7 +21,7 @@ In a project folder
 
 Brains, pages and namespaces
   brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
-  page        search, list and show the pages of this folder's brains, and write them (14 verbs)
+  page        search, list and show the pages of this folder's brains, and write them (16 verbs)
   namespace   list, add, describe and rename the namespaces of a brain (4 verbs)
 
 kioku <group> lists a group's verbs; kioku help <verb>, or kioku <verb> --help, one verb's usage;
@@ -50,7 +50,7 @@ In a project folder
 
 Brains, pages and namespaces
   brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
-  page        search, list and show the pages of this folder's brains, and write them (14 verbs)
+  page        search, list and show the pages of this folder's brains, and write them (16 verbs)
   namespace   list, add, describe and rename the namespaces of a brain (4 verbs)
 
 kioku <group> lists a group's verbs; kioku help <verb>, or kioku <verb> --help, one verb's usage;
@@ -79,7 +79,7 @@ In a project folder
 
 Brains, pages and namespaces
   brain       make, clone, sync, publish and check the brains of this machine (16 verbs)
-  page        search, list and show the pages of this folder's brains, and write them (14 verbs)
+  page        search, list and show the pages of this folder's brains, and write them (16 verbs)
   namespace   list, add, describe and rename the namespaces of a brain (4 verbs)
 
 kioku <group> lists a group's verbs; kioku help <verb>, or kioku <verb> --help, one verb's usage;
@@ -97,9 +97,11 @@ Search, list and show the pages of this folder's brains, and write them.
   update     rewrites a page's body, or one section, keeping its history
   supersede  writes a new decision and marks the old one as replaced
   forget     deletes a page; git keeps it
+  restore    brings back a page that was forgotten or merged away, as it was
   confirm    records that a page is still true
   retire     marks a page as not current, kept as history
   rename     gives a page a new title; links follow
+  merge      makes one page of two on the same subject; links follow and git keeps the other
   move       moves a page to another namespace of its brain; its id stays and links follow
   link       links two related pages, each under the other's See also
   promote    writes a page again in a more shared brain and retires the original
@@ -171,9 +173,11 @@ Search, list and show the pages of this folder's brains, and write them.
   update     rewrites a page's body, or one section, keeping its history
   supersede  writes a new decision and marks the old one as replaced
   forget     deletes a page; git keeps it
+  restore    brings back a page that was forgotten or merged away, as it was
   confirm    records that a page is still true
   retire     marks a page as not current, kept as history
   rename     gives a page a new title; links follow
+  merge      makes one page of two on the same subject; links follow and git keeps the other
   move       moves a page to another namespace of its brain; its id stays and links follow
   link       links two related pages, each under the other's See also
   promote    writes a page again in a more shared brain and retires the original
@@ -525,6 +529,14 @@ Deletes a page; git keeps it.
 More in the reference, under `kioku page forget`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-forget
 
+$ kioku help page restore
+kioku page restore <path> --brain <b>
+
+Brings back a page that was forgotten or merged away, as it was.
+
+More in the reference, under `kioku page restore`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-restore
+
 $ kioku help page confirm
 kioku page confirm <path> [--brain <b>] [--note <line>]
 
@@ -548,6 +560,14 @@ Gives a page a new title; links follow.
 
 More in the reference, under `kioku page rename`:
 https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-rename
+
+$ kioku help page merge
+kioku page merge <from path> <into path> [--brain <b>] < body
+
+Makes one page of two on the same subject; links follow and git keeps the other.
+
+More in the reference, under `kioku page merge`:
+https://github.com/monoku/kioku/blob/main/docs/reference/cli.md#kioku-page-merge
 
 $ kioku help page move
 kioku page move <path> --namespace <ns> [--brain <b>]

@@ -326,6 +326,12 @@ export const SECTIONS = [
       "free",
     ),
     "page forget": v("deletes a page; git keeps it", "kioku page forget <path> [--brain <b>]", BRAIN, "free"),
+    "page restore": v(
+      "brings back a page that was forgotten or merged away, as it was",
+      "kioku page restore <path> --brain <b>",
+      BRAIN,
+      "free",
+    ),
     "page confirm": v(
       "records that a page is still true",
       "kioku page confirm <path> [--brain <b>] [--note <line>]",
@@ -342,6 +348,12 @@ export const SECTIONS = [
       "gives a page a new title; links follow",
       "kioku page rename <path> --title <new title> [--brain <b>]",
       { title: str("<new title>"), brain: str(b) },
+      "free",
+    ),
+    "page merge": v(
+      "makes one page of two on the same subject; links follow and git keeps the other",
+      "kioku page merge <from path> <into path> [--brain <b>] < body",
+      BRAIN,
       "free",
     ),
     "page move": v(

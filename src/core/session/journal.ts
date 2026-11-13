@@ -35,7 +35,9 @@ export type JournalWhat =
   | "moved"
   | "linked"
   | "promoted"
-  | "evolved";
+  | "evolved"
+  | "merged"
+  | "restored";
 
 export interface JournalEntry {
   /** When, as an ISO date and time. */
@@ -65,6 +67,8 @@ export interface JournalEntry {
   total?: number;
   /** An instinct seen again that is now a candidate for a Skill (§3.6). */
   candidate?: true;
+  /** `merged`: the page taken in, which is gone; `path` is the page that holds both. */
+  from?: string;
   /** What an evolved instinct became. */
   became?: "skill" | "rule" | "playbook";
   /** Why a summary was loaded: the session started, was resumed or was compacted (or cleared, a new session). */
@@ -95,6 +99,8 @@ const WRITES: Record<(typeof JOURNAL_WRITES)[number], JournalWhat> = {
   link: "linked",
   promote: "promoted",
   evolve: "evolved",
+  merge: "merged",
+  restore: "restored",
 };
 
 /** The flags of `page search` that take no value, `--json` among them: the words come after the rest and their values. */
@@ -174,6 +180,8 @@ function entriesOf(command: string | undefined, output: string): NewEntry[] {
           const became = a.evolvedAs === "rule" || a.evolvedAs === "playbook" ? a.evolvedAs : "skill";
           return { what: "evolved", arrow: "write", ...page, became };
         }
+        if (verb === "merge")
+          return { what: "merged", arrow: "write", ...page, ...(str(a.from) !== undefined && { from: str(a.from) }) };
         return { what: WRITES[verb], arrow: "write", ...page };
       });
   }

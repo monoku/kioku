@@ -59,7 +59,7 @@ memory, with `pnpm eval:memory` before and after. Tests never touch the real hom
   each release. Never commit to `main`.
 - Every commit that changes what a person or a machine sees adds its line under
   `## Unreleased` in `CHANGELOG.md`, above the last version's section.
-- The skill is capped at 1,500 words and names no paths or ids; a test enforces
+- The skill is capped at 2,000 words and names no paths or ids; a test enforces
   both. The `AGENTS.md` the tool writes into brains names no host.
 - The repository's name is written once, in `package.json`, read by
   `src/product.ts`; `install.sh` carries it too.

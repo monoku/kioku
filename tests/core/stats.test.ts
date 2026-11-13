@@ -37,6 +37,8 @@ test("a brain's writes add up by verb; a saved page forgotten in the span is rev
     supersede: 0,
     forget: 2,
     evolve: 0,
+    merge: 0,
+    restore: 0,
     link: 0,
     confirm: 1,
     retire: 0,

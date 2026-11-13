@@ -206,7 +206,8 @@ changed is not edited: a new decision supersedes it, and the old one stays as
 history, listed as current by neither the summary nor the default search. A
 page the person rejects is deleted with a commit; git keeps it. Every change is
 a commit with the git identity of the person whose agent made it, with the
-message `<verb>: <title>`; a supersede reads `supersede: <new> (replaces <old>)`.
+message `<verb>: <title>`; a supersede reads `supersede: <new> (replaces <old>)`
+and a merge `merge: <page> (into <other>)`.
 Three things are said of a page without rewriting it:
 
 - **Confirmed.** `kioku page confirm` records that the page is still true, who
@@ -222,6 +223,25 @@ Three things are said of a page without rewriting it:
   in the brain to the old path, in a page's body, `supersedes`,
   `superseded_by`, an `INDEX.md` or the front page, points to the new one;
   links from outside the brain are not rewritten.
+
+Two pages of one brain on the same subject are made one, and a page that is
+gone comes back:
+
+- **Merged.** `kioku page merge <from> <into>` takes the body of the page that
+  holds both, written by whoever merges, and in one commit: `into` keeps its
+  `id`; the title and the aliases of `from` become its aliases, so search
+  still finds it by them; an instinct keeps the occasions of both, by date;
+  its See also holds both pages'; every link in the brain to `from` points to
+  `into`, as a rename's do; and `from` is deleted, which git keeps. Only two
+  pages of one kind and subkind are merged, and never a decision: a decision
+  that changed is superseded, and both stay as history.
+- **Restored.** `kioku page restore <path>` brings a page back as it was at
+  the commit before the last one that deleted it, a `forget` or a `merge`, in
+  one commit, with its `id`. It is the undo of `forget`. It is refused where a
+  page stands at the path, where the brain's history deleted none there, and,
+  as any write, where the page as it was no longer passes the validator (§5.1):
+  a page it linked to is gone, or its namespace is. The links a merge pointed
+  elsewhere stay where the merge left them.
 
 ## 3.6 Instincts and Skills
 

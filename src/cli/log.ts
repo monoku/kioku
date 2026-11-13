@@ -51,5 +51,6 @@ function describe(w: Write & { brain: string }, ui: Ui): string {
   const meta = [w.verb, brainRepoOfKey(w.brain), w.date.slice(0, 16).replace("T", " ")].join(" · ");
   const replaces = w.replaces === undefined ? "" : ` · replaces ${w.replaces}`;
   const via = w.via === null ? "" : ` · via ${w.via}`;
-  return entry(ui, w.title, meta, [{ text: `${w.path} · ${w.author}${via}${replaces}`, keepEnd: true }]);
+  const into = w.into === undefined ? "" : ` · into ${w.into}`;
+  return entry(ui, w.title, meta, [{ text: `${w.path} · ${w.author}${via}${replaces}${into}`, keepEnd: true }]);
 }

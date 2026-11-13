@@ -33,6 +33,8 @@ one. The codes the verbs below do not name:
 | `page confirm` | `retired` | the page is retired |
 | `page retire` | `already_retired`, `not_retired` | the retire, or the `--undo`, changes nothing |
 | `page rename` | `path_exists`, `unchanged` | the new path exists; the title is the same |
+| `page merge` | `different_kinds`, `is_a_decision`, `different_brains` | the two are not of one kind and subkind; they are decisions, which are superseded; they are in two brains |
+| `page restore` | `path_exists`, `not_found`, `invalid_page` | a page stands at the path; the brain's history deleted none there; the page as it was no longer passes the validator |
 | `page move` | `not_found`, `unchanged`, `path_exists` | the brain lacks the namespace; it is the page's own; the new path is taken |
 | `page link` | `unchanged` | both pages already link as asked |
 
@@ -597,6 +599,22 @@ kioku page forget <path> [--brain <b>]
 Deletes a page; git keeps it.
 <!-- /generated -->
 
+### `kioku page restore`
+
+```text
+kioku page restore <path> --brain <b>
+```
+
+Brings back a page that was forgotten or merged away, as it was.
+<!-- /generated -->
+
+The page returns as it was at the commit before the last one that deleted it,
+with its `id`, in one commit. `--brain` is required: nothing in a brain says
+where a page that is gone was. `kioku brain log` lists what was forgotten or
+merged, each with its path. A page whose links broke since is refused
+(`invalid_page`); [Recover a page that was forgotten](../how-to/recover-a-forgotten-page.md)
+says what to do then.
+
 ### `kioku page confirm`
 
 ```text
@@ -623,6 +641,23 @@ kioku page rename <path> --title <new title> [--brain <b>]
 
 Gives a page a new title; links follow.
 <!-- /generated -->
+
+### `kioku page merge`
+
+```text
+kioku page merge <from path> <into path> [--brain <b>] < body
+```
+
+Makes one page of two on the same subject; links follow and git keeps the other.
+<!-- /generated -->
+
+The body on stdin is the merged page's, written by whoever merges. `<into>`
+keeps its `id` and takes the title and aliases of `<from>` as aliases, both
+pages' See also and, for an instinct, the occasions of both; every link in the
+brain to `<from>` points to `<into>`, and `<from>` is deleted, in one commit.
+Two pages of one brain, one kind and one subkind; decisions are superseded,
+not merged. `kioku page restore <from> --brain <b>` brings `<from>` back; the
+merged page stays as the merge left it.
 
 ### `kioku page move`
 
