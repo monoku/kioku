@@ -30,7 +30,11 @@ Warnings do not block, and each has a name: `summary` missing
 (`summary-missing`); `## Changelog` missing on a kind that has one
 (`changelog-missing`); a Rule longer than 600 characters (`rule-too-long`);
 `evidence` missing on a page whose `source` is a session (`evidence-missing`);
-a `stale_after` that is not a date (`stale-after-invalid`); a `status` other
+a `stale_after` that is not a date (`stale-after-invalid`); a glob of
+`applies_to` that matches no file, absolute, leaving the project folder or
+matching all of it (`applies-to-invalid`), and `applies_to` on a page of a
+brain that is not a project's, where no file names it
+(`applies-to-not-project`); a `status` other
 than `deprecated` (`status-invalid`); a `verified` that is not entries with an
 `at` (`verified-invalid`); a page of more than 500 lines (`page-too-long`); a
 `## Load first` that names more than five pages or one not in the brain

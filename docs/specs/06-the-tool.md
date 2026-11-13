@@ -166,8 +166,10 @@ and the host has no other way to it. The plugin holds:
   one gives it the Rules (§4.1); after the shell tool, one filtered to the tool's writing and
   reading verbs writes what they did into the journal (§4.6); before the skill
   tool, one lets the host load Kioku's own skill without asking, writing that
-  into the journal, and nothing for another skill; before `kioku namespace
-  add`, one has the host ask the person, naming the namespace and its brain
+  into the journal, and nothing for another skill; before the host's tools
+  that read or change one file, one names the pages that say they are about
+  that file (§4.7), its wrapper starting nothing where no page says so; before
+  `kioku namespace add`, one has the host ask the person, naming the namespace and its brain
   (§3.2), whatever `display.mute` holds; a namespace added in a terminal goes
   through no hook;
 - one mod, which draws the rows, the footer, the memory history, the page
