@@ -110,6 +110,8 @@ test("every read and every write of a command is one entry, each in one arrow (Â
     ["retire", "retired"],
     ["confirm", "confirmed"],
     ["rename", "renamed"],
+    ["merge", "merged"],
+    ["restore", "restored"],
     ["move", "moved"],
     ["link", "linked"],
     ["promote", "promoted"],

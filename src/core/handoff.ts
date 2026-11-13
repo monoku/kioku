@@ -172,7 +172,13 @@ export function setHandoff(home: string, place: Place, text: string, now: Date):
  * first in each, each once, `HANDOFF_PAGES_MAX` at most; not one it forgot. What the journal holds of them, no more.
  */
 export function pagesOfJournal(journal: JournalEntry[]): HandoffPage[] {
-  const forgotten = new Set(journal.filter((e) => e.what === "forgot").map((e) => `${e.brain}\n${e.path}`));
+  // Gone is a page whose last word is that it was forgotten, or taken into another by a merge; one restored is back.
+  const gone = new Map<string, boolean>();
+  for (const e of journal) {
+    if (e.what === "forgot" || e.what === "restored") gone.set(`${e.brain}\n${e.path}`, e.what === "forgot");
+    if (e.what === "merged" && e.from !== undefined) gone.set(`${e.brain}\n${e.from}`, true);
+  }
+  const forgotten = new Set([...gone].filter(([, is]) => is).map(([key]) => key));
   const seen = new Set<string>();
   const pick = (did: HandoffPage["did"], wanted: (e: JournalEntry) => boolean): HandoffPage[] =>
     [...journal].reverse().flatMap((e) => {

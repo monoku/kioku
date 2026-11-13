@@ -27,7 +27,7 @@ const namesPage = (from: string, value: string, rel: string): boolean => resolve
  * the old title as their text replaced by the new one, and its `supersedes` and `superseded_by` fields; a file that
  * is not a page, an index or a front page, in its text.
  */
-function relink(
+export function relink(
   brain: TargetBrain,
   rel: string,
   newRel: string,
