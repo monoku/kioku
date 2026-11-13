@@ -1,5 +1,6 @@
 import { JOURNAL_READS, JOURNAL_WRITES } from "../core/session/journal-verbs.ts";
 import { MARKETPLACE_NAME } from "../product.ts";
+import { FILE_TOOLS } from "./hook-json.ts";
 
 /**
  * What Kioku is to Claude Code (§6.2): a plugin, `kioku` in a marketplace that ships beside the tool, under the
@@ -21,6 +22,7 @@ export type HookVerb =
   | "user-prompt-submit"
   | "pre-compact"
   | "subagent-start"
+  | "pre-tool-path"
   | "post-tool-use"
   | "pre-tool-use";
 
@@ -67,6 +69,9 @@ export function pluginHooks(): { hooks: Record<string, HookGroup[]>; modules: st
           matcher: "Bash",
           hooks: [{ type: "command", if: "Bash(kioku namespace add *)", command: run("pre-tool-use") }],
         },
+        // A page that says which files it is about is named when the agent reads or changes one (§4.7). The wrapper
+        // ends before it starts the tool where no page says so.
+        { matcher: FILE_TOOLS.join("|"), hooks: [{ type: "command", command: run("pre-tool-path") }] },
       ],
       PostToolUse: [
         {

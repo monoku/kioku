@@ -198,7 +198,7 @@ This machine keeps a count, per page, of two things, never added up:
 - **surfaced**: the page was offered in a line of the session summary (§4.1:
   the pages to read first, the Skills, the decisions, the instincts and the
   Memories), or
-  recalled at a prompt (§4.7). A Rule is whole in every summary and is not
+  recalled at a prompt or at a file (§4.7). A Rule is whole in every summary and is not
   counted. A search result is not counted either.
 
 One entry per page, by brain and `id`, so a rename keeps it: how many times it
@@ -223,7 +223,7 @@ is a read or a write:**
 | Entry | What made it | |
 |---|---|---|
 | `summary` | the session summary (§4.1), with the brains it loaded, how many pages they hold, and why: the session started, was resumed or was compacted | read |
-| `recalled` | the pages a prompt brought (§4.7), each by brain, path and title, and that they were found by words when they were | read |
+| `recalled` | the pages a prompt brought, or a file the agent read or changed (§4.7), each by brain, path and title, and that they were found by words or by path when they were | read |
 | `skill` | the agent loading Kioku's own skill | read |
 | `opened` | `page show`, one per page | read |
 | `searched` | `page search` | read |
@@ -284,6 +284,22 @@ language than the prompt's, and fewer pages than meaning does: on the labelled
 set, 13 of 20 where meaning finds 19. `pnpm eval:recall -- --words` scores these
 numbers.
 
+**By path.** What the person types often does not name what the agent is about
+to touch: "fix the failing test" says nothing of the folder the lesson is
+about. So a page of the project brain may say which files it is about
+(`applies_to`, §3.3), and when the agent reads or changes a file one of its
+globs matches, with the host's tools that read or change one file, a
+`PreToolUse` hook names the page beside the tool's result: one line, as a
+prompt's recall, under a line that says it was found by the file. The file is
+taken relative to the project folder, the one whose `kioku.yaml` names the
+brain; a file outside it matches nothing. Three pages at most a file, by path;
+the hook decides nothing about the call, reads the index as it is, with no
+model, and keeps the file's name nowhere. A page is named from the next time
+the index is brought up to date, by a `sync`, a search or a save (§4.3). Where
+no page of the machine's brains says which files it is about, the hook's
+wrapper ends before it starts the tool, so every other machine pays nothing
+for it.
+
 Never recalled: a Rule, whole in every summary (§4.1); a retired or superseded
 page (§3.5); a page this session already opened or was already recalled. Nothing
 is recalled for a prompt that starts with `/`, one with fewer than three words,
@@ -295,5 +311,6 @@ gives up past a second, adding nothing, and its process ends with its answer. Th
 
 What a prompt recalled is an entry of the journal (§4.6) and counts as surfaced
 (§4.5); the hook says it to the person under their message, in the history's
-`recalled` row (§1.2), which says `by meaning` or `by words`, and the memory
-history lists the pages, where they open.
+`recalled` row (§1.2), which says `by meaning`, `by words` or `by path`, and
+the memory history lists the pages, where they open. What a file recalled is
+the same entry, said the same way, at the tool's call.

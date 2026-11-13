@@ -20,6 +20,7 @@ export const FIELDS: readonly FieldSpec[] = [
   { name: "source_version", required: false },
   { name: "evidence", required: false },
   { name: "stale_after", required: false },
+  { name: "applies_to", required: false },
   { name: "status", required: false },
   { name: "verified", required: false },
   { name: "supersedes", required: false, decisionsOnly: true },

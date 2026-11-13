@@ -516,7 +516,8 @@ One slice at a time: `--section` (`section_not_found` lists the sections),
 ```text
 kioku page save --brain <b> --kind <k> --title <t> --source <s> [--sub <decision|playbook|context|instinct>]
            [--evidence <q>] [--summary <s>] [--aliases <a,b>] [--namespace <ns>]
-           [--stale-after <date>] [--source-version <v>] [--create [--see-also <paths>]] < body
+           [--stale-after <date>] [--source-version <v>] [--applies-to <glob,glob>]
+           [--create [--see-also <paths>]] < body
 ```
 
 Writes a page, or answers the similar pages it found instead.
@@ -527,14 +528,18 @@ Pages on the same subject come back as `similar` and nothing is written:
 (`--see-also` narrows them, `none` links none). In a brain with several
 namespaces and no `--namespace`, it answers `namespace` with each; with none,
 `namespace_none`; an unknown one is `namespace_unknown`. `--stale-after`
-takes `YYYY-MM-DD`; `--source-version` one line (a sha, a date, a hash).
+takes `YYYY-MM-DD`; `--source-version` one line (a sha, a date, a hash);
+`--applies-to` globs of the project's files the page is about, relative to
+the project folder, ten at most (`src/billing/**`, `db/migrations`, `*.sql`),
+one that is absolute, leaves the folder or matches every file being
+`applies_to_invalid`.
 
 ### `kioku page update`
 
 ```text
 kioku page update <path> [--brain <b>] [--section <name>] [--evidence <line> --source <s>]
              [--note <line>] [--summary <s>] [--aliases <a,b>] [--stale-after <date>|none]
-             [--source-version <v>|none] < body
+             [--source-version <v>|none] [--applies-to <glob,glob>|none] < body
 ```
 
 Rewrites a page's body, or one section, keeping its history.
@@ -542,7 +547,8 @@ Rewrites a page's body, or one section, keeping its history.
 
 The body replaces the page's, or with `--section` that section's. `--evidence`
 with `--source` adds an occasion to an instinct; `--note` is the Changelog
-line's text; `none` removes `--stale-after` or `--source-version`. An update
+line's text; `none` removes `--stale-after`, `--source-version` or
+`--applies-to`, which otherwise replaces the globs the page had. An update
 that changes nothing is refused.
 
 ### `kioku page supersede`
@@ -697,7 +703,7 @@ the brain are not rewritten.
 ### `kioku hook`
 
 ```text
-kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|post-tool-use [--host claude-code]
+kioku hook session-start|session-start-holds|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]
 ```
 
 What the plugin's hooks call.

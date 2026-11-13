@@ -30,6 +30,8 @@ export interface PageRecord {
   evidence: string | null;
   /** The date after which the page needs a second look, when the writer set one (§3.3). */
   stale_after: string | null;
+  /** The globs of the project's files the page is about (§3.3); none when it says none. */
+  applies_to: string[];
   /** `deprecated` for a retired page (§3.3), null otherwise. */
   status: string | null;
   /** The latest confirmation that the page is still true: who and when (§3.3), or null. */
@@ -134,6 +136,7 @@ export function pagesOf(brain: { key: string; root: string }, changes?: Changes)
     source_version: str(d, "source_version"),
     evidence: str(d, "evidence"),
     stale_after: str(d, "stale_after"),
+    applies_to: d.file.front.getList("applies_to") ?? [],
     status: isRetired(d.file.front) ? "deprecated" : null,
     verified: verifiedOf(d.file.front) ?? null,
     supersedes: str(d, "supersedes"),

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isFrontPageAt, listMarkdown } from "../brain/brain.ts";
 import { parseBrainFile } from "../brain/file.ts";
@@ -45,6 +45,8 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
     "INSERT INTO pages (brain, path, id, kind, sub, namespace, status, title, aliases, summary, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING rowid",
   );
   const insertText = db.prepare("INSERT INTO fts (rowid, title, aliases, summary, body) VALUES (?, ?, ?, ?, ?)");
+  const removeApplies = db.prepare("DELETE FROM applies WHERE brain = ? AND path = ?");
+  const insertApplies = db.prepare("INSERT INTO applies (brain, path, hash, glob) VALUES (?, ?, ?, ?)");
 
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -64,6 +66,7 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
           removePage.run(old.rowid);
           removeText.run(old.rowid);
         }
+        removeApplies.run(brain.key, path);
         if (!parsed.ok) {
           removeVector.run(brain.key, path);
           removeParts.run(brain.key, path);
@@ -88,6 +91,7 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
           hash,
         ) as { rowid: number };
         insertText.run(row.rowid, title, aliases, summary, body);
+        for (const glob of front.getList("applies_to") ?? []) insertApplies.run(brain.key, path, hash, glob);
         report.indexed++;
       }
       for (const gone of rows.values()) {
@@ -95,6 +99,7 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
         removeText.run(gone.rowid);
         removeVector.run(brain.key, gone.path);
         removeParts.run(brain.key, gone.path);
+        removeApplies.run(brain.key, gone.path);
         report.removed++;
       }
     }
@@ -103,7 +108,19 @@ export function updateIndex(index: Index, brains: IndexedBrain[]): IndexReport {
     db.exec("ROLLBACK");
     throw e;
   }
+  markApplies(index);
   return report;
+}
+
+/** Keep the marker beside the index (§4.7) as the index is: there while a page says which files it is about. */
+function markApplies(index: Index): void {
+  try {
+    const { n } = index.db.prepare("SELECT count(*) AS n FROM applies").get() as { n: number };
+    if (n > 0) writeFileSync(`${index.file}.applies`, "");
+    else rmSync(`${index.file}.applies`, { force: true });
+  } catch {
+    /* a marker is only a shortcut: without it the hook is not run, and the next index puts it back */
+  }
 }
 
 /** Drop every page and vector of these brains from the index (§2.5): what `brain remove` leaves no trace of. Returns how many pages went. */
@@ -125,11 +142,13 @@ export function dropFromIndex(index: Index, keys: string[]): number {
       }
       removeVectors.run(key);
       removeAllParts.run(key);
+      db.prepare("DELETE FROM applies WHERE brain = ?").run(key);
     }
     db.exec("COMMIT");
   } catch (e) {
     db.exec("ROLLBACK");
     throw e;
   }
+  markApplies(index);
   return dropped;
 }
