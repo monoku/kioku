@@ -12,6 +12,7 @@ import {
   RECALL_TUNING,
   recallable,
   recallText,
+  sharesWord,
   standOut,
   zScores,
   type RecallTuning,
@@ -92,6 +93,18 @@ test("a page stands out with a word of the prompt, or far enough without; the fu
     ["p2.md", "p4.md", "p3.md"],
     "three at most, the furthest first",
   );
+});
+
+test("a page shares a word with the prompt by stem, whatever form each has, in both languages (§4.7)", () => {
+  const shares = (prompt: string, title: string, summary = "") => sharesWord(prompt)({ title, summary });
+  assert.equal(shares("how are we deploying this", "Deploys run after the migrations"), true);
+  assert.equal(shares("how do I deploy this", "Deploying to production"), true);
+  assert.equal(shares("fix the billing webhook", "Retries", "Webhooks are retried three times."), true);
+  assert.equal(shares("corre las migraciones ahora", "Migración antes del deploy"), true);
+  assert.equal(shares("configura el linter del repo", "Configuración de Biome"), true);
+  // A stopword, or nothing in common, is no word in common.
+  assert.equal(shares("what is the status of this", "The deploy is on Fridays"), false);
+  assert.equal(shares("rename the column please", "Deploying to production"), false);
 });
 
 test("a page's parts are its summary and each section but those the tool keeps, each under its title (§4.3)", () => {

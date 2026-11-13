@@ -1,6 +1,7 @@
 import { resolveChain } from "../config/chain.ts";
 import type { MachineConfig } from "../config/machine.ts";
 import { brainIn, openIndexAsItIs, type Index } from "../index/db.ts";
+import { stemsMet } from "../index/similar.ts";
 import { significantWords, stemOf, wordsOf } from "../index/text.ts";
 import { keyOf, vectorStore, type PageKey, type VectorStore } from "../index/vectors.ts";
 import { openMeaning, type SemanticDeps } from "../semantic/meaning.ts";
@@ -22,8 +23,8 @@ import { plural } from "../util.ts";
 /**
  * How many standard deviations above the mean of the session's pages a page must be to stand out, the better of the
  * page whole and its best part (§4.3), with a significant word of the prompt in its title or summary; and how many with
- * none. Chosen with `pnpm eval:recall` (§4.7): on its labelled set, 19 of 20 found and 1 of 12 prompts with nothing to
- * find given a page; the page whole alone found 18 at best, and 3 alone without a word gave 4 of the 12 a page.
+ * none. Chosen with `pnpm eval:recall` (§4.7): on its labelled set, 19 of 20 found and 2 of 12 prompts with nothing to
+ * find given a page (`variable` meeting `variables` is one of the two); the page whole alone found 18 at best, and 3 alone without a word gave 4 of the 12 a page.
  */
 const RECALL_Z = 3;
 const RECALL_Z_ALONE = 4;
@@ -90,16 +91,14 @@ export function standOut<T extends PageKey & { z: number }>(
     .slice(0, tuning.max);
 }
 
-/** The significant words of a text, by their stems: `deploys` and `deploying` meet. */
-const stemsOf = (text: string): Set<string> => new Set(significantWords(text).map(stemOf));
-
 /**
  * Whether a page's title or summary shares a significant word with the prompt, compared by stem (§4.7): what tells a
- * page on the subject from one that only sounds like it.
+ * page on the subject from one that only sounds like it. Two words meet as two pages' do for `save` (§1.4): by the same
+ * stem, or by one's stem starting the other's, since a stem alone parts `deploys` from `deploying`.
  */
 export function sharesWord(prompt: string): (page: { title: string; summary: string }) => boolean {
-  const asked = stemsOf(prompt);
-  return (page) => [...stemsOf(`${page.title} ${page.summary}`)].some((w) => asked.has(w));
+  const asked = [...new Set(significantWords(prompt).map(stemOf))];
+  return (page) => stemsMet(asked, `${page.title} ${page.summary}`) > 0;
 }
 
 /** Whether a page may be recalled at all (§4.7): not a Rule, whole in every summary; not retired or superseded (§3.5). */
