@@ -19,7 +19,8 @@ and how it was resolved; context about the project, the client or the team that
 is not in the repository; where to find things outside it. These guide which
 kind the page gets (§3); they are not the gate. What never passes: anything
 ephemeral, or redundant with the brains; anything the repository shows; the
-progress of the task at hand; everything in §1.5.
+progress of the task at hand, which has a handoff of its own outside every
+brain (§4.8); everything in §1.5.
 
 When the person says something should be remembered ("remember this"), the
 agent saves it regardless of the rule, in the most fitting kind, or as a Memory
