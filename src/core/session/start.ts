@@ -13,7 +13,7 @@ import { recordSurfaced } from "../reads.ts";
 import { brainsOfLinks } from "./labels.ts";
 import { cmd, dim, historyRow, type Message } from "./message.ts";
 import { sessionReads, type SessionReads } from "./session-reads.ts";
-import { composeHolds, composeUsage, type SummaryBrainSource } from "./summary.ts";
+import { composeForSubagent, composeHolds, composeUsage, type SummaryBrainSource } from "./summary.ts";
 import { loadSummaryBrains } from "./summary-load.ts";
 import { holdViews, newSince, readViews, recordViews } from "./views.ts";
 import { listWords, plural, readJson } from "../util.ts";
@@ -49,6 +49,21 @@ const hintsOf = (chain: ReturnType<typeof resolveChain>, cwd: string, brains: Su
   basename(chain.root ?? cwd),
   ...(chain.project !== undefined ? [brains.find((b) => b.isProject)?.link.ref.repo ?? ""] : []),
 ];
+
+/**
+ * What a subagent of a session in `cwd` is given at its start (§4.1): the Rules of the session's brains, inside a
+ * brain that brain's alone, or nothing when they hold none. Reads files only; starts nothing and records nothing.
+ */
+export function startSubagent(home: string, config: MachineConfig, cwd: string): string | undefined {
+  const { reads, chain, cloned } = openChain(home, config, cwd);
+  if (cloned.length === 0) return undefined;
+  return composeForSubagent(
+    loadSummaryBrains(
+      cloned.map((link) => ({ link, isProject: link.key === chain.project })),
+      reads,
+    ),
+  );
+}
 
 /**
  * Opening a session (§4.1, §4.2), its first hook: resolve the chain, start `sync` in the background without waiting,

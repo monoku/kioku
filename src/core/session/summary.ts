@@ -419,19 +419,41 @@ export function composeUsage(input: SummaryInput): {
     c.section(`## ${nameOf(front)}: front page`, [demote(trimIndex(front.front, `${FRONT_PAGE} of ${nameOf(front)}`))]);
 
   // 2. The Rules of the three brains, each its Rule and its Why; most specific brain first.
-  const rules = readable.flatMap((b) => b.docs.filter((d) => kindOf(d.file) === "rule").map((d) => ({ b, d })));
-  const allRules = c.section(
-    "## Rules",
-    readable.flatMap((b) =>
-      b.docs
-        .filter((d) => kindOf(d.file) === "rule")
-        .sort((x, y) => (x.rel < y.rel ? -1 : 1))
-        .map((d) => `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`),
-    ),
-    true,
-  );
+  const rules = ruleItems(readable);
+  const allRules = c.section("## Rules", rules, true);
   // Said only when a Rule did not fit, not when the front page alone did not (§4.1).
   return { usage: c.text(rules.length > 0 && !allRules ? RULES_CUT : undefined), loaded };
+}
+
+/** The Rules of these brains as the summary says them (§4.1): each its title, its Rule and its Why; a brain's by path. */
+const ruleItems = (readable: SummaryBrain[]): string[] =>
+  readable.flatMap((b) =>
+    b.docs
+      .filter((d) => kindOf(d.file) === "rule")
+      .sort((x, y) => (x.rel < y.rel ? -1 : 1))
+      .map((d) => `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`),
+  );
+
+/**
+ * Said to a subagent before the Rules (§4.1): whose they are, how the memory is read, and that saving is not its to do.
+ * A subagent has one task and none of the conversation, so it is given no more than this.
+ */
+export const SUBAGENT_OPENING = [
+  "# Kioku: the Rules of this session's brains",
+  "",
+  "The session that started you keeps its memory in Kioku: brains of pages. Its Rules hold for you as they do for it; on conflict the most specific brain wins: personal, then project, then team. To read the memory, load the `kioku` skill, then `kioku page search <words>` and `kioku page show <path> --brain <brain>`, never a brain's files. Save nothing to it yourself: say in your answer what is worth keeping, and the session that started you decides.",
+].join("\n");
+
+/**
+ * What a subagent is given at its start (§4.1): the Rules of the session's brains, always on for it too, under the
+ * cap of one hook; nothing when the brains hold no Rule.
+ */
+export function composeForSubagent(brains: SummaryBrain[], cap: number = SUMMARY_CAP): string | undefined {
+  const rules = ruleItems(brains.filter((b) => b.config !== undefined));
+  if (rules.length === 0) return undefined;
+  const c = new Composer(Math.min(SUMMARY_CAP, Math.max(MIN_SUMMARY_CAP, cap)), RULES_CUT.length + 2);
+  c.must(SUBAGENT_OPENING);
+  return c.text(c.section("## Rules", rules, true) ? undefined : RULES_CUT);
 }
 
 /**
