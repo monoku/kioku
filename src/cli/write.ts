@@ -16,6 +16,7 @@ import {
   supersede,
   update,
 } from "../core/write/verbs.ts";
+import { merge, restore } from "../core/write/merge.ts";
 import { move, rename } from "../core/write/rewrite.ts";
 import { type ChainBrain, chainBrains, locate, pickBrain, target } from "./chain.ts";
 import type { Context } from "./run.ts";
@@ -165,6 +166,27 @@ export const runRename = writing("page rename", PATH, async (c) => {
   const where = page(c, c.positionals[0]!);
   const input = { title: required(c.values.title, "title") };
   return outcome("Renamed", await rename(where.brain, where.rel, input, env(c.ctx)));
+});
+
+/** `merge` (§3.5): two pages of one brain made one, the merged body on stdin; links follow. */
+export const runMerge = writing("page merge", TWO_PATHS, async (c) => {
+  const from = locate(c.ctx, c.positionals[0]!, c.values.brain);
+  const into = page(c, c.positionals[1]!);
+  if (from.brain.key !== into.brain.key) {
+    throw userError(
+      `two pages of one brain are merged, and ${from.rel} is in ${brainRepoOfKey(from.brain.key)} while ${into.rel} is in ${brainRepoOfKey(into.brain.key)}; kioku page promote takes a page to another brain`,
+      "different_brains",
+    );
+  }
+  const input = { body: await stdinBody(c.ctx) };
+  return outcome(`Merged ${from.rel} into`, await merge(into.brain, from.rel, into.rel, input, env(c.ctx)));
+});
+
+/** `restore` (§3.5): a page that is gone, back as it was. The brain is named: nothing in it says where the page was. */
+export const runRestore = writing("page restore", PATH, async (c) => {
+  required(c.values.brain, "brain");
+  const where = page(c, c.positionals[0]!);
+  return outcome("Restored", await restore(where.brain, where.rel, env(c.ctx)));
 });
 
 /** `promote` (§1.3): the page again in a more shared brain. */

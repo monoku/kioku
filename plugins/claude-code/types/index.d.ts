@@ -25,7 +25,9 @@ export type JournalWhat =
   | "moved"
   | "linked"
   | "promoted"
-  | "evolved";
+  | "evolved"
+  | "merged"
+  | "restored";
 
 /** A line of the session's journal (§4.6), as the mod reads it. Entries from before `label` have none: read `brain`. */
 export interface JournalEntry {

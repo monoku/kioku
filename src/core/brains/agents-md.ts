@@ -39,8 +39,8 @@ What is here:
 Work on it through the tool, never by editing pages by hand, so that every change is validated and committed:
 
 - read: \`kioku page search <words>\`, \`kioku page list\`, \`kioku page show <path>\`, \`kioku brain log\`, \`kioku brain stats\` (\`page list\` and \`brain log\` answer a part at a time, and say the \`--offset\` that reads on);
-- write: \`kioku page save\`, \`kioku page update\`, \`kioku page supersede\`, \`kioku page link\`, \`kioku page forget\`, \`kioku page evolve\`,
-  \`kioku page confirm\`, \`kioku page retire\`, \`kioku page rename\`, \`kioku page promote\`;
+- write: \`kioku page save\`, \`kioku page update\`, \`kioku page supersede\`, \`kioku page link\`, \`kioku page forget\`, \`kioku page restore\`,
+  \`kioku page evolve\`, \`kioku page confirm\`, \`kioku page retire\`, \`kioku page rename\`, \`kioku page merge\`, \`kioku page promote\`;
 - structure: \`kioku namespace list\`, \`kioku namespace add\`, \`kioku namespace describe\`, \`kioku namespace rename\`, \`kioku page move\`; a new namespace is the person's to agree to;
 - keep it clean: \`kioku brain lint\`, \`kioku brain validate\`.
 

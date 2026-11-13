@@ -8,7 +8,7 @@ export interface BrainStats {
   by_verb: Record<WritingVerb, number>;
   /** Pages made in the span. */
   saved: number;
-  /** Of those, the ones forgotten within the span, matched by path. */
+  /** Of those, the ones forgotten within the span and not restored since, matched by path. */
   reverted: number;
   /** `reverted` over `saved`, to two decimals; null when nothing was saved. */
   revert_rate: number | null;
@@ -36,7 +36,11 @@ export function statsOf(writes: Write[]): BrainStats {
   const by_verb = Object.fromEntries(WRITING_VERBS.map((v) => [v, 0])) as Record<WritingVerb, number>;
   for (const w of writes) by_verb[w.verb] += 1;
   const saved = new Set(writes.filter((w) => w.verb === "save").map((w) => w.path));
-  const forgotten = new Set(writes.filter((w) => w.verb === "forget").map((w) => w.path));
+  // A page forgotten and then restored was not rejected: what counts is the last of the two, and the writes come newest first.
+  const last = new Map<string, WritingVerb>();
+  for (const w of writes)
+    if ((w.verb === "forget" || w.verb === "restore") && !last.has(w.path)) last.set(w.path, w.verb);
+  const forgotten = new Set([...last].filter(([, verb]) => verb === "forget").map(([path]) => path));
   const reverted = [...saved].filter((p) => forgotten.has(p)).length;
   const by_via: Record<string, ViaStats> = {};
   for (const via of new Set(writes.map((w) => w.via ?? UNKNOWN_VIA))) {

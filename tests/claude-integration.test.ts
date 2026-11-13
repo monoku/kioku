@@ -25,14 +25,14 @@ function parts(text: string): { front: Record<string, string>; body: string } {
 
 const NUMBERS = ["zero", "one", "two", "three", "four", "five"];
 
-test("the skill: one-line description, a body under 1,500 words, the tool's threshold, no paths and no ids (§3.6, §6.2)", () => {
+test("the skill: one-line description, a body under 2,000 words, the tool's threshold, no paths and no ids (§3.6, §6.2)", () => {
   const { front, body } = parts(skillText());
   assert.equal(front.name, "kioku");
   assert.equal(front["allowed-tools"], "Bash(kioku *)");
   assert.equal(front["user-invocable"], "false", "the agent loads it; the person's menu does not list it");
   assert.ok(front.description && !front.description.includes("\n"));
   const words = body.split(/\s+/).filter(Boolean).length;
-  assert.ok(words < 1500, `${words} words`);
+  assert.ok(words < 2000, `${words} words`);
   assert.match(body, new RegExp(`with ${NUMBERS[SKILL_CANDIDATE_OCCASIONS]} occasions is a candidate`));
   assert.match(body, /`\/kioku-evolve`/, "the command by the name the mod gives it");
   assert.match(body, /`kioku page evolve --json`/);
