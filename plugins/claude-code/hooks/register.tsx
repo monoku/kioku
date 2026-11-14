@@ -53,8 +53,21 @@ async function add($: EngineInterface, kind: "read" | "write", n: number): Promi
   else await update($, writes, (c) => c + n);
 }
 
+/** Ends an arrow's drop where it is, adding nothing: the arrow is back. */
+async function stop($: EngineInterface, kind: "read" | "write"): Promise<void> {
+  const d = drops[kind];
+  if (d.timer === undefined) return;
+  d.timer.cancel();
+  d.timer = undefined;
+  d.adding = 0;
+  await show($, kind, -1);
+}
+
 /** The counts from nothing: what the footer counted, and what it shows. */
 async function reset($: EngineInterface): Promise<void> {
+  // A drop under way would add what it carries to the counts put back to nothing.
+  await stop($, "read");
+  await stop($, "write");
   counted.reads = 0;
   counted.writes = 0;
   await update($, reads, () => 0);
