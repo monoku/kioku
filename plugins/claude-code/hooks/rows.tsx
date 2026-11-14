@@ -434,22 +434,31 @@ export function registerRows(on: Parameters<Register>[0]): void {
     const { Box } = ui;
     const entries = await journalEntries($);
     const now = new Date(await $.clock.now());
+    const rows = await Promise.all(
+      calls.map((c) =>
+        drawCall(
+          $,
+          ui,
+          { id: c.tool_use_id, input: c.input, isRunning: c.isRunning, output: c.output },
+          entries,
+          now,
+          e.surface,
+        ),
+      ),
+    );
+    // A call that ended with something to show and no row to say it, a verb that makes no entry or an answer another
+    // command of the line rewrote, is the host's: a line of its first words would hide what it answered, with no way
+    // to open it. So is the run it is in.
+    if (calls.some((c, i) => !c.isRunning && rows[i] === undefined && textOf(c.output).trim() !== "")) return next(e);
     return (
       <Box flexDirection="column" marginTop={1}>
-        {
-          await Promise.all(
-            calls.map(async (c, i) => {
-              const call = { id: c.tool_use_id, input: c.input, isRunning: c.isRunning, output: c.output };
-              if (c.tool_use_id !== undefined) state.drawn.add(c.tool_use_id);
-              // A call that made nothing and does not wait is still a line: the run is drawn whole.
-              return (
-                <Box flexDirection="column">
-                  {(await drawCall($, ui, call, entries, now, e.surface)) ?? lineOf(ui, call)}
-                </Box>
-              );
-            }),
-          )
-        }
+        {calls.map((c, i) => {
+          const call = { id: c.tool_use_id, input: c.input, isRunning: c.isRunning, output: c.output };
+          if (c.tool_use_id !== undefined) state.drawn.add(c.tool_use_id);
+          // A call with nothing to show yet, its command half written or its answer not in, is still a line: the
+          // run is drawn whole.
+          return <Box flexDirection="column">{rows[i] ?? lineOf(ui, call)}</Box>;
+        })}
       </Box>
     );
   }).catch(($, e, next) => next(e));
