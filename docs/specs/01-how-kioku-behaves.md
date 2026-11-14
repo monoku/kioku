@@ -86,8 +86,9 @@ skill`, with no button.
 A call that runs more than the tool is drawn all the same, and its first row,
 open, says the other commands. A run of calls to `kioku` the host folds into
 one line is drawn as its calls' rows, one under another; a run holding a call
-that failed is unfolded, and one holding a call that is not `kioku`'s is folded
-as the host folds it. Every other call is drawn as the host draws it: a command
+that failed is unfolded, and one holding a call that is not `kioku`'s, or one
+that ended with an answer and made no entry, is folded as the host folds it,
+so what it answered can be opened. Every other call is drawn as the host draws it: a command
 that is not the tool's, and a `kioku` that made no entry. A `kioku` that failed
 (`error` in its answer, whatever the shell says) is drawn by the host with its
 here-documents cut to an ellipsis; the agent says the failure (§1.6). An answer
