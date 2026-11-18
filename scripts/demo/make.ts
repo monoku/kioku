@@ -208,6 +208,29 @@ async function main(): Promise<void> {
     join(app, "README.md"),
     `# app\n\nNorthwind's orders application, standing in: a code repository linked to the demo project brain, ${BRAINS.app.repo}, and the team's, ${BRAINS.team.repo}. Open the agent here.\n`,
   );
+  // Enough of an app for a session to find its way: a manifest with the dependencies a prompt may ask to upgrade, and
+  // the modules the project brain's pages name, each a stub.
+  writeFileSync(
+    join(app, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "northwind-app",
+        private: true,
+        version: "3.14.0",
+        type: "module",
+        scripts: { start: "node src/server.ts", test: "vitest run", migrate: "node-pg-migrate up" },
+        dependencies: { express: "^4.21.2", pg: "^8.13.1", zod: "^3.24.1", stripe: "^17.5.0", pino: "^9.6.0" },
+        devDependencies: { typescript: "^5.7.3", vitest: "^2.1.8", "node-pg-migrate": "^7.9.0" },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  for (const module of ["checkout", "invoicing", "stock", "payments"]) {
+    mkdirSync(join(app, "src", module), { recursive: true });
+    writeFileSync(join(app, "src", module, "index.ts"), `// Northwind's ${module} module, standing in.\nexport {};\n`);
+  }
+  writeFileSync(join(app, "src", "server.ts"), "// Northwind's orders API, standing in.\nexport {};\n");
   git(app, ["init", "-q", "-b", "main"]);
   git(app, ["add", "-A"]);
   git(app, ["commit", "-q", "-m", "Link the app to its brains"]);
