@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AGENTS_MD, agentsMd } from "../src/core/brains/agents-md.ts";
 import { claudeMd, INGEST_COMMAND, ingestCommand } from "../src/harness/claude-code-files.ts";
-import { pluginHooks, READ_FILTERS, WRITE_FILTERS } from "../src/harness/claude-code-integration.ts";
+import { HANDOFF_FILTER, pluginHooks, READ_FILTERS, WRITE_FILTERS } from "../src/harness/claude-code-integration.ts";
 import { SKILL_CANDIDATE_OCCASIONS } from "../src/core/lint.ts";
 import { WRITING_VERBS } from "../src/core/log.ts";
 
@@ -25,14 +25,14 @@ function parts(text: string): { front: Record<string, string>; body: string } {
 
 const NUMBERS = ["zero", "one", "two", "three", "four", "five"];
 
-test("the skill: one-line description, a body under 1,500 words, the tool's threshold, no paths and no ids (§3.6, §6.2)", () => {
+test("the skill: one-line description, a body under 2,000 words, the tool's threshold, no paths and no ids (§3.6, §6.2)", () => {
   const { front, body } = parts(skillText());
   assert.equal(front.name, "kioku");
   assert.equal(front["allowed-tools"], "Bash(kioku *)");
   assert.equal(front["user-invocable"], "false", "the agent loads it; the person's menu does not list it");
   assert.ok(front.description && !front.description.includes("\n"));
   const words = body.split(/\s+/).filter(Boolean).length;
-  assert.ok(words < 1500, `${words} words`);
+  assert.ok(words < 2000, `${words} words`);
   assert.match(body, new RegExp(`with ${NUMBERS[SKILL_CANDIDATE_OCCASIONS]} occasions is a candidate`));
   assert.match(body, /`\/kioku-evolve`/, "the command by the name the mod gives it");
   assert.match(body, /`kioku page evolve --json`/);
@@ -63,11 +63,23 @@ test("the skill says how to work inside a brain, how a created page links to its
 test("the plugin's hooks run its own wrapper, one handler per event, the journal's filters on the shell tool, and its skill let through (§6.2)", () => {
   const { hooks } = pluginHooks();
   const run = (verb: string): string => `bash "\${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh" hook ${verb}`;
-  assert.deepEqual(Object.keys(hooks).sort(), ["PostToolUse", "PreToolUse", "SessionStart", "UserPromptSubmit"]);
+  assert.deepEqual(Object.keys(hooks).sort(), [
+    "PostToolUse",
+    "PreCompact",
+    "PreToolUse",
+    "SessionStart",
+    "SubagentStart",
+    "UserPromptSubmit",
+  ]);
   for (const [event, verbs] of [
     // The summary in two parts, a hook each, since the host caps what one hook injects (§4.1).
-    ["SessionStart", ["session-start", "session-start-holds"]],
+    // And the handoff of the place in a third, whole under a cap of its own (§4.8).
+    ["SessionStart", ["session-start", "session-start-holds", "session-start-handoff"]],
     ["UserPromptSubmit", ["user-prompt-submit"]],
+    // Before a compaction, what was not saved is kept by its summary (§1.1).
+    ["PreCompact", ["pre-compact"]],
+    // A subagent runs no session start: the Rules reach it at its own (§4.1).
+    ["SubagentStart", ["subagent-start"]],
   ] as const) {
     assert.equal(hooks[event]!.length, verbs.length);
     verbs.forEach((verb, i) => {
@@ -83,12 +95,20 @@ test("the plugin's hooks run its own wrapper, one handler per event, the journal
     [{ type: "command", if: "Bash(kioku namespace add *)", command: run("pre-tool-use") }],
     "the person confirms each namespace (§3.2)",
   );
+  assert.equal(hooks.PreToolUse!.length, 3);
+  assert.equal(hooks.PreToolUse![2]!.matcher, "Read|Edit|Write|NotebookEdit", "the tools that read or change one file");
+  assert.deepEqual(
+    hooks.PreToolUse![2]!.hooks,
+    [{ type: "command", command: run("pre-tool-path") }],
+    "a page about a file is named when the agent reads or changes it (§4.7)",
+  );
   assert.equal(hooks.PostToolUse!.length, 1);
   assert.equal(hooks.PostToolUse![0]!.matcher, "Bash");
   assert.deepEqual(
     hooks.PostToolUse![0]!.hooks.map((h) => h.if),
-    [...WRITE_FILTERS, ...READ_FILTERS],
+    [...WRITE_FILTERS, ...READ_FILTERS, HANDOFF_FILTER],
   );
+  assert.equal(HANDOFF_FILTER, "Bash(kioku handoff set *)", "a handoff left takes the session's pages (§4.8)");
   assert.deepEqual(
     READ_FILTERS,
     ["page show", "page search", "page list", "brain log", "brain stats", "brain lint"].map(

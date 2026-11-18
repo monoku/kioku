@@ -139,6 +139,12 @@ export const SECTIONS = [
       "kioku sync [--cwd <dir>] [--background]",
       { cwd: str("<dir>"), background: bool() },
     ),
+    handoff: v(
+      "where this folder's last session stopped, for the next one on this machine",
+      "kioku handoff set|show|clear [--cwd <dir>] [--branch <branch>] < text",
+      { cwd: str("<dir>"), branch: str("<branch>", "free") },
+      choices("set", "show", "clear"),
+    ),
   }),
   section("Brains", {
     "brain create": v(
@@ -258,7 +264,8 @@ export const SECTIONS = [
       [
         "kioku page save --brain <b> --kind <k> --title <t> --source <s> [--sub <decision|playbook|context|instinct>]",
         "           [--evidence <q>] [--summary <s>] [--aliases <a,b>] [--namespace <ns>]",
-        "           [--stale-after <date>] [--source-version <v>] [--create [--see-also <paths>]] < body",
+        "           [--stale-after <date>] [--source-version <v>] [--applies-to <glob,glob>]",
+        "           [--create [--see-also <paths>]] < body",
       ],
       {
         brain: str(b),
@@ -272,6 +279,7 @@ export const SECTIONS = [
         namespace: str("<ns>"),
         "stale-after": str("<date>"),
         "source-version": str("<v>"),
+        "applies-to": many("<glob,glob>"),
         create: bool(),
         "see-also": many("<paths>"),
       },
@@ -281,7 +289,7 @@ export const SECTIONS = [
       [
         "kioku page update <path> [--brain <b>] [--section <name>] [--evidence <line> --source <s>]",
         "             [--note <line>] [--summary <s>] [--aliases <a,b>] [--stale-after <date>|none]",
-        "             [--source-version <v>|none] < body",
+        "             [--source-version <v>|none] [--applies-to <glob,glob>|none] < body",
       ],
       {
         brain: str(b),
@@ -293,6 +301,7 @@ export const SECTIONS = [
         aliases: many("<a,b>"),
         "stale-after": str("<date>"),
         "source-version": str("<v>"),
+        "applies-to": many("<glob,glob>"),
       },
       "free",
     ),
@@ -317,6 +326,12 @@ export const SECTIONS = [
       "free",
     ),
     "page forget": v("deletes a page; git keeps it", "kioku page forget <path> [--brain <b>]", BRAIN, "free"),
+    "page restore": v(
+      "brings back a page that was forgotten or merged away, as it was",
+      "kioku page restore <path> --brain <b>",
+      BRAIN,
+      "free",
+    ),
     "page confirm": v(
       "records that a page is still true",
       "kioku page confirm <path> [--brain <b>] [--note <line>]",
@@ -333,6 +348,12 @@ export const SECTIONS = [
       "gives a page a new title; links follow",
       "kioku page rename <path> --title <new title> [--brain <b>]",
       { title: str("<new title>"), brain: str(b) },
+      "free",
+    ),
+    "page merge": v(
+      "makes one page of two on the same subject; links follow and git keeps the other",
+      "kioku page merge <from path> <into path> [--brain <b>] < body",
+      BRAIN,
       "free",
     ),
     "page move": v(
@@ -403,9 +424,19 @@ export const SECTIONS = [
   section("Used by the agent integration, not by people", {
     hook: v(
       "what the plugin's hooks call",
-      "kioku hook session-start|session-start-holds|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]",
+      "kioku hook session-start|session-start-holds|session-start-handoff|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]",
       { host: str("claude-code") },
-      choices("session-start", "session-start-holds", "user-prompt-submit", "pre-tool-use", "post-tool-use"),
+      choices(
+        "session-start",
+        "session-start-holds",
+        "session-start-handoff",
+        "user-prompt-submit",
+        "pre-compact",
+        "subagent-start",
+        "pre-tool-use",
+        "pre-tool-path",
+        "post-tool-use",
+      ),
     ),
   }),
 ] as const;

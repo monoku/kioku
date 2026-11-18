@@ -22,8 +22,9 @@ verb beside `status: "error"` in its own shape (below); any other verb as
 
 ## Writing verbs
 
-`page save`, `update`, `supersede`, `forget`, `confirm`, `retire`, `rename`,
-`move`, `link`, `promote` and `evolve <path>` answer one shape, with `status`
+`page save`, `update`, `supersede`, `forget`, `restore`, `confirm`, `retire`,
+`rename`, `merge`, `move`, `link`, `promote` and `evolve <path>` answer one
+shape, with `status`
 `done`, `similar`, `namespace` or `error`:
 
 ```json
@@ -50,6 +51,10 @@ verb beside `status: "error"` in its own shape (below); any other verb as
 - `similar`: `path`, `commit` and `publication` are null, and `similar` lists
   the pages found, each with `brain`, `path`, `title`, `kind`, `subkind`,
   `summary` and `touched`.
+- `elsewhere`, from `page save` alone and only when there are some, on `done`
+  and on `similar`: the pages on the subject in the session's other brains,
+  each with `brain`, `path`, `title`, `kind`, `subkind` and `summary`. They
+  never stop a write.
 - `namespace`: nothing written; `namespaces`, each with `namespace`, `summary`
   (or null), `pages` and `below`.
 - `error`: `error` holds `code`, `message` and, when the validator refused the
@@ -61,7 +66,9 @@ verb beside `status: "error"` in its own shape (below); any other verb as
 What some verbs add: `save` and `update`, `instinct` and `candidate` for an
 instinct; `supersede`, `supersedes`; `forget` and `retire`, `linkedFrom`, the
 pages that link to it; `rename` and `move`, `from` and `relinked` (and `move`,
-`namespace`); `link`, `to`; `promote`, `promotedFrom` (`brain`, `path`,
+`namespace`); `merge`, on the page that holds both, `from`, the page taken in,
+and `relinked`, the pages whose links to it now point here; `restore`,
+`undoes`, the commit that deleted the page; `link`, `to`; `promote`, `promotedFrom` (`brain`, `path`,
 `action`); `evolve <path>`, `instinct` and, for a Rule or a playbook,
 `evolvedAs`. `evolve` with no path answers `candidates`, each with `brain`,
 `path`, `title`, `occasions` and `when`.
@@ -140,17 +147,28 @@ and the team's with `from` (`folder`, `machine`); `inside`; `notLoaded` (`tier`,
 **`kioku brain lint`**: `brains`, each with `brain`, `count`, `totals` (the
 length of each list that was cut) and its lists: `similar`, `staleInstincts`,
 `superseded`, `brokenLinks`, `missingSummary`, `skillCandidates`, `expired`,
-`unconfirmed`, `retiredLinks`, `contradictions`, `conflicts`, `undescribed`
-and `unopened` (each with `since`, `days`, `surfaced`), and `counting_since`.
+`unconfirmed`, `retiredLinks`, `contradictions`, `conflicts`, `undescribed`,
+`unopened` (each with `since`, `days`, `surfaced`), `unfollowed` (each with
+`path` and `recalled`) and `similarElsewhere` (each with `path`, `brain` and
+`other`, which `count` leaves out), and `counting_since`.
+
+**`kioku handoff`**: every answer has `folder` and `branch` (null outside a
+repository, or with none checked out). `set` adds `status` (`done`) and `at`;
+`clear`, `status` and `cleared`; `show`, `handoff`, null or with `at`, `text`
+and `pages`, the pages its session wrote and opened, each with `brain`,
+`path`, `title` and `did` (`wrote`, `opened`), and `elsewhere`, the folder's
+handoffs on other branches, each with `branch` and `at`.
 
 **`kioku brain log`**: `since`, `writes`, each with `verb`, `title`, `brain`,
-`path`, `date`, `author`, `via` and `commit`; and `total`, `offset`, `limit`,
-`next`.
+`path`, `date`, `author`, `via` and `commit`, with `replaces` on a `supersede`
+and, on a `merge`, whose `title` and `path` are the page taken in, `into`, the
+title of the page it is now part of; and `total`, `offset`, `limit`, `next`.
 
 **`kioku brain stats`**: `since` and `brains`, each with `brain`, `writes`,
 `by_verb`, `by_via` (per `via` and `unknown`: `writes`, `saved`, `reverted`,
 `revert_rate`), `saved`, `reverted`, `revert_rate` (null when nothing was
-saved), `confirmed`, `opened`, `unopened` and `counting_since`.
+saved), `confirmed`, `opened`, `unopened`, `recalled`, `followed`,
+`follow_rate` (null when no recall named a page) and `counting_since`.
 
 **`kioku brain sources`**: one entry per source, with `brain`, `source`,
 `count`, `last`, `version` and `versions`; with a source, `pages`, each with
@@ -191,7 +209,7 @@ full text alone, `limit`, `more`, and `hits`, each with `brain`, `path`, `id`,
 **`kioku page list`**: `pages`, `total`, `offset`, `limit` and `next`. A page
 has `brain`, `path`, `id`, `kind`, `subkind`, `namespace`, `title`, `summary`,
 `aliases`, `created`, `source`, `source_version`, `evidence`, `stale_after`,
-`supersedes`, `superseded_by`, `status`, `verified`, `touched`, `occasions`
+`applies_to` (a list, empty when the page names no files), `supersedes`, `superseded_by`, `status`, `verified`, `touched`, `occasions`
 (an instinct's), `change` (`added`, `changed`, or null), `links`, `linkedFrom`
 and `relations` (`type`, `path`).
 
@@ -205,7 +223,7 @@ The file the plugin's hooks write and the mod reads (spec §4.6), one JSON
 line per entry: `at`, `turn`, `what` (`summary`, `recalled`, `skill`, `opened`,
 `searched`, `listed`, `log`, `stats`, `lint`, `saved`, `instinct`, `updated`,
 `instinct again`, `replaced`, `forgot`, `retired`, `confirmed`, `renamed`,
-`moved`, `linked`, `promoted`, `evolved`), `arrow` (`read`, `write`), `brain`
+`moved`, `linked`, `promoted`, `evolved`, `merged`, `restored`), `arrow` (`read`, `write`), `brain`
 (comma-separated for a search, a recall, a list or the summary) and `label`, the brain
 as the person is shown it, one per name in `brain`; for a page, `path`,
 `title`, `kind` and `subkind`; for a search, `words`, `count` and `hits`, each

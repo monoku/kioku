@@ -20,7 +20,8 @@ bends a principle changes it here first, and the spec with it.
 3. **A brain is plain files in a git repository, one repository per brain.**
    Markdown with front matter, readable by any editor, `grep` and the git host.
    Nothing of the memory lives only where the tool can read it: the index is
-   derived. What a machine counts about its own use lives with the machine. A
+   derived. What a machine counts about its own use lives with the machine, as does
+   a folder's handoff, where its last session stopped, which is no memory. A
    brain works whole where it was made, with no remote and no host. It is named
    by the person, `owner/repo`, and carries its name in its own files, so it is
    the same brain on every machine and at any address; it has an address only
@@ -37,7 +38,7 @@ bends a principle changes it here first, and the spec with it.
    hook.** A hook runs every time, so what the agent knows and the person sees
    do not depend on compliance, and a row is drawn from the tool's real result,
    never from the agent's words. The skill holds only what is true everywhere,
-   capped at 1,500 words; what depends on the moment is in the summary.
+   capped at 2,000 words; what depends on the moment is in the summary.
 
 6. **The tool advises, the agent decides.** `save` returns the similar pages
    instead of guessing; the agent chooses to update, supersede or create. Each
@@ -55,7 +56,8 @@ bends a principle changes it here first, and the spec with it.
 
 9. **What a session reads is bounded, and the memory comes to the agent.** The
    summary takes a share of the host's context (§4.1); at each prompt, the few
-   pages that stand out by meaning are named, never their text (§4.7); search
+   pages that stand out by meaning, or by their words where meaning cannot
+   run, are named, never their text (§4.7); search
    brings the rest when the agent asks. An agent does not look for what it does
    not know is there, so the memory does not wait to be asked.
 

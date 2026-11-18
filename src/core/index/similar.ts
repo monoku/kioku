@@ -51,14 +51,33 @@ export function similarPages(index: Index, brain: string, subject: Subject): Hit
  */
 export function stemsMet(stems: string[], text: string): number {
   const theirs = significantWords(text).map(stemOf);
-  return stems.filter((s) =>
-    theirs.some((t) => t === s || (t.length >= 4 && s.startsWith(t)) || (s.length >= 4 && t.startsWith(s))),
-  ).length;
+  return stems.filter((s) => theirs.some((t) => stemMeets(s, t))).length;
 }
+
+/** Whether two stems meet: equal, or one the start of the other when it is at least four letters. */
+export const stemMeets = (s: string, t: string): boolean =>
+  t === s || (t.length >= 4 && s.startsWith(t)) || (s.length >= 4 && t.startsWith(s));
 
 export function aliasesOf(index: Index, brain: string, path: string): string {
   const row = index.db.prepare("SELECT aliases FROM pages WHERE brain = ? AND path = ?").get(brain, path) as
     | { aliases: string }
     | undefined;
   return row?.aliases ?? "";
+}
+
+/** The share of the shorter title's words the other's title meets before `brain lint` reports the pair as one subject (§4.4). */
+export const SIMILAR_REPORT_SHARE = 0.6;
+
+/**
+ * Whether a page and a hit of `similarPages` are on one subject for a report (§4.4), or for what `save` says of the
+ * chain's other brains (§1.4). `save` asks "is there a page on this subject?" of the brain it writes to and answers by
+ * a loose rule, because the agent decides there. What is only said, to a person or beside a write, is stricter: the
+ * two titles, with their aliases, share most of what the shorter one says.
+ */
+export function sameSubject(index: Index, title: string, aliases: string[], hitBrain: string, hit: Hit): boolean {
+  const mine = [...new Set(significantWords([title, ...aliases].join(" ")).map(stemOf))];
+  const theirText = `${hit.title} ${aliasesOf(index, hitBrain, hit.path)}`;
+  const theirs = new Set(significantWords(theirText).map(stemOf));
+  const shared = stemsMet(mine, theirText);
+  return shared >= 2 && shared / Math.min(mine.length, theirs.size) >= SIMILAR_REPORT_SHARE;
 }

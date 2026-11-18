@@ -25,7 +25,9 @@ export type JournalWhat =
   | "moved"
   | "linked"
   | "promoted"
-  | "evolved";
+  | "evolved"
+  | "merged"
+  | "restored";
 
 /** A line of the session's journal (§4.6), as the mod reads it. Entries from before `label` have none: read `brain`. */
 export interface JournalEntry {
@@ -50,6 +52,8 @@ export interface JournalEntry {
   call?: string;
   /** The pages a search found, in the answer's order (§4.6). */
   hits?: PageRef[];
+  /** How a recall found its pages when not by meaning (§4.7). */
+  by?: "words" | "path";
 }
 
 /** A page as the viewer names it (§1.2): one a search found, or one it was on before, which a link was followed from. */

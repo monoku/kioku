@@ -48,6 +48,7 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `update` | brings the machine to the latest release, or to the one named (§6.4) |
 | in a project folder | `init <brain>` | writes the project brain in the folder's `kioku.yaml`, its name and its address once it has one, keeping a `team` written by hand; given an address, clones it when the machine lacks it, given a name, makes it shared; registers it and clones the chain; alone, trusts and clones what the file names and writes the address of one published since (§2.4) |
 | | `sync` | pulls and pushes the brains of this folder's chain and updates the index (§4.2) |
+| | `handoff set\|show\|clear` | the handoff of this folder and branch, where its last session stopped, for the next one on this machine, never in a brain: left, shown or dropped (§4.8) |
 | brains | `brain create <owner>/<repo>` | makes a brain on this machine, with the name given, with its files and first commit, asking no git host anything and taking no destination; personal unless `--tier` says project or team; the name is always given; one that fails leaves nothing (§2.3) |
 | | `brain clone <address>` | brings a brain that exists from any address, under the name it holds (§2.2, §2.5), and registers it as its `kioku.yaml` says, in a terminal (§2.4) |
 | | `brain sync` | pulls and pushes a brain, or every brain of the machine, and reindexes them for full text; one with no remote is `no-remote` (§4.2) |
@@ -66,7 +67,7 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `brain list` | the brains this machine knows, the chain of this folder and, inside a brain, which one and what it leaves unloaded (§2.7) |
 | | `brain path` | prints the brain's folder |
 | | `brain log` | the writes of the chain's brains, newest first, from each brain's history, with who and how (`via`, §1.6); a window |
-| | `brain stats` | what the writes of the chain's brains add up to over a span, by verb and by `via`, naming no author, with how many saved pages were forgotten and this machine's count of pages opened (§4.5) |
+| | `brain stats` | what the writes of the chain's brains add up to over a span, by verb and by `via`, naming no author, with how many saved pages were forgotten and not restored, and this machine's count of pages opened, and of the times a recall named a page and the session then opened it (§4.5) |
 | | `brain sources` | what was ingested, per source, with the version each page was written from (§1.7) |
 | pages, reading | `page search` | the mode and the hits, each with its page and a snippet (§4.3) |
 | | `page list` | the pages of the chain's brains, or of one, with their fields, their links both ways (§3.3) and what changed since this machine's last session (§4.1); a window |
@@ -75,10 +76,12 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `page update` | edits a page in place and appends its Changelog or Evidence line; one that changes nothing is refused (§3.5) |
 | | `page supersede` | writes the new decision and marks the old one (§3.5) |
 | | `page forget` | deletes a page; git keeps it (§3.5) |
+| | `page restore` | brings back a page that was forgotten or merged away, as it was, in the brain named (§3.5) |
 | | `page confirm` | records that the page is still true, who by and when (§3.5) |
 | | `page retire` | marks a page not current, or current again (§3.5) |
 | | `page move` | gives a page another namespace of its brain; the id stays, the links follow (§3.2) |
 | | `page rename` | gives a page a new title; the links follow (§3.5) |
+| | `page merge` | makes one page of two of a brain, with the body sent; the id of the one that stays, the names of the other as aliases, and the links follow (§3.5) |
 | | `page link` | adds each page to the other's See also, with the relation when given (§3.3) |
 | | `page promote` | writes the page again in a more shared brain of the chain, by tier or name, through `save` there, then retires, forgets or keeps the original (§1.3) |
 | | `page evolve` | lists the Skill candidates with their When and occasions, or converts one (§3.6) |
@@ -117,8 +120,8 @@ or sends it to a git host (`brain publish`, `brain sync`) always takes the brain
 named, never one inferred from the folder or the tier. So does a write with
 nothing in the brain to find it by, which would otherwise land wherever the
 folder or the number of brains on the machine sent it: `page save`,
-`namespace add` and `brain language` always name the brain they write to,
-inside a brain too. A verb that only reads, or changes what a brain already
+`page restore`, `namespace add` and `brain language` always name the brain
+they write to, inside a brain too. A verb that only reads, or changes what a brain already
 holds (`page show`, `page forget`, `namespace describe`, `brain log`,
 `brain lint` and the rest), takes `--brain` or `[<brain>]` as an option:
 without it the brain the folder is inside, else the brains of the chain
@@ -136,8 +139,10 @@ lint` each list's first 20 entries and how long each list it cut is.
 state (`pushed`, `pending`, or `local` for a brain with no remote), with the
 page's `id`, `title`, `kind` and `subkind` (after the write, or before
 `forget`), the validator's warnings, and what the verb adds: the decision
-replaced, the pages that linked to a forgotten one, an instinct's candidacy
-(§3.6). A refusal answers in the same shape with `status: error`, a code and
+replaced, the pages that linked to a forgotten one, the page a merge took in
+and the pages whose links followed, the commit a restore undoes, an instinct's
+candidacy (§3.6), and for `save` the pages on its subject in the session's
+other brains (§1.4). A refusal answers in the same shape with `status: error`, a code and
 the reason. The hook writes what it did into the session's journal (§4.6),
 from which the mod draws the rows (§1.2). A publication not yet pushed is kept
 as machine state (§2.5) for `sync` to retry (§1.6).
@@ -159,13 +164,21 @@ and the host has no other way to it. The plugin holds:
   compose the summary's two parts (§4.1), each inside a brain of that brain
   alone (§2.7), and the first writes it to the journal, starts `sync`, says
   when there is no personal brain (§1.2), and starts the daily look for a new
-  version where the installer installed the tool (§6.4); at each prompt, one
+  version where the installer installed the tool (§6.4), and a third gives a
+  session that starts anew the handoff of its place (§4.8), its wrapper
+  starting nothing on a machine that holds none; at each prompt, one
   counts the session's next turn (§4.6) and adds the pages that bear on the
-  prompt (§4.7); after the shell tool, one filtered to the tool's writing and
-  reading verbs writes what they did into the journal (§4.6); before the skill
+  prompt (§4.7); before the host compacts a session, one asks its summary to
+  keep what was said and not saved (§1.1); when the session starts a subagent,
+  one gives it the Rules (§4.1); after the shell tool, one filtered to the tool's writing and
+  reading verbs writes what they did into the journal (§4.6), and after
+  `kioku handoff set` names on the handoff the pages the session reached
+  (§4.8); before the skill
   tool, one lets the host load Kioku's own skill without asking, writing that
-  into the journal, and nothing for another skill; before `kioku namespace
-  add`, one has the host ask the person, naming the namespace and its brain
+  into the journal, and nothing for another skill; before the host's tools
+  that read or change one file, one names the pages that say they are about
+  that file (§4.7), its wrapper starting nothing where no page says so; before
+  `kioku namespace add`, one has the host ask the person, naming the namespace and its brain
   (§3.2), whatever `display.mute` holds; a namespace added in a terminal goes
   through no hook;
 - one mod, which draws the rows, the footer, the memory history, the page

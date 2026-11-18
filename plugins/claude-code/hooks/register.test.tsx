@@ -301,3 +301,38 @@ test("the journal is read as it grows: a line half written counts once it is who
   await clock.advance(DROP_MS);
   expect(await footer($)).toMatch(/↑ 4/);
 });
+
+test("a drop under way when the counts are put back to nothing adds nothing to them (§1.2)", async ($, on) => {
+  const clock = mock.clock(on);
+  const journals: Record<string, string> = { s1: entry("summary", "read"), s2: "" };
+  mock.env(on, { HOME: "/home/sam" });
+  on("fs.read", (_, e) => {
+    const id = /\/sessions\/(\w+)\.jsonl$/.exec(e.path)?.[1];
+    if (id !== undefined && journals[id] !== undefined) return { value: journals[id] };
+    throw new Error(`no ${e.path}`);
+  });
+  on("classic.SessionStart", () => ({}) as never);
+  on("classic.PostToolUse", () => ({}) as never);
+  on("session.id", () => ({ value: "s1" }) as never);
+  on("session.start", (_, e) => ({ cwd: e.cwd }));
+  on("ui.render", ($, e) => {
+    const { Text } = $.ui.resolve(e);
+    return <Text>engine</Text>;
+  });
+  await $.session.start({ cwd: "/", surface: "terminal", isInteractive: true });
+  // A page opened: its drop starts, and `/clear` comes before it ends.
+  journals.s1 += entry("opened", "read");
+  await $.classic.PostToolUse({
+    tool_name: "Bash",
+    tool_input: { command: "kioku" },
+    tool_response: {},
+    tool_use_id: "t",
+    session_id: "s1",
+  } as never);
+  await clock.advance(110);
+  journals.s2 = entry("summary", "read");
+  await $.classic.SessionStart({ source: "clear", session_id: "s2" } as never);
+  await clock.advance(DROP_MS);
+  // The new session's summary alone: what the old drop carried went with the old session.
+  expect(await footer($)).toMatch(/↓ 1.*↑ 0/);
+});

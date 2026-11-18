@@ -16,6 +16,7 @@ import {
   supersede,
   update,
 } from "../core/write/verbs.ts";
+import { merge, restore } from "../core/write/merge.ts";
 import { move, rename } from "../core/write/rewrite.ts";
 import { type ChainBrain, chainBrains, locate, pickBrain, target } from "./chain.ts";
 import type { Context } from "./run.ts";
@@ -40,9 +41,12 @@ import {
 /** `save` (§1.4): `--see-also` narrows the pages a created page links to; `--see-also none` links none. */
 export const runSave = writing("page save", NONE, async (c) => {
   const { ctx, values } = c;
-  const brain = acting(c.at, target(pickBrain(chainBrains(ctx), required(values.brain, "brain"), ctx)));
+  const chain = chainBrains(ctx);
+  const brain = acting(c.at, target(pickBrain(chain, required(values.brain, "brain"), ctx)));
   const text = await stdinBody(ctx);
   if (text.trim() === "") throw userError("the page's body comes on stdin", "usage");
+  // The session's other brains, whose pages on the subject the answer names beside the brain's own (§1.4).
+  const others = chain.filter((b) => b.cloned && b.key !== brain.key).map((b) => ({ key: b.key, root: b.root }));
   const seeAlso = list(values["see-also"])?.filter((p) => p !== "none");
   if (seeAlso !== undefined && !values.create) throw userError("--see-also goes with --create", "usage");
   const input = {
@@ -51,8 +55,9 @@ export const runSave = writing("page save", NONE, async (c) => {
     source: required(values.source, "source"),
     body: text,
     create: Boolean(values.create),
-    ...c.given(["sub", "evidence", "summary", "aliases", "namespace", "stale-after", "source-version"]),
+    ...c.given(["sub", "evidence", "summary", "aliases", "namespace", "stale-after", "source-version", "applies-to"]),
     ...(seeAlso !== undefined && { seeAlso }),
+    ...(others.length > 0 && { others }),
   };
   return outcome("Saved", await save(brain, input, env(ctx)));
 });
@@ -78,7 +83,17 @@ export const runUpdate = writing("page update", PATH, async (c) => {
   const text = await stdinBody(c.ctx);
   const input = {
     ...(text.trim() !== "" && { body: text }),
-    ...c.given(["section", "evidence", "source", "note", "summary", "aliases", "stale-after", "source-version"]),
+    ...c.given([
+      "section",
+      "evidence",
+      "source",
+      "note",
+      "summary",
+      "aliases",
+      "stale-after",
+      "source-version",
+      "applies-to",
+    ]),
   };
   return outcome("Updated", await update(where.brain, where.rel, input, env(c.ctx)));
 });
@@ -151,6 +166,27 @@ export const runRename = writing("page rename", PATH, async (c) => {
   const where = page(c, c.positionals[0]!);
   const input = { title: required(c.values.title, "title") };
   return outcome("Renamed", await rename(where.brain, where.rel, input, env(c.ctx)));
+});
+
+/** `merge` (§3.5): two pages of one brain made one, the merged body on stdin; links follow. */
+export const runMerge = writing("page merge", TWO_PATHS, async (c) => {
+  const from = locate(c.ctx, c.positionals[0]!, c.values.brain);
+  const into = page(c, c.positionals[1]!);
+  if (from.brain.key !== into.brain.key) {
+    throw userError(
+      `two pages of one brain are merged, and ${from.rel} is in ${brainRepoOfKey(from.brain.key)} while ${into.rel} is in ${brainRepoOfKey(into.brain.key)}; kioku page promote takes a page to another brain`,
+      "different_brains",
+    );
+  }
+  const input = { body: await stdinBody(c.ctx) };
+  return outcome(`Merged ${from.rel} into`, await merge(into.brain, from.rel, into.rel, input, env(c.ctx)));
+});
+
+/** `restore` (§3.5): a page that is gone, back as it was. The brain is named: nothing in it says where the page was. */
+export const runRestore = writing("page restore", PATH, async (c) => {
+  required(c.values.brain, "brain");
+  const where = page(c, c.positionals[0]!);
+  return outcome("Restored", await restore(where.brain, where.rel, env(c.ctx)));
 });
 
 /** `promote` (§1.3): the page again in a more shared brain. */

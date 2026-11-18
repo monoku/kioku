@@ -6,6 +6,16 @@
 
 # Bash's own words wherever one will do: every prompt and tool call waits for this script.
 
+# Every file the agent reads or changes comes through here (§4.7): where no page says which files it is about, the
+# index has no marker beside it, and this ends before anything is started.
+if [[ "$1 $2" == "hook pre-tool-path" && ! -e "${KIOKU_HOME:-$HOME}/.kioku/index.sqlite.applies" ]]; then
+    exit 0
+fi
+# The same for a session's handoff (§4.8): a machine that holds none starts nothing for it.
+if [[ "$1 $2" == "hook session-start-handoff" && ! -d "${KIOKU_HOME:-$HOME}/.kioku/handoffs" ]]; then
+    exit 0
+fi
+
 if [[ -n "$KIOKU_BIN" ]]; then
     bin="$KIOKU_BIN"
 elif launcher=$(command -v kioku); then

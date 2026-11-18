@@ -516,3 +516,34 @@ test("beyond the terminal the button stands on a line of its own, and works the 
   expect(await buttons($, call)).toEqual(["▾ collapse", "↗ open"]);
   expect(await drawn($, call)).toMatch(/lines +3/);
 });
+
+test("a run with a call that ended and made no entry is the host's, so what it answered can be opened (§1.2)", async ($, on) => {
+  const { add } = machine(on);
+  await start($);
+  await add($, [OPENED]);
+  // The answer went through another command, which wrote it over several lines: the hook made no entry of it.
+  const piped = "kioku page search deploy | jq .";
+  const pretty = {
+    stdout: `${JSON.stringify({ mode: "hybrid", hits: [{ title: "Roll back a deploy" }] }, null, 2)}\n`,
+    stderr: "",
+  };
+  expect(await drawn($, GROUP([{ ...CALL(piped), tool_use_id: "toolu_5", output: pretty }], true, false))).toBe(
+    "host false",
+  );
+  // A verb that makes no entry, beside one that made its own: the run is the host's whole.
+  expect(
+    await drawn(
+      $,
+      GROUP(
+        [
+          { ...CALL(SHOW), tool_use_id: "toolu_1", output: out(PAGE) },
+          { ...CALL("kioku --version"), tool_use_id: "toolu_6", output: out({ version: "0.5.0", contract: 2 }) },
+        ],
+        true,
+        false,
+      ),
+    ),
+  ).toBe("host false");
+  // Its result is the host's too: nothing of it was drawn.
+  expect(await drawn($, RESULT("toolu_5"))).not.toBe("");
+});

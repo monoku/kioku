@@ -1,5 +1,5 @@
 import { FRONT_PAGE } from "../brain/brain.ts";
-import { brainRepo } from "../config/brain-ref.ts";
+import { brainRepo, brainRepoOfKey } from "../config/brain-ref.ts";
 import { LOAD_FIRST_MAX, type LoadFirst } from "../brain/load-first.ts";
 import { evidenceOf, kindOf, sectionBody, withoutKept, type BrainFile } from "../brain/file.ts";
 import { placementOf } from "../brain/kinds.ts";
@@ -7,6 +7,8 @@ import { depthOf, isUnder } from "../brain/namespace-name.ts";
 import { resolveLink } from "../brain/paths.ts";
 import { trustCommand, type ChainLink } from "../config/chain.ts";
 import type { BrainConfig } from "../config/folder-config.ts";
+import { AFTER_COMPACT } from "./compact.ts";
+import { RECALL_MIN_PAGES } from "./recall-floor.ts";
 import type { NewPage } from "./views.ts";
 import { plural } from "../util.ts";
 
@@ -18,9 +20,10 @@ import { plural } from "../util.ts";
  * then, while they fit, the project brain's front page, trimmed, and the Rules of the three brains, each its Rule and
  * its Why. What the memory holds: a heading that names the brains; then, while they fit, the pages to load first; the
  * Skills, one line each; the current decisions of the project brain, newest first; the instincts with recent
- * evidence, personal then project; what is new in the shared brains; the maintenance count per brain; and a last line
+ * evidence, personal then project; what is new in the shared brains; the maintenance count per brain; the Memories that
+ * are facts and lessons, only while the brains hold too few pages for a prompt to recall them (§4.7); and a last line
  * that counts the pages and says that search finds them. In each part the first item that does not fit ends it, so
- * nothing later jumps ahead of something earlier. Memories that are facts and lessons are never in it.
+ * nothing later jumps ahead of something earlier.
  *
  * This composes what `summary-load.ts` read: nothing here touches the disk.
  */
@@ -75,6 +78,8 @@ export interface SummaryInput {
   untrusted?: ChainLink[];
   /** Links by name alone to a brain this machine does not have (§2.4). */
   notHere?: ChainLink[];
+  /** The session was just compacted: its opening sends the agent to what the compaction's summary kept unsaved (§1.1, §4.1). */
+  compacted?: boolean;
   /** The brain whose folder the session is in (§2.7), by key: the session works on it. */
   inside?: string;
   /** Where the team came from: the machine's when the folder names none (§2.4), which the team's line says. */
@@ -289,6 +294,12 @@ function namespaceLines(b: SummaryBrain): string[] {
  */
 export const WHEN_TO_SAVE =
   "Save on your own, without asking, the moment you learn something that will still be true in months and would change how you act in a later session: a correction and what the person wanted instead, a preference of tool, style or workflow, a decision and why, an error and how it was resolved, context the repository does not hold. At that moment load the `kioku` skill, which says what to save as and how. Never save secrets, and never personal remarks to a shared brain.";
+/**
+ * Said in the opening (§4.8): when to leave the folder's handoff, which is not memory and so is not the skill's to say.
+ * Left out before anything else when the cap is short.
+ */
+export const WHEN_TO_HANDOFF =
+  "When the person stops for now with work unfinished, load the `kioku` skill and leave a handoff with `kioku handoff set`, on stdin: what was being done and why, what is done and what is left, what comes next, what is not decided, the files and commands it takes to go on, and where a fuller handoff document is when one was written. What it takes to go on in some days, not a transcript. It is this machine's note for the next session in this folder and on this branch, not memory: nothing of it goes in a brain. When the person asks what was being done here, `kioku handoff show` says it.";
 /** The same in one line, for a cap that leaves the whole no room beside the brains (§4.1). */
 export const WHEN_TO_SAVE_SHORT =
   "Save on your own, without asking, what will still be true in months and would change how you act later (corrections, preferences, decisions, errors resolved, context the repository lacks): load the `kioku` skill then.";
@@ -300,6 +311,57 @@ export const SKILLS_NOTE =
 /** Said at the end of the first part when the cap cut the Rules (§4.1). */
 export const RULES_CUT =
   "Not every Rule fits here: `kioku page list --kind rule` lists them, and `kioku page show` reads one.";
+
+/**
+ * What a session that starts anew is given of the handoffs of its place (§4.8): the one left for this folder and this
+ * branch, when there is one, and where the folder has others, on other branches.
+ */
+export interface GivenHandoff {
+  /** The branch the folder is on, when it is in a repository. */
+  branch?: string;
+  at?: string;
+  text?: string;
+  /** The pages of the memory the session that left it wrote and opened. */
+  pages?: { brain: string; path: string; title: string; did: "wrote" | "opened" }[];
+  elsewhere: { branch: string | null; at: string }[];
+}
+
+/** The heading of the handoff's part, which stands alone as the summary's parts do: the hooks' parts reach the agent in any order. */
+const HANDOFF_TITLE = "# Kioku: where the last session here left off";
+
+/** The folder's handoffs on other branches, in one line: where each is and when it was left. */
+const elsewhereLine = (h: GivenHandoff): string =>
+  h.elsewhere.length === 0
+    ? ""
+    : `This folder has ${h.elsewhere.length === 1 ? "a handoff" : "handoffs"} on ${h.elsewhere
+        .slice(0, 5)
+        .map((e) => `${e.branch === null ? "no branch" : `\`${oneLine(e.branch)}\``} (left ${e.at.slice(0, 10)})`)
+        .join(", ")}: \`kioku handoff show --branch <branch>\` reads one.`;
+
+/**
+ * The handoff's part (§4.8), injected by a hook of its own beside the summary's two, so that it has that hook's whole
+ * cap and takes nothing of the Rules': what it is, when and for which branch it was left; its text, whole, with its
+ * headings pushed down; the pages the session that left it wrote and opened, one line each, each on one line whatever
+ * its title holds, names and never text; and the folder's handoffs on other branches. Where this branch has none and
+ * another has, only that.
+ */
+export function composeHandoff(h: GivenHandoff, cap: number = SUMMARY_CAP): string {
+  const on = h.branch === undefined ? "" : ` for the branch \`${oneLine(h.branch)}\``;
+  const other = elsewhereLine(h);
+  if (h.at === undefined)
+    return `${HANDOFF_TITLE}\n\nNo handoff was left${on === "" ? " for this folder with no branch" : on}. ${other} When the work the person means is that one, ask before going on here.`;
+  const c = new Composer(Math.min(SUMMARY_CAP, Math.max(MIN_SUMMARY_CAP, cap)), 0);
+  c.must(
+    `${HANDOFF_TITLE}\n\nA handoff the agent left on ${h.at.slice(0, 10)}, on this machine${on}, when the person stopped. It is a note, not memory, and may be stale: check it against the repository before relying on it. \`kioku handoff clear\` drops it once the work is done.\n\n${demote(h.text ?? "")}`,
+  );
+  if (h.pages !== undefined && h.pages.length > 0)
+    c.section(
+      "Pages of the memory that session wrote or opened, each read again with `kioku page show <path> --brain <brain>`:",
+      h.pages.map((p) => clip(`- ${p.did}: ${oneLine(p.title)} (${brainRepoOfKey(p.brain)}, ${oneLine(p.path)})`)),
+    );
+  if (other !== "") c.section(other, [""]);
+  return c.text().trimEnd();
+}
 
 /** Both parts, one after the other: what an agent that reads the whole sees. */
 export function composeSummary(input: SummaryInput): string {
@@ -400,9 +462,19 @@ export function composeUsage(input: SummaryInput): {
   for (const [key, reason] of Object.entries(input.syncFailures ?? {}))
     opening.push(`- The last sync of ${key} failed: ${clip(reason, 160)}`);
   // When to save (§4.1) takes the room the rest of the opening leaves under the cap: whole, else one line, else none.
-  const rest = opening.join("\n").length + RULES_CUT.length + 2;
+  const afterCompact = input.compacted === true && readable.length > 0;
+  const rest = opening.join("\n").length + RULES_CUT.length + 2 + (afterCompact ? AFTER_COMPACT.length + 2 : 0);
   const whenToSave = [WHEN_TO_SAVE, WHEN_TO_SAVE_SHORT].find((t) => rest + t.length + 2 <= cap);
   if (whenToSave !== undefined) opening.splice(4, 0, whenToSave, "");
+  // After a compaction, what its summary kept unsaved is saved now (§1.1): with the opening, never cut.
+  // When to leave the folder's note (§4.8): the first thing a short cap leaves out.
+  if (
+    whenToSave === WHEN_TO_SAVE &&
+    readable.length > 0 &&
+    rest + WHEN_TO_SAVE.length + WHEN_TO_HANDOFF.length + 4 <= cap
+  )
+    opening.splice(6, 0, WHEN_TO_HANDOFF, "");
+  if (afterCompact) opening.splice(whenToSave === undefined ? 4 : 6, 0, AFTER_COMPACT, "");
   c.must(opening.join("\n"));
 
   // 1. The project brain's front page, trimmed; inside a brain, that brain's.
@@ -411,19 +483,41 @@ export function composeUsage(input: SummaryInput): {
     c.section(`## ${nameOf(front)}: front page`, [demote(trimIndex(front.front, `${FRONT_PAGE} of ${nameOf(front)}`))]);
 
   // 2. The Rules of the three brains, each its Rule and its Why; most specific brain first.
-  const rules = readable.flatMap((b) => b.docs.filter((d) => kindOf(d.file) === "rule").map((d) => ({ b, d })));
-  const allRules = c.section(
-    "## Rules",
-    readable.flatMap((b) =>
-      b.docs
-        .filter((d) => kindOf(d.file) === "rule")
-        .sort((x, y) => (x.rel < y.rel ? -1 : 1))
-        .map((d) => `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`),
-    ),
-    true,
-  );
+  const rules = ruleItems(readable);
+  const allRules = c.section("## Rules", rules, true);
   // Said only when a Rule did not fit, not when the front page alone did not (§4.1).
   return { usage: c.text(rules.length > 0 && !allRules ? RULES_CUT : undefined), loaded };
+}
+
+/** The Rules of these brains as the summary says them (§4.1): each its title, its Rule and its Why; a brain's by path. */
+const ruleItems = (readable: SummaryBrain[]): string[] =>
+  readable.flatMap((b) =>
+    b.docs
+      .filter((d) => kindOf(d.file) === "rule")
+      .sort((x, y) => (x.rel < y.rel ? -1 : 1))
+      .map((d) => `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`),
+  );
+
+/**
+ * Said to a subagent before the Rules (§4.1): whose they are, how the memory is read, and that saving is not its to do.
+ * A subagent has one task and none of the conversation, so it is given no more than this.
+ */
+export const SUBAGENT_OPENING = [
+  "# Kioku: the Rules of this session's brains",
+  "",
+  "The session that started you keeps its memory in Kioku: brains of pages. Its Rules hold for you as they do for it; on conflict the most specific brain wins: personal, then project, then team. To read the memory, load the `kioku` skill, then `kioku page search <words>` and `kioku page show <path> --brain <brain>`, never a brain's files. Save nothing to it yourself: say in your answer what is worth keeping, and the session that started you decides.",
+].join("\n");
+
+/**
+ * What a subagent is given at its start (§4.1): the Rules of the session's brains, always on for it too, under the
+ * cap of one hook; nothing when the brains hold no Rule.
+ */
+export function composeForSubagent(brains: SummaryBrain[], cap: number = SUMMARY_CAP): string | undefined {
+  const rules = ruleItems(brains.filter((b) => b.config !== undefined));
+  if (rules.length === 0) return undefined;
+  const c = new Composer(Math.min(SUMMARY_CAP, Math.max(MIN_SUMMARY_CAP, cap)), RULES_CUT.length + 2);
+  c.must(SUBAGENT_OPENING);
+  return c.text(c.section("## Rules", rules, true) ? undefined : RULES_CUT);
 }
 
 /**
@@ -437,8 +531,8 @@ export function composeHolds(input: SummaryInput): {
 } {
   const { readable, project, pages, cap } = partsOfInput(input);
   if (readable.length === 0) return { offered: [], newsShown: [] };
-  const closing = (cut: boolean) =>
-    `The brains hold ${plural(pages, "page")}${cut ? "; this summary shows part of them" : ""}. \`kioku page search <words>\` finds them; Memories that are facts and lessons are found that way, not listed here.`;
+  const closing = (cut: boolean, memoriesListed = false) =>
+    `The brains hold ${plural(pages, "page")}${cut ? "; this summary shows part of them" : ""}. \`kioku page search <words>\` finds them${memoriesListed ? "." : "; Memories that are facts and lessons are found that way, not listed here."}`;
   const h = new Composer(cap, closing(true).length + 2);
   // The project brain's repository is a hint by its words, `brain-acme` for acme: the word brain itself says nothing.
   const hints = (input.hints ?? [])
@@ -559,8 +653,23 @@ export function composeHolds(input: SummaryInput): {
       .map((b) => `- ${nameOf(b)}: ${plural(b.lint!, "thing")} for \`kioku brain lint ${nameOf(b)}\``),
   );
 
-  // 7. The last line, never cut: how many pages, and that search finds them.
-  return { holds: h.text(closing(h.cut)), offered: h.offered, newsShown };
+  // 7. The Memories that are facts and lessons, while the brains hold too few pages for a prompt to recall them (§4.7):
+  // until then nothing brings them to the agent. Most specific brain first, as the chain is; the first thing the cap cuts.
+  const memories =
+    pages < RECALL_MIN_PAGES
+      ? readable.flatMap((b) =>
+          byRelevance(
+            b.docs
+              .filter((d) => kindOf(d.file) === "memory" && placementOf(d.rel)?.sub !== "instinct")
+              .sort(newestFirst),
+            (d) => `${titleOf(d)} ${str(d, "summary") ?? ""}`,
+          ).map((d) => offer(clip(`- ${withSummary(d)} (${nameOf(b)}, ${d.rel})`), b, d)),
+        )
+      : [];
+  const memoriesListed = h.section("## Memories", memories) && memories.length > 0;
+
+  // 8. The last line, never cut: how many pages, and that search finds them.
+  return { holds: h.text(closing(h.cut, memoriesListed)), offered: h.offered, newsShown };
 }
 
 /** Both parts and what each says of itself, as one; what a test of the whole reads. */

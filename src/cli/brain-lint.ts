@@ -103,6 +103,16 @@ function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: U
     ),
     "unopened",
   );
+  group(
+    "pages a recall keeps bringing and no session opens (reword the title and summary, or retire)",
+    (r.unfollowed ?? []).map((u) => `${u.path} (recalled ${u.recalled} times)`),
+    "unfollowed",
+  );
+  group(
+    "pages on the subject of one in a more shared brain (not counted: often meant; when they disagree, the more specific wins)",
+    (r.similarElsewhere ?? []).map((s) => `${s.path} ~ ${s.other} (${brainRepoOfKey(s.brain)})`),
+    "similarElsewhere",
+  );
   group("namespaces that do not say what they are for (kioku namespace describe)", r.undescribed ?? [], "undescribed");
   group(
     "changes of yours that conflicted with what others published (kioku brain conflicts)",

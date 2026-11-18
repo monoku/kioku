@@ -15,6 +15,8 @@ export const indexPath = (home: string): string => kioku(home, "index.sqlite");
 export const pendingPath = (home: string): string => kioku(home, "pending.json");
 /** The commit of each shared brain seen by the last sessions, for "new since your last session" (§4.1). */
 export const viewsPath = (home: string): string => kioku(home, "views.json");
+/** The commit of each shared brain up to which the person was told of its Rules' changes (§1.2). */
+export const rulesSeenPath = (home: string): string => kioku(home, "rules-seen.json");
 /** The last outcome of `sync` per brain (§4.2). */
 export const syncStatePath = (home: string): string => kioku(home, "sync.json");
 /** What the last background `sync` printed. */
@@ -27,10 +29,12 @@ export const syncLeftPath = (home: string): string => kioku(home, "sync-left.jso
 export const lintReportPath = (home: string): string => kioku(home, "lint.json");
 /** When the person was last told that the personal brain lives only on this machine (§2.3). */
 export const backupStatePath = (home: string): string => kioku(home, "backup.json");
-/** Each session's journal, one file per session, dropped two days after its last entry (§4.6). */
+/** Each session's journal, one file per session, dropped thirty days after its last entry (§4.6). */
 export const sessionsPath = (home: string): string => kioku(home, "sessions");
 /** What this machine has opened and been offered, per page, and since when it counts (§4.5). */
 export const readsStatePath = (home: string): string => kioku(home, "reads.json");
+/** Where each folder's last session stopped, as the agent left it (§4.8). */
+export const handoffsPath = (home: string): string => kioku(home, "handoffs");
 /** The embedding engine, fetched at first use (§4.3). */
 export const enginePath = (home: string): string => kioku(home, "engine");
 /** The embedding model, fetched at first use (§4.3). */

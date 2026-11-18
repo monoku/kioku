@@ -1,11 +1,17 @@
 import { resolve } from "node:path";
 import { machineReader, mutes, type MachineConfig } from "../core/config/machine.ts";
-import { loadedRow, startHolds, startSession } from "../core/session/start.ts";
+import { loadedRow, startHandoff, startHolds, startSession, startSubagent } from "../core/session/start.ts";
 import { currentVersion, installDirs, installOrigin, managerCommand, newerThan } from "../core/setup/install.ts";
 import { dueForCheck, recordCheck, takeAvailable } from "../core/setup/update.ts";
-import { entriesFor, labelled, nextTurn, ownTurn, record } from "../core/session/journal.ts";
+import { entriesFor, labelled, nextTurn, ownTurn, readJournal, record } from "../core/session/journal.ts";
+import { compactInstructions, savedTitles } from "../core/session/compact.ts";
+import { followedIn } from "../core/session/followed.ts";
+import { attachPages, pagesOfJournal } from "../core/handoff.ts";
+import { kiokuCall } from "../core/shell-words.ts";
+import { jsonLines } from "../core/util.ts";
+import { resolveChain } from "../core/config/chain.ts";
 import { labelsFor } from "../core/session/labels.ts";
-import { recordSurfaced } from "../core/reads.ts";
+import { recordFollowed, recordSurfaced } from "../core/reads.ts";
 import { newVersionPair } from "../core/session/versions.ts";
 import { VERSION } from "../version.ts";
 import {
@@ -193,6 +199,52 @@ export const sessionStartHolds: Handler = guarded(async (harness, ctx) => {
   return holds === undefined ? undefined : harness.sessionStartAnswer(holds, []);
 });
 
+/**
+ * The `PreCompact` hook (§1.1, §6.2): asks the host's compaction to keep, under a heading of its own, what the person
+ * said that is worth saving and the session did not save, naming what it did save from the journal. The session's next
+ * start, compacted, tells the agent to save it (§4.1). Nothing where no brain is loaded; it never stops a compaction.
+ */
+export const preCompact: Handler = guarded(async (harness, ctx) => {
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const input = harness.parsePreCompact(await ctx.stdin());
+  const chain = resolveChain(resolve(input.cwd ?? ctx.cwd), config, ctx.home);
+  if (!chain.links.some((l) => l.cloned)) return undefined;
+  const saved = input.sessionId === undefined ? [] : savedTitles(readJournal(ctx.home, input.sessionId));
+  return harness.compactInstructionsAnswer(compactInstructions(saved));
+});
+
+/**
+ * The `SubagentStart` hook (§4.1, §6.2): a subagent runs no session start, so the Rules of the session's brains, always
+ * on, are added to its context here, with how the memory is read and that saving is the session's. Nothing where the
+ * brains hold no Rule; no entry of the journal, since it is the session's summary said again.
+ */
+export const subagentStart: Handler = guarded(async (harness, ctx) => {
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const input = harness.parseSubagentStart(await ctx.stdin());
+  const rules = startSubagent(ctx.home, config, resolve(input.cwd ?? ctx.cwd));
+  return rules === undefined ? undefined : harness.subagentContextAnswer(rules);
+});
+
+/**
+ * The third `SessionStart` hook (§4.8, §6.2): the handoff of the session's place, for a session that starts anew, in a
+ * part of its own, so that it is given whole and takes no room of the summary's. It says nothing to the person and
+ * never fails the session.
+ */
+export const sessionStartHandoff: Handler = guarded(async (harness, ctx) => {
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const input = harness.parseSessionStart(await ctx.stdin());
+  const handoff = startHandoff(
+    ctx.home,
+    config,
+    { cwd: resolve(input.cwd ?? ctx.cwd), ...(input.source !== undefined && { source: input.source }) },
+    ctx.now(),
+  );
+  return handoff === undefined ? undefined : harness.sessionStartAnswer(handoff, []);
+});
+
 /** How messages are laid out, as the configuration's `display` and the terminal say (§1.2). */
 const layoutOf = (config: MachineConfig | undefined, env: NodeJS.ProcessEnv): Layout =>
   layoutFor(messageColor(config?.display?.color, env));
@@ -211,7 +263,34 @@ export const postToolUse: Handler = guarded(async (harness, ctx) => {
   const entries = entriesFor(result.command, result.output, labels).map((e) =>
     result.callId === undefined ? e : { ...e, call: result.callId },
   );
+  // A page opened that a recall named to this session before is that recall followed (§4.5): counted before this
+  // opening is in the journal, so that a second opening is not counted again.
+  const opened = entries.flatMap((e) =>
+    e.what === "opened" && e.brain !== undefined && e.path !== undefined ? [{ brain: e.brain, path: e.path }] : [],
+  );
+  if (opened.length > 0 && result.sessionId !== undefined) {
+    try {
+      recordFollowed(ctx.home, ctx.now(), followedIn(readJournal(ctx.home, result.sessionId), opened));
+    } catch {
+      /* a count is only a count */
+    }
+  }
   record(ctx.home, result.sessionId, entries, ctx.now());
+  // A handoff just left takes the pages its session wrote and opened (§4.8): the tool that left it does not know the
+  // session, and this hook does.
+  if (result.sessionId !== undefined && kiokuCall(result.command ?? "", "handoff", ["set"]) !== undefined) {
+    const left = jsonLines(result.output).find(
+      (r) => r.status === "done" && typeof r.folder === "string" && typeof r.at === "string",
+    ) as { folder: string; branch?: string | null; at: string } | undefined;
+    if (left !== undefined)
+      attachPages(
+        ctx.home,
+        { folder: left.folder, ...(typeof left.branch === "string" && { branch: left.branch }) },
+        left.at,
+        pagesOfJournal(readJournal(ctx.home, result.sessionId)),
+        ctx.now(),
+      );
+  }
   return undefined;
 });
 
@@ -232,6 +311,59 @@ export const preToolUse: Handler = guarded(async (harness, ctx) => {
   return harness.allowSkillAnswer();
 });
 
+/**
+ * The `PreToolUse` hook on the host's file tools (§4.7, §6.2): the pages of the project brain that say they are about
+ * the file the agent is about to read or change are named beside the tool's result, one line each, once a session, as
+ * an entry of the journal. It decides nothing about the call, and never fails it.
+ */
+export const preToolPath: Handler = guarded(async (harness, ctx) => {
+  const input = harness.parseToolPath(await ctx.stdin());
+  if (input === undefined) return undefined;
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const cwd = resolve(input.cwd ?? ctx.cwd);
+  // Imported here, as the prompt's recall is: no other hook reaches the index.
+  const { recallForPath, recallText, recalledRow } = await import("../core/session/recall.ts");
+  const pages = await recallForPath(ctx.home, config, {
+    cwd,
+    file: input.file,
+    ...(input.sessionId !== undefined && { sessionId: input.sessionId }),
+  });
+  if (pages.length === 0) return undefined;
+  const labels = labelsFor(ctx.home, cwd, { machine: machineOf(ctx) });
+  record(
+    ctx.home,
+    input.sessionId,
+    [
+      labelled(
+        {
+          what: "recalled",
+          arrow: "read",
+          brain: [...new Set(pages.map((p) => p.brain))].join(", "),
+          count: pages.length,
+          // With each page's id, which the count of §4.5 is kept by: what tells, later, that the session opened it.
+          hits: pages.map(({ brain, path, title, id }) => ({ brain, path, title, ...(id !== null && { id }) })),
+          by: "path",
+        },
+        labels,
+      ),
+    ],
+    ctx.now(),
+  );
+  try {
+    recordSurfaced(
+      ctx.home,
+      ctx.now(),
+      pages.map((p) => ({ brain: p.brain, id: p.id })),
+      true,
+    );
+  } catch {
+    /* a count is only a count */
+  }
+  const said = render(recalledRow(pages, labels.label, "path"), layoutOf(config, ctx.env));
+  return harness.toolContextAnswer(recallText(pages, "path"), said);
+});
+
 /** The question before a namespace is made (§3.2): its path and brain, and its description under it. */
 function namespaceQuestion(n: NamespaceAdd): Message {
   const where = n.brain === undefined ? "" : ` in ${n.brain}`;
@@ -244,7 +376,7 @@ function namespaceQuestion(n: NamespaceAdd): Message {
 
 /**
  * The `UserPromptSubmit` hook (§4.6, §4.7): each prompt is the session's next turn in its journal, and the pages that
- * stand out by meaning for it are added to its context, one line each, and are an entry of the journal. It never
+ * stand out for it, by meaning or by its words where meaning cannot run, are added to its context, one line each, and are an entry of the journal. It never
  * fails the prompt, and adds nothing past its budget.
  */
 export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
@@ -256,7 +388,7 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
   const cwd = resolve(input.cwd ?? ctx.cwd);
   // Imported here, not above: the prompt's hook alone reaches the index and the model (§4.7); the session's start never does.
   const { recallFor, recallText, recalledRow, RECALL_TUNING } = await import("../core/session/recall.ts");
-  const pages = await recallFor(
+  const { pages, by } = await recallFor(
     ctx.home,
     config,
     { cwd, prompt: input.prompt, ...(input.sessionId !== undefined && { sessionId: input.sessionId }) },
@@ -277,7 +409,9 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
           arrow: "read",
           brain: brains,
           count: pages.length,
-          hits: pages.map(({ brain, path, title }) => ({ brain, path, title })),
+          // With each page's id, which the count of §4.5 is kept by: what tells, later, that the session opened it.
+          hits: pages.map(({ brain, path, title, id }) => ({ brain, path, title, ...(id !== null && { id }) })),
+          ...(by !== "meaning" && { by }),
         },
         labels,
       ),
@@ -289,11 +423,12 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
       ctx.home,
       ctx.now(),
       pages.map((p) => ({ brain: p.brain, id: p.id })),
+      true,
     );
   } catch {
     /* a count is only a count */
   }
   // The person sees what the agent was given, under their message (§1.2): never muted, as the summary is not.
-  const said = render(recalledRow(pages, labels.label), layoutOf(config, ctx.env));
-  return harness.promptContextAnswer(recallText(pages), said);
+  const said = render(recalledRow(pages, labels.label, by), layoutOf(config, ctx.env));
+  return harness.promptContextAnswer(recallText(pages, by), said);
 });

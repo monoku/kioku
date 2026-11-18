@@ -1,5 +1,13 @@
 import { kiokuCall } from "../core/shell-words.ts";
-import type { HookAnswer, NamespaceAdd, SessionStartInput, ToolResult, UserPromptInput } from "./harness.ts";
+import type {
+  HookAnswer,
+  NamespaceAdd,
+  PreCompactInput,
+  SessionStartInput,
+  ToolPath,
+  ToolResult,
+  UserPromptInput,
+} from "./harness.ts";
 
 /**
  * The hook JSON Claude Code sends and takes back: `cwd` and `source` to a session start, the shell command in
@@ -22,6 +30,65 @@ export function parseSessionStart(raw: string): SessionStartInput {
     ...(typeof r?.cwd === "string" && { cwd: r.cwd }),
     ...(typeof r?.source === "string" && { source: r.source }),
     ...(typeof r?.session_id === "string" && { sessionId: r.session_id }),
+  };
+}
+
+/** What Claude Code tells a `PreCompact` hook that Kioku reads: the folder and the session. */
+export function parsePreCompact(raw: string): PreCompactInput {
+  const r = record(raw);
+  return {
+    ...(typeof r?.cwd === "string" && { cwd: r.cwd }),
+    ...(typeof r?.session_id === "string" && { sessionId: r.session_id }),
+  };
+}
+
+/**
+ * Claude Code takes what a `PreCompact` hook prints, as it is, for instructions to its compaction's summary: plain
+ * text, never JSON, so the answer is raw.
+ */
+export const compactInstructionsAnswer = (instructions: string): HookAnswer & { raw: true } => ({
+  data: { instructions },
+  text: instructions,
+  raw: true,
+});
+
+/** What Claude Code tells a `SubagentStart` hook that Kioku reads: the folder. */
+export function parseSubagentStart(raw: string): { cwd?: string } {
+  const r = record(raw);
+  return typeof r?.cwd === "string" ? { cwd: r.cwd } : {};
+}
+
+/** A subagent's start answers as a session's does: `additionalContext`, added before its first prompt. */
+export const subagentContextAnswer = (context: string): HookAnswer => ({
+  data: { hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context } },
+  text: context,
+});
+
+/** Claude Code's tools that read or change one file, and where each says which: the matcher of the plugin's hook (§4.7). */
+export const FILE_TOOLS = ["Read", "Edit", "Write", "NotebookEdit"] as const;
+
+/** The file such a tool is about to read or change: `tool_input.file_path`, or a notebook's `notebook_path`. */
+export function parseToolPath(raw: string): ToolPath | undefined {
+  const r = record(raw);
+  if (r === undefined || !(FILE_TOOLS as readonly unknown[]).includes(r.tool_name)) return undefined;
+  const input = r.tool_input as { file_path?: unknown; notebook_path?: unknown } | undefined;
+  const file = typeof input?.file_path === "string" ? input.file_path : input?.notebook_path;
+  if (typeof file !== "string" || file.trim() === "") return undefined;
+  return {
+    file,
+    ...(typeof r.cwd === "string" && { cwd: r.cwd }),
+    ...(typeof r.session_id === "string" && { sessionId: r.session_id }),
+  };
+}
+
+/** Context beside a tool's result, with no decision about the call: the host's permissions go on as they were. */
+export function toolContextAnswer(context: string, said?: string): HookAnswer {
+  return {
+    data: {
+      hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: context },
+      ...(said !== undefined && { systemMessage: `\n${said}` }),
+    },
+    text: [said, context].filter(Boolean).join("\n\n"),
   };
 }
 

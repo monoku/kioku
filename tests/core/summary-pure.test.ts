@@ -205,3 +205,61 @@ test("the first part says Rules were cut only when one was: a front page too lon
   const ruled = compose(input(brain([rule("big", "x".repeat(5_000))]), 1_500)).usage;
   assert.ok(ruled.trimEnd().endsWith(RULES_CUT), "a Rule that did not fit is said");
 });
+
+const memory = (name: string, created = "2026-09-01", title = `Lesson ${name}`) =>
+  page(
+    `memory/${name}.md`,
+    { id: name, title, kind: "memory", summary: "What was learned.", created },
+    "## What happened\n\nThat.\n\n## Lesson\n\nThis.\n\n## Rule of thumb\n\nSo.",
+  );
+const instinct = (name: string) =>
+  page(
+    `memory/instincts/${name}.md`,
+    { id: name, title: `Instinct ${name}`, kind: "memory", summary: "When X, do Y." },
+    "## When\n\nX.\n\n## Do\n\nY.\n\n## Evidence\n\n- 2026-10-01: it happened (Session 2026-10-01 in acme)",
+  );
+
+test("while the brains hold too few pages for a prompt to recall them, the Memories are listed last, the newest first, and counted as offered (§4.1, §4.7)", () => {
+  const { holds, offered } = compose(
+    input(brain([memory("old", "2026-08-01"), memory("new", "2026-09-30"), instinct("i"), decision(1)], { lint: 2 })),
+  );
+  const at = [
+    "## Instincts",
+    "## To review",
+    "## Memories",
+    "- Lesson new: What was learned. (o/brain-acme, memory/new.md)",
+    "- Lesson old",
+    "The brains hold 4 pages",
+  ].map((h) => holds.indexOf(h));
+  assert.ok(
+    at.every((n, i) => n >= 0 && (i === 0 || n > at[i - 1]!)),
+    `${at}`,
+  );
+  // An instinct is not a fact or a lesson: it has its own list.
+  assert.doesNotMatch(holds.slice(holds.indexOf("## Memories")), /Instinct i/);
+  assert.ok(offered.some((o) => o.id === "new") && offered.some((o) => o.id === "old"));
+  assert.ok(holds.trimEnd().endsWith("finds them."), "all listed: the last line does not say they are not");
+});
+
+test("a Memory that names what the session is about comes before a newer one (§4.1)", () => {
+  const i = input(brain([memory("a", "2026-09-30"), memory("b", "2026-08-01", "Checkout timeouts on deploy")]));
+  const { holds } = compose({ ...i, hints: ["checkout"] });
+  assert.ok(holds.indexOf("Checkout timeouts") < holds.indexOf("Lesson a"));
+});
+
+test("once the brains hold as many pages as a prompt's recall needs, no Memory is listed and the last line says search finds them (§4.1, §4.7)", () => {
+  const docs = Array.from({ length: 30 }, (_, n) => memory(`m${n}`));
+  const { holds, offered } = compose(input(brain(docs)));
+  assert.doesNotMatch(holds, /## Memories|Lesson m0/);
+  assert.deepEqual(offered, []);
+  assert.ok(holds.trimEnd().endsWith("not listed here."));
+});
+
+test("Memories the cap cuts leave the last line saying they are not all listed (§4.1)", () => {
+  const docs = Array.from({ length: 29 }, (_, n) => memory(`m${n}`, "2026-09-01", `Lesson ${n} ${"x".repeat(200)}`));
+  const { holds } = compose(input(brain(docs), 2000));
+  assert.match(holds, /## Memories/);
+  assert.match(holds, /this summary shows part of them/);
+  assert.ok(holds.trimEnd().endsWith("not listed here."));
+  assert.ok(holds.length <= 2000);
+});

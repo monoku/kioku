@@ -4,6 +4,124 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## 0.6.0
+
+- **A prompt's recall meets a page's words whatever form they have**: `deploy`
+  and `deploying`, `migraciones` and `migración`, `webhook` and `webhooks` now
+  count as a word in common, as two pages' titles already did for `save`.
+  Before, only words cut to the very same stem did, so such a page had to
+  stand further out to be named.
+- **A small memory shows its lessons and facts at the session's start.** While
+  the brains of a session hold fewer than 30 pages, too few for a prompt to
+  recall any, the summary names each Memory that is a fact or a lesson, one
+  line with its title and summary, where before only a search found them. Once
+  the brains hold more, each prompt brings the ones that bear on it, as since
+  0.4.0, and the summary lists none.
+- **A machine with no search model has a recall too, by words.** Where the
+  model is not on the machine yet, or `search.mode` is `full-text`, each prompt
+  now brings the pages whose title, aliases and summary hold two or more of its
+  significant words, a rare word weighing more than a common one; three at
+  most, and none while the brains hold fewer than 30 pages. The row says
+  `recalled  by words` in place of `by meaning`. It finds fewer pages than
+  meaning does, and none written in another language than the prompt's.
+  `pnpm eval:recall -- --words` measures it.
+- **What you said and was not saved is kept through a compaction.** When
+  Claude Code compacts a long session, by itself or at `/compact`, Kioku asks
+  the summary to keep, under `Not yet saved to Kioku`, the corrections,
+  preferences and decisions of yours that no page holds yet, and the session's
+  start after it tells the agent to save them before going on. The plugin has
+  a `PreCompact` hook for it, `kioku hook pre-compact`; it shows nothing and
+  never stops a compaction.
+- **A subagent works under the Rules too.** A subagent the session starts
+  (to explore, to plan, any type) got none of the session's summary, so a Rule,
+  always on, did not hold for it. It is now given the Rules of the session's
+  brains at its start, and told to read the memory through the tool and to
+  leave saving to the session that started it. The plugin has a
+  `SubagentStart` hook for it, `kioku hook subagent-start`; with no Rule in
+  the brains it adds nothing.
+- **A page can say which files it is about, and comes back when the agent
+  touches them.** `kioku page save --applies-to "src/billing/**,db/migrations"`
+  (and `page update --applies-to`, `none` to remove it) writes the new
+  optional field `applies_to`, globs relative to the project folder. When the
+  agent reads or changes a file one of them matches, the page of the project
+  brain is named beside the tool's result, one line, once a session, and the
+  conversation shows `recalled  by path`. What you ask for often does not name
+  the folder a lesson is about; the file does. The plugin has a `PreToolUse`
+  hook on the file tools for it, `kioku hook pre-tool-path`, which starts
+  nothing on a machine where no page uses the field. `page list` and
+  `page show` answer `applies_to`; the validator warns of a glob that matches
+  no file and of the field outside a project brain. A brain's format does not
+  move: an older Kioku ignores the field.
+- **`kioku brain stats` says how often a recall was worth it.** Beside the
+  pages opened, each brain now has `recalled`, the times a prompt or a file
+  brought one of its pages to a session on this machine, `followed`, the times
+  that session then opened the page, and `follow_rate`. `kioku brain lint`
+  lists, as `unfollowed`, the pages a recall named five times or more and no
+  session opened: their title and summary are all a recall shows, so they are
+  the ones to reword, or to retire. Counted from this version on; nothing
+  changes which pages a recall names.
+- **`kioku page save` says when another brain of the session has a page on the
+  same subject.** A personal preference that says otherwise than a decision of
+  the project's was written with no word, and "the most specific brain wins"
+  settled it without anyone knowing. A save's answer now carries `elsewhere`,
+  those pages, whether it wrote or answered `similar`; it never stops the
+  write, and the agent tells you when the two disagree. `kioku brain lint`,
+  run on the brains of a folder together, lists the pages of one on the
+  subject of a page in a more shared one, `similarElsewhere`, apart from its
+  count.
+- **A session can pick up where the last one stopped.** When you stop with
+  work unfinished, the agent leaves a handoff with the new
+  `kioku handoff set`: what was being done and why, what is left, what comes
+  next, what is not decided, and what it takes to go on, with the pages of
+  the memory that session wrote and opened. The next session you start in the
+  same place is given it, said as what it is, a note on this machine and not
+  memory. A place is a folder and its branch: a worktree has its own handoff,
+  a folder that is no repository has one, and a checkout that moves between
+  branches has one a branch, the session being told when another branch has
+  one and this one has none. Ask "what were we doing here?" and the agent
+  reads it with `kioku handoff show`; `kioku handoff clear` drops it. It is
+  the short memory of a place, where the brains are the long one: in no
+  brain, never synced or searched, 4,000 characters at most, replaced by the
+  next and dropped after thirty days. A fuller handoff document for someone
+  else is still yours to have written, and the handoff says where it is. The
+  progress of a task is still never a page.
+- **A session's journal is kept thirty days, not two.** A session resumed
+  weeks later, with `claude --resume`, still has its memory history, its
+  footer's counts, and what it was already given, so nothing is recalled to
+  it twice. The journal stays what it was: names and counts on this machine,
+  never a page's text or a prompt.
+- **Two pages on one subject become one, and a forgotten page comes back.**
+  `kioku page merge <from> <into>` takes the merged body on stdin and, in one
+  commit, keeps the `id` of the page that stays, makes the other's title and
+  aliases its aliases, joins both pages' See also and an instinct's occasions,
+  points every link of the brain at it and deletes the other; before, it was an
+  `update` and a `forget` by hand, and the links to the forgotten page broke.
+  Decisions are not merged: they are superseded. `kioku page restore <path>
+  --brain <b>` brings back a page as it was before the `forget` or the `merge`
+  that deleted it, where before it took a `git revert` in the brain's folder;
+  it is refused when a page it linked to is gone. In a conversation: "these two
+  are the same", "bring that back". `brain log` lists both, a merge with `into`;
+  `brain stats` counts them in `by_verb`, and a save forgotten and then
+  restored is no longer a reverted save. The journal has `merged` and
+  `restored`.
+- **A Rule a teammate changes is said to you.** A Rule goes whole into every
+  session, and anyone who can push to a project or team brain writes one; you
+  saw a page count. Now a session's start names each Rule of its shared brains
+  that someone else added, changed, retired or removed since this machine last
+  said so: what happened, its title, its brain, who the commit says changed it
+  and the `kioku page show` that reads it, five at most. Each change is said
+  once, in a notice `display.mute` cannot silence. Your own commits are not
+  said, nor a `confirm` or a `link`; a brain loaded for the first time says
+  none.
+- **A `kioku` call that made no entry can be opened again.** When the agent
+  ran the tool and nothing of it reached the journal, a verb that makes no
+  entry such as `kioku --version`, or an answer piped into another command,
+  the conversation showed a dim line of the command's first words and hid what
+  it answered, with nothing to expand. Such a call, and the run it is in, is
+  now drawn by Claude Code as any other command.
+- **The footer no longer counts one read or write too many** when a session is
+  cleared, resumed or branched while a drop is still falling.
+
 ## 0.5.0
 
 - **`namespace add` and `brain language` always name the brain they write

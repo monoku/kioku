@@ -33,6 +33,8 @@ one. The codes the verbs below do not name:
 | `page confirm` | `retired` | the page is retired |
 | `page retire` | `already_retired`, `not_retired` | the retire, or the `--undo`, changes nothing |
 | `page rename` | `path_exists`, `unchanged` | the new path exists; the title is the same |
+| `page merge` | `different_kinds`, `is_a_decision`, `different_brains` | the two are not of one kind and subkind; they are decisions, which are superseded; they are in two brains |
+| `page restore` | `path_exists`, `not_found`, `invalid_page` | a page stands at the path; the brain's history deleted none there; the page as it was no longer passes the validator |
 | `page move` | `not_found`, `unchanged`, `path_exists` | the brain lacks the namespace; it is the page's own; the new path is taken |
 | `page link` | `unchanged` | both pages already link as asked |
 
@@ -233,6 +235,28 @@ By hand it fetches the search model first when it is missing. `--cwd` and
 `conflict`; exit 1 when a brain failed; another sync running is said, not
 waited for.
 
+### `kioku handoff`
+
+```text
+kioku handoff set|show|clear [--cwd <dir>] [--branch <branch>] < text
+```
+
+Where this folder's last session stopped, for the next one on this machine.
+<!-- /generated -->
+
+`set` takes the handoff on stdin, 4,000 characters at most, and replaces the
+one its place had; an empty one is `handoff_empty`, a longer one
+`handoff_too_long`, one that holds a secret `handoff_secret`. A place is a
+folder and the branch checked out there: the nearest of the project folder
+and the top of the repository or worktree that `--cwd` or the current folder
+is in, else that folder; a folder that is no repository has no branch. `show`
+says the handoff whole, and the folder's handoffs on other branches; `show`
+and `clear` take one of those with `--branch`. In a session of an agent host
+with Kioku's plugin, the handoff also names the pages of the memory that
+session wrote and opened, eight at most. A handoff is not memory and not a
+document for someone else: it is in no brain, and a session that starts anew
+in its place is given it, for thirty days.
+
 ## Brains
 
 ### `kioku brain create`
@@ -374,14 +398,32 @@ kioku brain stats [--since <when>] [--brain <b>]
 What the writes of the chain's brains add up to over a span, 30d unless you say: by verb, and how many saved pages were forgotten.
 <!-- /generated -->
 
-A page saved before the span and forgotten in it is a forget, not a revert.
+One row a brain, then, when a commit says how it arrived (spec §1.6), the same
+counts by `via`; a commit that says none is `unknown`:
 
 ```text
-acme: 41 writes
-  saved 18, updated 11, superseded 3, confirmed 6, forgotten 3
-  3 of 18 saved pages were forgotten (17%)
-  opened 42, unopened 5, on this machine since 2026-09-01
+Writes since 2026-10-14
+
+BRAIN           WRITES  SAVED  UPDATED  SUPERSEDED  CONFIRMED  FORGOTTEN  OPENED  UNOPENED  RECALLED  FOLLOWED
+northwind/acme      41     18       11           3          6          3      42         5        30        12
+
+BRAIN           VIA          WRITES  SAVED  FORGOTTEN
+northwind/acme  claude-code      38     17          3
+northwind/acme  unknown           3      1          0
+
+Opens are counted on this machine since 2026-09-01; recalled is the times a prompt or a file brought a page, followed the times the session then opened it.
 ```
+
+In the second table `FORGOTTEN` is the pages saved in the span and forgotten in
+it, and not restored since; a page saved before the span and forgotten in it
+is a forget, not a revert. `--json` answers them as `reverted`, with
+`revert_rate`, and every verb's count in `by_verb`
+([What the verbs answer](answers.md)). The columns from `OPENED` on are there
+only where this machine counts what is opened (spec §4.5).
+
+`recalled` is the times a prompt or a file brought one of the brain's pages to
+a session on this machine, and `followed` the times that session then opened
+the page: how often the recall named something worth reading.
 
 ### `kioku brain sources`
 
@@ -516,7 +558,8 @@ One slice at a time: `--section` (`section_not_found` lists the sections),
 ```text
 kioku page save --brain <b> --kind <k> --title <t> --source <s> [--sub <decision|playbook|context|instinct>]
            [--evidence <q>] [--summary <s>] [--aliases <a,b>] [--namespace <ns>]
-           [--stale-after <date>] [--source-version <v>] [--create [--see-also <paths>]] < body
+           [--stale-after <date>] [--source-version <v>] [--applies-to <glob,glob>]
+           [--create [--see-also <paths>]] < body
 ```
 
 Writes a page, or answers the similar pages it found instead.
@@ -527,14 +570,18 @@ Pages on the same subject come back as `similar` and nothing is written:
 (`--see-also` narrows them, `none` links none). In a brain with several
 namespaces and no `--namespace`, it answers `namespace` with each; with none,
 `namespace_none`; an unknown one is `namespace_unknown`. `--stale-after`
-takes `YYYY-MM-DD`; `--source-version` one line (a sha, a date, a hash).
+takes `YYYY-MM-DD`; `--source-version` one line (a sha, a date, a hash);
+`--applies-to` globs of the project's files the page is about, relative to
+the project folder, ten at most (`src/billing/**`, `db/migrations`, `*.sql`),
+one that is absolute, leaves the folder or matches every file being
+`applies_to_invalid`.
 
 ### `kioku page update`
 
 ```text
 kioku page update <path> [--brain <b>] [--section <name>] [--evidence <line> --source <s>]
              [--note <line>] [--summary <s>] [--aliases <a,b>] [--stale-after <date>|none]
-             [--source-version <v>|none] < body
+             [--source-version <v>|none] [--applies-to <glob,glob>|none] < body
 ```
 
 Rewrites a page's body, or one section, keeping its history.
@@ -542,7 +589,8 @@ Rewrites a page's body, or one section, keeping its history.
 
 The body replaces the page's, or with `--section` that section's. `--evidence`
 with `--source` adds an occasion to an instinct; `--note` is the Changelog
-line's text; `none` removes `--stale-after` or `--source-version`. An update
+line's text; `none` removes `--stale-after`, `--source-version` or
+`--applies-to`, which otherwise replaces the globs the page had. An update
 that changes nothing is refused.
 
 ### `kioku page supersede`
@@ -564,6 +612,22 @@ kioku page forget <path> [--brain <b>]
 
 Deletes a page; git keeps it.
 <!-- /generated -->
+
+### `kioku page restore`
+
+```text
+kioku page restore <path> --brain <b>
+```
+
+Brings back a page that was forgotten or merged away, as it was.
+<!-- /generated -->
+
+The page returns as it was at the commit before the last one that deleted it,
+with its `id`, in one commit. `--brain` is required: nothing in a brain says
+where a page that is gone was. `kioku brain log` lists what was forgotten or
+merged, each with its path. A page whose links broke since is refused
+(`invalid_page`); [Recover a page that was forgotten](../how-to/recover-a-forgotten-page.md)
+says what to do then.
 
 ### `kioku page confirm`
 
@@ -591,6 +655,23 @@ kioku page rename <path> --title <new title> [--brain <b>]
 
 Gives a page a new title; links follow.
 <!-- /generated -->
+
+### `kioku page merge`
+
+```text
+kioku page merge <from path> <into path> [--brain <b>] < body
+```
+
+Makes one page of two on the same subject; links follow and git keeps the other.
+<!-- /generated -->
+
+The body on stdin is the merged page's, written by whoever merges. `<into>`
+keeps its `id` and takes the title and aliases of `<from>` as aliases, both
+pages' See also and, for an instinct, the occasions of both; every link in the
+brain to `<from>` points to `<into>`, and `<from>` is deleted, in one commit.
+Two pages of one brain, one kind and one subkind; decisions are superseded,
+not merged. `kioku page restore <from> --brain <b>` brings `<from>` back; the
+merged page stays as the merge left it.
 
 ### `kioku page move`
 
@@ -697,7 +778,7 @@ the brain are not rewritten.
 ### `kioku hook`
 
 ```text
-kioku hook session-start|session-start-holds|user-prompt-submit|pre-tool-use|post-tool-use [--host claude-code]
+kioku hook session-start|session-start-holds|session-start-handoff|user-prompt-submit|pre-compact|subagent-start|pre-tool-use|pre-tool-path|post-tool-use [--host claude-code]
 ```
 
 What the plugin's hooks call.

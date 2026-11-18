@@ -1,3 +1,4 @@
+import { globProblem } from "../brain/applies.ts";
 import {
   depthOf,
   isReservedNamespace,
@@ -32,6 +33,8 @@ export type WarningId =
   | "rule-too-long"
   | "evidence-missing"
   | "stale-after-invalid"
+  | "applies-to-invalid"
+  | "applies-to-not-project"
   | "status-invalid"
   | "verified-invalid"
   | "page-too-long"
@@ -383,6 +386,18 @@ function checkPage(ctx: Context, rel: string, text: string, ids: Map<string, str
       rel,
     );
   }
+  const appliesTo = front.getList("applies_to") ?? [];
+  for (const glob of appliesTo) {
+    const problem = globProblem(glob);
+    if (problem !== undefined)
+      sink.warn("applies-to-invalid", `\`applies_to\` holds "${glob}", which matches no file: ${problem}`, rel);
+  }
+  if (appliesTo.length > 0 && ctx.config.tier !== "project")
+    sink.warn(
+      "applies-to-not-project",
+      `\`applies_to\` names files of a project, and this is a ${ctx.config.tier} brain: the page is named for no file`,
+      rel,
+    );
   const status = front.getString("status");
   if (status !== undefined && !(STATUSES as readonly string[]).includes(status)) {
     sink.warn("status-invalid", `\`status\` is "${status}"; a page is stable (no status) or ${DEPRECATED}`, rel);

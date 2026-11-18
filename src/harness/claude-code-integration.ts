@@ -1,5 +1,6 @@
 import { JOURNAL_READS, JOURNAL_WRITES } from "../core/session/journal-verbs.ts";
 import { MARKETPLACE_NAME } from "../product.ts";
+import { FILE_TOOLS } from "./hook-json.ts";
 
 /**
  * What Kioku is to Claude Code (§6.2): a plugin, `kioku` in a marketplace that ships beside the tool, under the
@@ -18,12 +19,18 @@ export const PLUGIN_SKILL = `${PLUGIN_NAME}:kioku`;
 export type HookVerb =
   | "session-start"
   | "session-start-holds"
+  | "session-start-handoff"
   | "user-prompt-submit"
+  | "pre-compact"
+  | "subagent-start"
+  | "pre-tool-path"
   | "post-tool-use"
   | "pre-tool-use";
 
 /** The writing verbs, one filter each: their result is an entry of the journal (§4.6). */
 export const WRITE_FILTERS: readonly string[] = JOURNAL_WRITES.map((v) => `Bash(kioku page ${v} *)`);
+/** A handoff left (§4.8): the hook, which knows the session, names on it the pages the session reached. */
+export const HANDOFF_FILTER = "Bash(kioku handoff set *)";
 /** The reading verbs, one filter each: their result is an entry of the journal (§4.6). */
 export const READ_FILTERS: readonly string[] = JOURNAL_READS.map((c) => `Bash(kioku ${c} *)`);
 
@@ -52,8 +59,15 @@ export function pluginHooks(): { hooks: Record<string, HookGroup[]>; modules: st
       SessionStart: [
         { hooks: [{ type: "command", command: run("session-start") }] },
         { hooks: [{ type: "command", command: run("session-start-holds") }] },
+        // The handoff of the place, whole, under a cap of its own (§4.8). The wrapper ends before it starts the tool on
+        // a machine that holds none.
+        { hooks: [{ type: "command", command: run("session-start-handoff") }] },
       ],
       UserPromptSubmit: [{ hooks: [{ type: "command", command: run("user-prompt-submit") }] }],
+      // What the conversation held and nothing saved, kept by the compaction's summary to be saved after it (§1.1).
+      PreCompact: [{ hooks: [{ type: "command", command: run("pre-compact") }] }],
+      // A subagent runs no session start: the Rules, always on, reach it here, whatever its type (§4.1).
+      SubagentStart: [{ hooks: [{ type: "command", command: run("subagent-start") }] }],
       PreToolUse: [
         { matcher: "Skill", hooks: [{ type: "command", command: run("pre-tool-use") }] },
         // A namespace is structure: the person confirms each one before it is made (§3.2).
@@ -61,11 +75,14 @@ export function pluginHooks(): { hooks: Record<string, HookGroup[]>; modules: st
           matcher: "Bash",
           hooks: [{ type: "command", if: "Bash(kioku namespace add *)", command: run("pre-tool-use") }],
         },
+        // A page that says which files it is about is named when the agent reads or changes one (§4.7). The wrapper
+        // ends before it starts the tool where no page says so.
+        { matcher: FILE_TOOLS.join("|"), hooks: [{ type: "command", command: run("pre-tool-path") }] },
       ],
       PostToolUse: [
         {
           matcher: "Bash",
-          hooks: [...WRITE_FILTERS, ...READ_FILTERS].map((f) => ({
+          hooks: [...WRITE_FILTERS, ...READ_FILTERS, HANDOFF_FILTER].map((f) => ({
             type: "command",
             if: f,
             command: run("post-tool-use"),

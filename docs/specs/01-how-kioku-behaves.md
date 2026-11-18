@@ -19,11 +19,27 @@ and how it was resolved; context about the project, the client or the team that
 is not in the repository; where to find things outside it. These guide which
 kind the page gets (§3); they are not the gate. What never passes: anything
 ephemeral, or redundant with the brains; anything the repository shows; the
-progress of the task at hand; everything in §1.5.
+progress of the task at hand, which has a handoff of its own outside every
+brain (§4.8); everything in §1.5.
 
 When the person says something should be remembered ("remember this"), the
 agent saves it regardless of the rule, in the most fitting kind, or as a Memory
 with the person's words as the body.
+
+**Before the context is compacted.** A long session's conversation becomes a
+summary, and what the person said and the agent did not save would go with it.
+The host gives the agent no turn before it compacts, so nothing is saved then:
+a `PreCompact` hook (§6.2) asks the compaction to keep, under the heading
+`Not yet saved to Kioku`, one line each and in the person's words, what the
+person said that passes the two tests above, leaving out what the session
+already saved, which the hook names by title from the session's journal (§4.6),
+secrets, the steps of the task and what the repository shows. The session's
+next start, which says it was compacted, tells the agent to save what is under
+that heading, and anything else of the kind the summary holds, before going on
+(§4.1). The hook says nothing to the person, makes no entry of the journal,
+never stops a compaction, and answers nothing where no brain is loaded. What
+the compaction keeps is the host's model's doing: this lowers what is lost, and
+promises nothing.
 
 ## 1.2 What the person sees
 
@@ -70,8 +86,9 @@ skill`, with no button.
 A call that runs more than the tool is drawn all the same, and its first row,
 open, says the other commands. A run of calls to `kioku` the host folds into
 one line is drawn as its calls' rows, one under another; a run holding a call
-that failed is unfolded, and one holding a call that is not `kioku`'s is folded
-as the host folds it. Every other call is drawn as the host draws it: a command
+that failed is unfolded, and one holding a call that is not `kioku`'s, or one
+that ended with an answer and made no entry, is folded as the host folds it,
+so what it answered can be opened. Every other call is drawn as the host draws it: a command
 that is not the tool's, and a `kioku` that made no entry. A `kioku` that failed
 (`error` in its answer, whatever the shell says) is drawn by the host with its
 here-documents cut to an ellipsis; the agent says the failure (§1.6). An answer
@@ -98,11 +115,32 @@ place of `session summary`.
 
 What a prompt recalled (§4.7) is said the same way, under the person's message,
 as one row: the history's `recalled` row on the brand's line. The pages are
-the memory history's to list, where they open. A prompt that recalled nothing
+the memory history's to list, where they open. It says `by words` in place of
+`by meaning` where meaning could not run, and `by path` for the pages a file
+the agent read or changed brought (§4.7). A prompt that recalled nothing
 says nothing.
 
 ```
 ⬢ kioku.md ↓ recalled  by meaning · 2 pages (project, personal)
+```
+
+**A Rule that changed in a shared brain is said to the person.** A Rule goes
+whole into every session (§4.1), and anyone who can push to a project or team
+brain writes one. So a session's start, resumed or compacted too, says each
+Rule of the session's shared brains that someone else added, changed, retired
+or removed since this machine last said so: what happened to it, its title,
+its brain, who changed it as the commit names them, and the command that reads
+it; five Rules at most, then how many more and the command that lists them.
+Each change is said once. A commit of this machine's own git identity is not
+said, nor one that only confirms a Rule or links it, and a Rule renamed is one
+change. A brain this machine loads for the first time says none: no session
+came before it. The machine keeps, per brain, the commit it has said up to
+(§2.5).
+
+```
+⬢ kioku.md · a Rule of a shared brain changed
+  ⎿ added · Never deploy on Fridays · project · by Ana
+  ⎿   kioku page show rules/never-deploy-on-fridays.md --brain project
 ```
 
 `display.mute` in the machine configuration (§2.5) lists, by name, the notices
@@ -127,8 +165,8 @@ name:
 | `brain-not-here` | in a session: the folder's `kioku.yaml` names by name alone a brain this machine does not have, so it is not loaded, with `kioku init <address>` once a teammate who has it gives its address (§2.4) |
 
 The rest is never silenced: an error, changes kept aside after a conflict
-(§1.6), a question the host asks (§3.2), the summary, what a prompt recalled and
-the rows. A notice with
+(§1.6), a Rule that changed in a shared brain, a question the host asks (§3.2),
+the summary, what a prompt recalled and the rows. A notice with
 a name ends with the command that silences it,
 `kioku config set display.mute +<name>`.
 
@@ -217,7 +255,7 @@ tab, and the same words take the tab they had. `/clear`, `/resume` and
 ### Afterwards
 
 The person controls the memory **afterwards**, in the conversation: "what did
-you save today?", "that's wrong, it is X", "forget that", "that belongs to
+you save today?", "that's wrong, it is X", "forget that", "bring that back", "these two are the same", "that belongs to
 acme". The agent resolves each with the tool (§6.1); "how is the memory doing?"
 it answers from `kioku brain stats`, as a signal, never as a verdict. The brain
 stays an ordinary git repository anyone can open in an editor.
@@ -265,6 +303,20 @@ aliases, text) in the target brain and, when it finds some, returns them
   save --create`); the new page links to them under `## See also` (§3.3).
 
 A save whose path exists is an error, never an overwrite.
+
+**The other brains of the session.** A page is written or held back by the
+brain it goes to alone. But the same subject may have a page in another brain
+of the chain, a personal preference beside a decision of the project's, and
+then "the most specific brain wins" (§2.1) settles it with nobody knowing the
+two disagree. So `save` also answers, as `elsewhere`, the pages on its subject
+in the session's other brains, three at most, the retired and superseded left
+out, whether it wrote or answered `similar`. They are found by full text as
+its own similar pages are, and held to the stricter rule of a report (§4.4),
+since they are only said: a loose match said at every save would be noise. They never
+stop a write: a more shared page on the subject is often the reason the more
+specific one exists. The agent reads them and, when one says otherwise than
+what it saved, tells the person in one line. Inside a brain (§2.7) there is no
+other brain to name.
 
 ## 1.5 What is never saved
 

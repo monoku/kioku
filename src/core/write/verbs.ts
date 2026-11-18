@@ -16,12 +16,13 @@ import {
 import { placementOf, specFor, typeOf, isKind, isSub, type PageType } from "../brain/kinds.ts";
 import { DEPRECATED, isRetired, setVerified } from "../brain/lifecycle.ts";
 import { buildBody, createPage } from "../brain/page.ts";
+import { APPLIES_MAX, cleanGlob, globProblem, isNone } from "../brain/applies.ts";
 import { linkBetween, linksOf, pagePath, resolveLink } from "../brain/paths.ts";
 import { namespaceOverview } from "../brain/namespaces.ts";
 import { namedError, userError, type Field } from "../errors.ts";
 import { openIndex } from "../index/db.ts";
 import { updateIndex } from "../index/indexer.ts";
-import { similarPages } from "../index/similar.ts";
+import { sameSubject, similarPages, type Subject } from "../index/similar.ts";
 import { candidateOccasions, evolvedInstinct } from "../lint.ts";
 import { lastTouched, touchedOf } from "../touched.ts";
 import {
@@ -76,6 +77,8 @@ export interface Done extends Applied {
   status: "done";
   brain: string;
   path: string;
+  /** `save`: pages on the subject in the chain's other brains (§1.4); absent when there are none. */
+  elsewhere?: ElsewherePage[];
   id?: string;
   /** What the page is (§6.1), as it stands after the write, or stood before a forget: for the session's journal (§4.6). */
   title?: string;
@@ -85,11 +88,13 @@ export interface Done extends Applied {
   supersedes?: string;
   /** `link`: the other page. */
   to?: string;
-  /** `rename`: the path the page had. */
+  /** `rename`, `move`: the path the page had. `merge`: the page taken in, which is gone. */
   from?: string;
+  /** `restore`: the commit that deleted the page, which this one undoes. */
+  undoes?: string;
   /** The namespace the page went to (`save`, `move`). */
   namespace?: string;
-  /** `rename`: the pages whose links now point at the new path. */
+  /** `rename`, `move`: the pages whose links now point at the new path. `merge`: those that now point at the page that holds both. */
   relinked?: string[];
   /** `forget`: the pages whose links now point at nothing. */
   linkedFrom?: string[];
@@ -105,6 +110,8 @@ export interface Similar {
   status: "similar";
   brain: string;
   similar: SimilarPage[];
+  /** Pages on the subject in the chain's other brains (§1.4); absent when there are none. */
+  elsewhere?: ElsewherePage[];
 }
 
 export interface PageInput {
@@ -118,8 +125,26 @@ export interface PageInput {
   namespace?: string;
   /** `YYYY-MM-DD`: after it the page needs a second look (§3.3). */
   staleAfter?: string;
+  /** Globs of the project's files the page is about (§3.3). */
+  appliesTo?: string[];
   /** The page's sections as Markdown, `## ` headings included. */
   body: string;
+}
+
+/** Globs as `applies_to` keeps them (§3.3): each one inside the project folder, ten at most, each once. */
+function globsOf(given: string[]): string[] {
+  const globs = [...new Set(given.map(cleanGlob))];
+  for (const g of globs) {
+    const problem = globProblem(g);
+    if (problem !== undefined)
+      throw namedError((n) => `${n.field("applies_to")} does not take "${g}": ${problem}`, "applies_to_invalid");
+  }
+  if (globs.length > APPLIES_MAX)
+    throw namedError(
+      (n) => `${n.field("applies_to")} takes ${APPLIES_MAX} globs at most, and this is ${globs.length}`,
+      "applies_to_invalid",
+    );
+  return globs;
 }
 
 export interface SaveInput extends PageInput {
@@ -129,6 +154,47 @@ export interface SaveInput extends PageInput {
   create?: boolean;
   /** With `create`: the pages to link under See also instead of every similar one; empty for none (§3.3). */
   seeAlso?: string[];
+  /** The other brains of the session's chain, whose pages on the same subject the answer names beside its own (§1.4). */
+  others?: { key: string; root: string }[];
+}
+
+/** The most pages of other brains one save names. */
+const ELSEWHERE_MAX = 3;
+
+/** A page of another brain of the chain on the subject of the one saved (§1.4): named, never a reason not to write. */
+export type ElsewherePage = Omit<SimilarPage, "touched">;
+
+/**
+ * The pages on a subject in the chain's other brains (§1.4), by full text alone, three at most: those whose title and
+ * aliases share most of what the shorter of the two says. Whatever goes wrong here, the write stands: it answers none.
+ */
+async function elsewhereOf(home: string, others: SaveInput["others"], subject: Subject): Promise<ElsewherePage[]> {
+  if (others === undefined || others.length === 0) return [];
+  try {
+    const index = await openIndex(home);
+    try {
+      updateIndex(index, others);
+      return others
+        .flatMap((o) =>
+          similarPages(index, o.key, subject)
+            // Stricter than for the brain written to: this is only said, and a loose match said at every save is noise.
+            .filter((h) => h.status === null && sameSubject(index, subject.title, subject.aliases ?? [], o.key, h))
+            .map((h) => ({
+              brain: o.key,
+              path: h.path,
+              title: h.title,
+              kind: h.kind,
+              subkind: h.subkind,
+              summary: h.summary,
+            })),
+        )
+        .slice(0, ELSEWHERE_MAX);
+    } finally {
+      index.close();
+    }
+  } catch {
+    return [];
+  }
 }
 
 export const oneLine = (s: string, field: Field): string => {
@@ -187,6 +253,7 @@ function newPage(
     ...(input.evidence !== undefined && { evidence: oneLine(input.evidence, "evidence") }),
     ...(input.summary !== undefined && { summary: oneLine(input.summary, "summary") }),
     ...(input.staleAfter !== undefined && { staleAfter: dayOf(input.staleAfter) }),
+    ...(input.appliesTo !== undefined && input.appliesTo.length > 0 && { appliesTo: globsOf(input.appliesTo) }),
     ...(input.aliases !== undefined && input.aliases.length > 0 && { aliases: input.aliases }),
     ...(extra.supersedes !== undefined && { supersedes: extra.supersedes }),
     body: assembleBody(type, input.body),
@@ -232,18 +299,24 @@ export async function save(
       "namespace_unknown",
     );
   }
+  const subject: Subject = {
+    title: input.title,
+    ...(input.aliases && { aliases: input.aliases }),
+    body: input.body,
+  };
   let related: Related[] = [];
   if (!input.create || input.seeAlso === undefined) {
     const index = await openIndex(env.home);
     try {
       updateIndex(index, [{ key: brain.key, root: brain.root }]);
-      const subject = { title: input.title, ...(input.aliases && { aliases: input.aliases }), body: input.body };
       const found = similarPages(index, brain.key, subject);
       if (found.length > 0 && !input.create) {
         const touched = lastTouched(brain.root);
+        const elsewhere = await elsewhereOf(env.home, input.others, subject);
         return {
           status: "similar",
           brain: brain.key,
+          ...(elsewhere.length > 0 && { elsewhere }),
           similar: found.map((h) => ({
             brain: brain.key,
             path: h.path,
@@ -299,6 +372,8 @@ export async function save(
     env,
     seen,
   );
+  // Said after the write, and never a reason not to make it: a more shared page on the subject is often why this one exists.
+  const elsewhere = await elsewhereOf(env.home, input.others, subject);
   return {
     status: "done",
     brain: brain.key,
@@ -308,6 +383,7 @@ export async function save(
     namespace: file.front.getString("namespace")!,
     ...applied,
     ...candidacy(type, rel, file),
+    ...(elsewhere.length > 0 && { elsewhere }),
   };
 }
 
@@ -402,6 +478,8 @@ export interface UpdateInput {
   aliases?: string[];
   /** A new date after which the page needs a second look; `none` removes it. */
   staleAfter?: string;
+  /** The globs of the project's files the page is about, replacing the ones it had; `none` removes them. */
+  appliesTo?: string[];
   /** The version of the source the page now reflects, after reading it again; `none` removes it. */
   sourceVersion?: string;
 }
@@ -412,6 +490,7 @@ const UPDATE_LINES: readonly [(input: UpdateInput) => boolean, (input: UpdateInp
   [(i) => Boolean(i.body?.trim()), () => "Rewrote the page."],
   [(i) => i.summary !== undefined, () => "Updated the summary."],
   [(i) => i.staleAfter !== undefined, () => "Updated the date after which it needs a second look."],
+  [(i) => i.appliesTo !== undefined, () => "Updated the files it applies to."],
   [(i) => i.sourceVersion !== undefined && i.aliases === undefined, () => "Read the source again."],
 ];
 const updateLine = (input: UpdateInput): string =>
@@ -437,11 +516,12 @@ export async function update(brain: TargetBrain, rel: string, input: UpdateInput
     input.summary === undefined &&
     input.aliases === undefined &&
     input.staleAfter === undefined &&
+    input.appliesTo === undefined &&
     input.sourceVersion === undefined
   ) {
     throw namedError(
       (n) =>
-        `nothing to update: send a body${n.cli(" on stdin")}, or pass ${n.field("evidence")}, ${n.field("summary")}, ${n.field("aliases")}, ${n.field("stale_after")} or ${n.field("source_version")}`,
+        `nothing to update: send a body${n.cli(" on stdin")}, or pass ${n.field("evidence")}, ${n.field("summary")}, ${n.field("aliases")}, ${n.field("stale_after")}, ${n.field("applies_to")} or ${n.field("source_version")}`,
     );
   }
   if (input.evidence !== undefined && !spec.evidence)
@@ -462,6 +542,10 @@ export async function update(brain: TargetBrain, rel: string, input: UpdateInput
   if (input.staleAfter !== undefined) {
     if (input.staleAfter.trim() === "none") file.front.delete("stale_after");
     else file.front.set("stale_after", dayOf(input.staleAfter), { raw: true });
+  }
+  if (input.appliesTo !== undefined) {
+    if (input.appliesTo.length === 0 || isNone(input.appliesTo)) file.front.delete("applies_to");
+    else file.front.set("applies_to", globsOf(input.appliesTo));
   }
   if (input.sourceVersion !== undefined) {
     if (input.sourceVersion.trim() === "none") file.front.delete("source_version");

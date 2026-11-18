@@ -89,11 +89,53 @@ finds the launcher by `KIOKU_BIN`, then the `PATH`, then `KIOKU_BIN_DIR` or
    session's next turn (spec §4.6).
 2. Then, within a second, the recall (spec §4.7, `src/core/session/recall.ts`,
    imported by this hook alone): it opens the index only as it is, loads the
-   model, embeds the prompt and weighs the pages with a current vector; past
+   model, embeds the prompt and weighs the pages with a current vector, or,
+   where the model cannot run, weighs the pages by the prompt's words; past
    the second it adds nothing.
 3. The pages that stand out go to the agent as one line each, to the person as
    one row, and into the journal; the process ends with its answer, whatever
    the recall left running.
+
+## A file the agent reads or changes
+
+Before Claude Code's `Read`, `Edit`, `Write` or `NotebookEdit` runs, the
+plugin's wrapper looks for a marker beside the index, which exists while some
+page has `applies_to` (spec §3.3), and ends there when it does not. Otherwise
+`kioku hook pre-tool-path` reads the `applies` table of the index as it is,
+matches the project brain's globs against the file relative to the project
+folder (`recallForPath` in `src/core/session/recall.ts`), and answers the
+pages as context beside the tool's result, as a row and as a journal entry
+(spec §4.7). It gives no decision about the call.
+
+## A handoff
+
+`kioku handoff set` writes the handoff of a place, a folder and its branch,
+into the machine's state, one file a folder under `~/.kioku/handoffs/` (spec
+§4.8, `src/core/handoff.ts`). The verb does
+not know the session it runs in; the `PostToolUse` hook that follows it does,
+and puts on that handoff the pages the session's journal says it wrote and
+opened. The next session that starts anew in that place is given it by a
+`SessionStart` hook of its own, `kioku hook session-start-handoff`
+(`composeHandoff` in `src/core/session/summary.ts`), which the plugin's
+wrapper does not even start on a machine with no handoff.
+
+## The start of a subagent
+
+Claude Code runs `kioku hook subagent-start` when the session starts a
+subagent, which runs no session start of its own. The hook reads the chain's
+brains as the session's start does and answers the Rules alone (spec §4.1,
+`composeForSubagent` in `src/core/session/summary.ts`); it starts no `sync`
+and writes nothing.
+
+## The path of a compaction
+
+1. Before Claude Code compacts a session it runs `kioku hook pre-compact`
+   (spec §1.1, `src/core/session/compact.ts`), which prints plain text: the
+   host takes it as instructions for the compaction's summary. It asks the
+   summary to keep what the person said and nothing saved, and names what the
+   session did save, from the journal.
+2. The session then starts again with `source: compact`, and the first part of
+   the summary tells the agent to save what the compaction kept (spec §4.1).
 
 ## Embedding the tool
 
@@ -118,6 +160,6 @@ finds the launcher by `KIOKU_BIN`, then the `PATH`, then `KIOKU_BIN_DIR` or
 | `<project folder>/kioku.yaml` | the folder's project and team brains | yes, with the code |
 | `~/.kioku/config.yaml` | the machine's brains, the addresses it accepted and its preferences | no |
 | `~/.kioku/brains/<owner>/<repo>/` | every brain of the machine, by its name, made here or cloned | no |
-| `~/.kioku/` (index, model, `pending.json`, `sessions/`) | derived state and each session's journal, dropped two days after its last entry | no |
+| `~/.kioku/` (index, model, `pending.json`, `sessions/`) | derived state and each session's journal, dropped thirty days after its last entry | no |
 | `~/.local/share/kioku/versions/<v>/` | the tool and its `plugin/`; `current` points at the active one, and Claude Code reads `current/plugin` | no |
 | `~/.local/bin/kioku` | the launcher | no |

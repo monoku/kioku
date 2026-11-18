@@ -35,7 +35,9 @@ export type JournalWhat =
   | "moved"
   | "linked"
   | "promoted"
-  | "evolved";
+  | "evolved"
+  | "merged"
+  | "restored";
 
 export interface JournalEntry {
   /** When, as an ISO date and time. */
@@ -58,11 +60,15 @@ export interface JournalEntry {
   /** How many results a search gave, or how many pages a list or the summary hold. */
   count?: number;
   /** The pages a search's answer or a prompt's recall (§4.7) brought, in its order (§4.6): never a page's text. */
-  hits?: { brain: string; path: string; title: string }[];
+  hits?: { brain: string; path: string; title: string; id?: string }[];
+  /** How a recall found its pages when not by meaning (§4.7): by a prompt's words, where meaning could not run, or by the path of a file the agent read or changed. */
+  by?: "words" | "path";
   /** How many pages a list has in all, when it answered a window of them (§4.6). */
   total?: number;
   /** An instinct seen again that is now a candidate for a Skill (§3.6). */
   candidate?: true;
+  /** `merged`: the page taken in, which is gone; `path` is the page that holds both. */
+  from?: string;
   /** What an evolved instinct became. */
   became?: "skill" | "rule" | "playbook";
   /** Why a summary was loaded: the session started, was resumed or was compacted (or cleared, a new session). */
@@ -74,8 +80,11 @@ export interface JournalEntry {
 /** An entry as a hook gives it: the journal adds when and the turn. */
 export type NewEntry = Omit<JournalEntry, "at" | "turn">;
 
-/** A session's journal is dropped this long after its last entry (§4.6). */
-const KEEP_MS = 2 * 86_400_000;
+/**
+ * A session's journal is dropped this long after its last entry (§4.6): thirty days, so that a session resumed weeks
+ * later still has its history, its counts and what it was already given, and as long as a handoff lasts (§4.8).
+ */
+const KEEP_MS = 30 * 86_400_000;
 
 /** What each writing verb's result is as an entry: one for each of `JOURNAL_WRITES`, the verbs the hooks watch, so a verb added there is named here or the build fails. */
 const WRITES: Record<(typeof JOURNAL_WRITES)[number], JournalWhat> = {
@@ -90,6 +99,8 @@ const WRITES: Record<(typeof JOURNAL_WRITES)[number], JournalWhat> = {
   link: "linked",
   promote: "promoted",
   evolve: "evolved",
+  merge: "merged",
+  restore: "restored",
 };
 
 /** The flags of `page search` that take no value, `--json` among them: the words come after the rest and their values. */
@@ -169,6 +180,8 @@ function entriesOf(command: string | undefined, output: string): NewEntry[] {
           const became = a.evolvedAs === "rule" || a.evolvedAs === "playbook" ? a.evolvedAs : "skill";
           return { what: "evolved", arrow: "write", ...page, became };
         }
+        if (verb === "merge")
+          return { what: "merged", arrow: "write", ...page, ...(str(a.from) !== undefined && { from: str(a.from) }) };
         return { what: WRITES[verb], arrow: "write", ...page };
       });
   }
@@ -251,7 +264,7 @@ function dueForPrune(stamp: string, now: Date): boolean {
   }
 }
 
-/** Drops the journals whose last entry is older than two days (§4.6), looking once a day. */
+/** Drops the journals whose last entry is older than thirty days (§4.6), looking once a day. */
 function prune(dir: string, now: Date): void {
   const stamp = join(dir, PRUNED_STAMP);
   if (!dueForPrune(stamp, now)) return;

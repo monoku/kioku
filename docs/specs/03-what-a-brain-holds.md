@@ -141,10 +141,19 @@ repairing links, never shown to the agent, which neither mentions nor uses it.
 | `source_version` | no | the version of the source the page was written from: a commit sha, a date or a hash, one line; `kioku brain sources` reads it |
 | `evidence` | when a person said it | a short quote, chosen under §1.5 |
 | `stale_after` | no | a date, `YYYY-MM-DD`, after which the page needs a second look; `brain lint` lists the page from that day |
+| `applies_to` | no | the files of the project the page is about: a list of globs relative to the project folder (§2.4), ten at most, such as `src/billing/**`, `db/migrations` or `*.sql`; the page is named to the agent when it reads or changes one (§4.7); a project brain's |
 | `status` | no | `deprecated` when the page was retired: kept as history, not current; absent means current |
 | `verified` | no | written by the tool: a list of one entry, `by` (`human:<name>`, the name the person goes by, §2.3: the name git on the machine knows, else the system user) and `at` (an ISO 8601 moment in UTC), when a person confirmed the page is still true |
 | `supersedes` | decisions only, optional | relative link to the decision this one replaces (`./old.md`); a brain-relative path is also accepted |
 | `superseded_by` | decisions only, written by the tool | relative link to the decision that replaced this one |
+
+In a glob of `applies_to`, `*` is anything inside one folder's name, `?` one
+character and `**` any folders; one with none of them is a file, or a folder
+and everything under it. A glob is inside the project folder and never all of
+it: `save` and `update` refuse one that is absolute, leaves the folder or
+matches every file (`applies_to_invalid`), and `update --applies-to` replaces
+the list, `none` removing it. It is a key an older tool ignores, so the format
+does not move (§3.2).
 
 There is no `state`, `confidence` or `approved_by`. Knowledge, Rule and Skill
 pages carry a `## Changelog` the tool appends to on every update, one line per
@@ -197,7 +206,8 @@ changed is not edited: a new decision supersedes it, and the old one stays as
 history, listed as current by neither the summary nor the default search. A
 page the person rejects is deleted with a commit; git keeps it. Every change is
 a commit with the git identity of the person whose agent made it, with the
-message `<verb>: <title>`; a supersede reads `supersede: <new> (replaces <old>)`.
+message `<verb>: <title>`; a supersede reads `supersede: <new> (replaces <old>)`
+and a merge `merge: <page> (into <other>)`.
 Three things are said of a page without rewriting it:
 
 - **Confirmed.** `kioku page confirm` records that the page is still true, who
@@ -213,6 +223,25 @@ Three things are said of a page without rewriting it:
   in the brain to the old path, in a page's body, `supersedes`,
   `superseded_by`, an `INDEX.md` or the front page, points to the new one;
   links from outside the brain are not rewritten.
+
+Two pages of one brain on the same subject are made one, and a page that is
+gone comes back:
+
+- **Merged.** `kioku page merge <from> <into>` takes the body of the page that
+  holds both, written by whoever merges, and in one commit: `into` keeps its
+  `id`; the title and the aliases of `from` become its aliases, so search
+  still finds it by them; an instinct keeps the occasions of both, by date;
+  its See also holds both pages'; every link in the brain to `from` points to
+  `into`, as a rename's do; and `from` is deleted, which git keeps. Only two
+  pages of one kind and subkind are merged, and never a decision: a decision
+  that changed is superseded, and both stay as history.
+- **Restored.** `kioku page restore <path>` brings a page back as it was at
+  the commit before the last one that deleted it, a `forget` or a `merge`, in
+  one commit, with its `id`. It is the undo of `forget`. It is refused where a
+  page stands at the path, where the brain's history deleted none there, and,
+  as any write, where the page as it was no longer passes the validator (§5.1):
+  a page it linked to is gone, or its namespace is. The links a merge pointed
+  elsewhere stay where the merge left them.
 
 ## 3.6 Instincts and Skills
 
