@@ -4,6 +4,13 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **The README's `ci` badge says how `main` stands.** It showed the last run of
+  `ci` on any event from `main`, so the pull request that brings a release back
+  into `develop`, whose own run waits or does nothing, turned it to "failing"
+  while every check had passed. It now counts only pushes to `main`.
+
 ## 0.6.3
 
 - **Nothing changes in the tool or the plugin.** The demo Kioku is developed
