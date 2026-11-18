@@ -293,7 +293,7 @@ function namespaceLines(b: SummaryBrain): string[] {
  * itself must be recognised before anything is loaded, so the two tests and the usual moments travel with every session.
  */
 export const WHEN_TO_SAVE =
-  "Save on your own, without asking, the moment you learn something that will still be true in months and would change how you act in a later session: a correction and what the person wanted instead, a preference of tool, style or workflow, a decision and why, an error and how it was resolved, context the repository does not hold. At that moment load the `kioku` skill, which says what to save as and how. Never save secrets, and never personal remarks to a shared brain.";
+  "Save on your own, without asking, the moment you learn something that will still be true in months and would change how you act in a later session: a correction and what the person wanted instead, a preference of tool, style or workflow, a decision and why, an error and how it was resolved, context the repository does not hold. At that moment load the `kioku` skill, which says what to save as and how, and save before you answer, whatever else the message asks for, a one-line answer included; your answer says nothing of the save, which the person sees by itself. Never save secrets, and never personal remarks to a shared brain.";
 /**
  * Said in the opening (§4.8): when to leave the folder's handoff, which is not memory and so is not the skill's to say.
  * Left out before anything else when the cap is short.

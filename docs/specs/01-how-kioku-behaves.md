@@ -3,8 +3,10 @@
 ## 1.1 The agent saves on its own
 
 While working, the agent decides what is worth keeping and writes it to a brain
-the moment it notices, inside its own turn, with one call to the tool. The rule
-is open, not a list of situations. Something is worth saving when both are
+the moment it notices, inside its own turn, with one call to the tool: before
+it answers, whatever else the message asks for, an answer in one line
+included, and its answer says nothing of the save, which the person sees by
+its row (§1.2). The rule is open, not a list of situations. Something is worth saving when both are
 true:
 
 1. **It will still be true in months.** Not a step of the current task, not a
