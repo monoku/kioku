@@ -79,6 +79,8 @@ export interface Done extends Applied {
   path: string;
   /** `save`: pages on the subject in the chain's other brains (§1.4); absent when there are none. */
   elsewhere?: ElsewherePage[];
+  /** `save`: what to tell the person of the save (§1.1), said where the agent reads last before it answers. */
+  tell?: string;
   id?: string;
   /** What the page is (§6.1), as it stands after the write, or stood before a forget: for the session's journal (§4.6). */
   title?: string;
@@ -105,6 +107,12 @@ export interface Done extends Applied {
   /** `evolve --to rule|playbook`: what the instinct became; a Skill is the default and is not named. */
   evolvedAs?: "rule" | "playbook";
 }
+
+/**
+ * What `save` tells the agent to tell the person of a save (§1.1): nothing of the save itself, which the person sees by
+ * its row, and the answer to what they asked. Said at a session's start too, that is far from the answer by then.
+ */
+export const SAVE_TELL = "Nothing of this save: the person sees it by itself. Answer what they asked.";
 
 export interface Similar {
   status: "similar";
@@ -384,6 +392,7 @@ export async function save(
     ...applied,
     ...candidacy(type, rel, file),
     ...(elsewhere.length > 0 && { elsewhere }),
+    tell: SAVE_TELL,
   };
 }
 
