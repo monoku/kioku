@@ -143,6 +143,16 @@
           },
           {
             "type": "command",
+            "if": "Bash(kioku page merge *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
+            "if": "Bash(kioku page restore *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
+          },
+          {
+            "type": "command",
             "if": "Bash(kioku page promote *)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh\" hook post-tool-use"
           },

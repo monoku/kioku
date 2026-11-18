@@ -235,7 +235,7 @@ tab, and the same words take the tab they had. `/clear`, `/resume` and
 ### Afterwards
 
 The person controls the memory **afterwards**, in the conversation: "what did
-you save today?", "that's wrong, it is X", "forget that", "that belongs to
+you save today?", "that's wrong, it is X", "forget that", "bring that back", "these two are the same", "that belongs to
 acme". The agent resolves each with the tool (§6.1); "how is the memory doing?"
 it answers from `kioku brain stats`, as a signal, never as a verdict. The brain
 stays an ordinary git repository anyone can open in an editor.

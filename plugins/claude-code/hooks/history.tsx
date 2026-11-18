@@ -45,6 +45,8 @@ const WORDS: Record<JournalWhat, string> = {
   linked: "linked",
   promoted: "promoted",
   evolved: "evolved",
+  merged: "merged",
+  restored: "restored",
 };
 /** The words are padded to the longest. */
 const WORD_WIDTH = Math.max(...Object.values(WORDS).map((w) => w.length));

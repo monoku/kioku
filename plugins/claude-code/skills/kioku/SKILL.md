@@ -13,7 +13,7 @@ The person's memory lives in brains: git repositories of Markdown pages that the
 Run `kioku` by name, as the first word of the Bash command: no path to it, nothing piped into it, one writing verb per call. A body goes on stdin as a quoted heredoc:
 
 ```bash
-kioku page save --brain project --kind knowledge --sub decision --title "Run migrations before the deploy" --summary "Migrations run before the deploy, never after." --source "Session 2026-10-07 in acme-api" --evidence "no, run the migrations before the deploy, not after" <<'EOF'
+kioku page save --brain project --kind knowledge --sub decision --title "Run migrations before the deploy" --summary "Migrations run before the deploy, never after." --source "Session 2026-10-07 in acme-api" --evidence "no, before the deploy, not after" <<'EOF'
 ## Decision
 
 Run the migrations before the deploy.
@@ -42,11 +42,12 @@ The other verbs, answering the same way, each `kioku page <verb>`:
 
 - `update <path> --brain <b> [--section <heading>] [--summary <s>] [--evidence <line> --source <s>]`, with the new body (or the section's new text) on stdin;
 - `supersede <old path> --brain <b> --title … --summary … --source … [--evidence …]`, with the new decision on stdin;
-- `forget <path> --brain <b>`;
+- `forget <path> --brain <b>`; `restore <path> --brain <b>` brings it back (its path: `brain log`);
+- `merge <from> <into> --brain <b>`, the merged body on stdin: one page of two, never decisions;
 - `confirm <path> --brain <b>`: the person says a page is still true; `retire <path> --brain <b> [--reason …]`: no longer true, and nothing replaces it; `rename <path> --brain <b> --title …`: links follow;
 - `link <path> <path> --brain <b> [--type contradicts|qualifies]`: two related pages, each under the other's See also; a contradiction is for the person to settle;
-- `search <words>`: before answering from memory, or when the summary lacks it; `list [--brain <b>]` (20 at a time; `next` is the `--offset` to read on); `show <path> --brain <b> [--section <heading>]`: a page with its links; `evolve [<path> --brain <b>]`;
-- `kioku brain log [--since <when>]`: the writes (20 at a time, `next`) since today, `yesterday`, `3d` or a date; `kioku brain stats`: what they add up to.
+- `search <words>`: before answering from memory, or when the summary lacks it; `list [--brain <b>]` (20 at a time; `next` is the `--offset` to read on); `show <path> --brain <b> [--section <heading>]`; `evolve [<path> --brain <b>]`;
+- `kioku brain log [--since <when>]`: the writes (20 at a time, `next`) since today, `yesterday`, `3d` or a date.
 
 What to save as, and the `## ` sections its body holds, in order:
 
@@ -88,7 +89,7 @@ To write something new, always start with `save` without `--create`. When it ans
 - **a decision that changed**: `supersede` it; a decision's substance is never updated in place;
 - **related, but a different subject**: run the same `save` again with `--create`; the new page links to the similar ones under See also, or only to those named with `--see-also <path,path>` (`none` for none).
 
-When you already know the page, go straight to `update`. Pages that belong together: `link` them. An answer's `elsewhere` lists similar pages of other brains: when one disagrees, tell the person.
+When you already know the page, go straight to `update`. An answer's `elsewhere` lists similar pages of other brains: when one disagrees, tell the person.
 
 ## Never saved
 
@@ -116,11 +117,11 @@ When a Skill the summary lists applies to what you are about to do, `show` it fi
 
 ## Inside a brain
 
-The session summary says when this session is inside a brain, opened to work on it. Answer with `search`, `list` and `show`; act with the verbs above; `kioku brain lint` says what to clean up, the person decides. What you write goes to that brain unless it is about the person. `/ingest` fills it from a source.
+The session summary says when this session is inside a brain. Answer with `search`, `list` and `show`; act with the verbs above; `kioku brain lint` says what to clean up, the person decides. What you write goes to that brain unless it is about the person. `/ingest` fills it from a source.
 
 ## When the person talks about memory
 
 - **"What did you save today?"**: `kioku brain log`; answer in words. **"How is the memory doing?"**: `kioku brain stats`.
-- **"That's wrong, it is X"**: find the page and `update` it; a changed decision is superseded.
+- **"That's wrong, it is X"**: find the page and `update` it.
 - **"That's still right"** or **"that's no longer true"**: `confirm` or `retire` it.
-- **"Forget that"**: `forget` it. **"That belongs to acme"**: `promote` it there.
+- **"Forget that"**: `forget` it. **"Bring that back"**: `restore` it. **"These are the same"**: `merge` them. **"That belongs to acme"**: `promote` it there.
