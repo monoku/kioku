@@ -6,14 +6,19 @@ import { readJson } from "./util.ts";
 
 /**
  * What this machine counts of the pages it opens (§4.5): per page, by the brain and the page's `id`, how many times
- * it was opened with `page show` and how many times it was only offered (a line of the summary), and the
- * day of the last of each. Machine state, never in a brain; it holds no text and no prompt, and losing it costs a count.
+ * it was opened with `page show` and how many times it was only offered (a line of the summary, or a recall), and the
+ * day of the last of each; and, of the offers, how many were a recall's and how many of those the session then opened.
+ * Machine state, never in a brain; it holds no text and no prompt, and losing it costs a count.
  */
 export interface ReadEntry {
   opened: number;
   last_opened: string | null;
   surfaced: number;
   last_surfaced: string | null;
+  /** Times a recall named the page, at a prompt or at a file (§4.7); absent in an entry from before it was counted. */
+  recalled?: number;
+  /** Of those, the times the session that was given the page then opened it. */
+  followed?: number;
 }
 
 export interface ReadsState {
@@ -60,11 +65,12 @@ export function recordOpened(home: string, now: Date, brain: string, id: string 
   });
 }
 
-/** These pages were offered, once each: in a session's summary. */
+/** These pages were offered, once each: in a session's summary, or, with `recalled`, by a recall (§4.7). */
 export function recordSurfaced(
   home: string,
   now: Date,
   pages: { brain: string; id: string | null | undefined }[],
+  recalled = false,
 ): void {
   const seen = pages.filter((p): p is { brain: string; id: string } => Boolean(p.id));
   if (seen.length === 0) return;
@@ -73,6 +79,18 @@ export function recordSurfaced(
       const e = entryOf(s, p.brain, p.id);
       e.surfaced += 1;
       e.last_surfaced = day(now);
+      if (recalled) e.recalled = (e.recalled ?? 0) + 1;
+    }
+  });
+}
+
+/** A session opened these pages after a recall named them to it (§4.5): what tells a recall that helped from one that did not. */
+export function recordFollowed(home: string, now: Date, pages: { brain: string; id: string }[]): void {
+  if (pages.length === 0) return;
+  change(home, now, (s) => {
+    for (const p of pages) {
+      const e = entryOf(s, p.brain, p.id);
+      e.followed = (e.followed ?? 0) + 1;
     }
   });
 }

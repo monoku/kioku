@@ -383,6 +383,10 @@ acme: 41 writes
   opened 42, unopened 5, on this machine since 2026-09-01
 ```
 
+`recalled` is the times a prompt or a file brought one of the brain's pages to
+a session on this machine, and `followed` the times that session then opened
+the page: how often the recall named something worth reading.
+
 ### `kioku brain sources`
 
 ```text
