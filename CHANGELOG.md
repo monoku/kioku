@@ -4,6 +4,21 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## 0.6.1
+
+- **The agent saves before it answers, also when you ask for one line.** A
+  preference or a decision said in passing, in a message that asked for a short
+  answer, was answered and often not saved by a smaller model: the summary's
+  opening now tells the agent to save before it answers, whatever else the
+  message asks for, and to say nothing of the save, which you see by its row.
+  Measured with `pnpm eval:memory` on the demo: with Haiku the two saving
+  scenarios went from about one run in ten to every run, and the four where
+  nothing is worth saving stayed at none; with Sonnet, which already saved
+  every time, nothing changed. Haiku still names the save in its answer in
+  about a third of the runs. The eval has three more of those quiet scenarios:
+  a step of the task, a state that ends within the hour, and a remark about
+  the person.
+
 ## 0.6.0
 
 - **A prompt's recall meets a page's words whatever form they have**: `deploy`

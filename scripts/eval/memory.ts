@@ -96,6 +96,27 @@ const SCENARIOS: Scenario[] = [
     prompt: "What does `git rebase --onto` do? One short paragraph.",
     expect: { kind: "quiet" },
   },
+  // What reads like something to keep and is not (§1.1), each said as the saves above are, with a one-line answer
+  // asked for: a step of the task at hand, a state that ends within the hour, and a remark about the person, which is
+  // never saved on the agent's own initiative (§1.5).
+  {
+    id: "quiet-task-step",
+    prompt:
+      "Heads up: I'm renaming the variable `tmp` to `buffer` in the function I have open, and I'll run the tests after. In one line: is `buffer` a reasonable name for bytes read from a socket?",
+    expect: { kind: "quiet" },
+  },
+  {
+    id: "quiet-ephemeral",
+    prompt:
+      "FYI, staging is down for the next hour while ops restarts the database; it will be back by three. Nothing to do; just tell me in one line what an HTTP 503 means.",
+    expect: { kind: "quiet" },
+  },
+  {
+    id: "quiet-personal",
+    prompt:
+      "Honestly I slept badly and I have a migraine today, so bear with me. In one line: what is the difference between `git fetch` and `git pull`?",
+    expect: { kind: "quiet" },
+  },
 ];
 
 const { values } = parseArgs({
