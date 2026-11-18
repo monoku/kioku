@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.6.1
 
 - **The agent saves before it answers, also when you ask for one line.** A
   preference or a decision said in passing, in a message that asked for a short
