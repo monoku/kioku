@@ -113,6 +113,14 @@ What changed in each version of Kioku. What is true now is in the
   once, in a notice `display.mute` cannot silence. Your own commits are not
   said, nor a `confirm` or a `link`; a brain loaded for the first time says
   none.
+- **A `kioku` call that made no entry can be opened again.** When the agent
+  ran the tool and nothing of it reached the journal, a verb that makes no
+  entry such as `kioku --version`, or an answer piped into another command,
+  the conversation showed a dim line of the command's first words and hid what
+  it answered, with nothing to expand. Such a call, and the run it is in, is
+  now drawn by Claude Code as any other command.
+- **The footer no longer counts one read or write too many** when a session is
+  cleared, resumed or branched while a drop is still falling.
 
 ## 0.5.0
 
