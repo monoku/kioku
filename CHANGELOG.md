@@ -104,6 +104,15 @@ What changed in each version of Kioku. What is true now is in the
   `brain stats` counts them in `by_verb`, and a save forgotten and then
   restored is no longer a reverted save. The journal has `merged` and
   `restored`.
+- **A Rule a teammate changes is said to you.** A Rule goes whole into every
+  session, and anyone who can push to a project or team brain writes one; you
+  saw a page count. Now a session's start names each Rule of its shared brains
+  that someone else added, changed, retired or removed since this machine last
+  said so: what happened, its title, its brain, who the commit says changed it
+  and the `kioku page show` that reads it, five at most. Each change is said
+  once, in a notice `display.mute` cannot silence. Your own commits are not
+  said, nor a `confirm` or a `link`; a brain loaded for the first time says
+  none.
 
 ## 0.5.0
 
