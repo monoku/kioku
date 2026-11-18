@@ -36,18 +36,24 @@ until the cap:
 5. what is new in the shared brains since this machine's last session that
    showed it, ten a brain at most, newest first, with how many more and the
    command that lists them; news the cap cut waits for the next session;
-6. how many things `brain lint` (§4.4) has to review, per brain: the first
-   thing the cap cuts;
-7. a last line, never cut: how many pages the brains hold, whether this part
-   shows only some of them, and that search finds them.
+6. how many things `brain lint` (§4.4) has to review, per brain;
+7. while the brains of the session hold fewer pages than a prompt's recall
+   needs (§4.7), the Memories that are facts and lessons, one line each, the
+   most specific brain first, the relevant ones first within a brain, then
+   the newest: the first thing the cap cuts;
+8. a last line, never cut: how many pages the brains hold, whether this part
+   shows only some of them, that search finds them and, unless they were all
+   listed, that Memories that are facts and lessons are found that way.
 
 With no brain on the machine there is no second part; the first still says which
 brains are being cloned or were not loaded, and with none of those either, there
 is no summary. A session whose brains give the second part nothing but its last
 lines still has it.
 
-Retired and superseded pages (§3.5) are never in it, nor Memories that are
-facts and lessons, which are one search away.
+Retired and superseded pages (§3.5) are never in it. Memories that are facts
+and lessons are one search away, and one prompt away once the brains hold
+enough pages for a prompt to recall them (§4.7); until then no prompt brings
+them, so the summary names them (item 7).
 
 **The opening** says that on conflict the most specific brain wins; that the
 agent loads the skill (§6.2) before it reads or writes memory; that it reads a
@@ -173,7 +179,8 @@ This machine keeps a count, per page, of two things, never added up:
   (`--section`, `--outline`, `--head`), by the agent or by the person. It is
   the only way to the page's text.
 - **surfaced**: the page was offered in a line of the session summary (§4.1:
-  the pages to read first, the Skills, the decisions and the instincts), or
+  the pages to read first, the Skills, the decisions, the instincts and the
+  Memories), or
   recalled at a prompt (§4.7). A Rule is whole in every summary and is not
   counted. A search result is not counted either.
 
@@ -242,7 +249,7 @@ alone; three at most, the furthest out first. The model scores every page close 
 prompt, so a similarity says little by itself, and a word in common is what
 tells a page on the subject from one that only sounds like it. Among a few pages the measure says nothing, so
 there is no recall while the brains hold fewer than 30 pages indexed by meaning:
-the summary already names most of them. These numbers are chosen, not derived:
+the summary names them all while the cap allows (§4.1). These numbers are chosen, not derived:
 `pnpm eval:recall` scores them on a labelled set of prompts against the demo,
 and `pnpm eval:memory` what the agent does with them.
 

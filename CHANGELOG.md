@@ -11,6 +11,12 @@ What changed in each version of Kioku. What is true now is in the
   count as a word in common, as two pages' titles already did for `save`.
   Before, only words cut to the very same stem did, so such a page had to
   stand further out to be named.
+- **A small memory shows its lessons and facts at the session's start.** While
+  the brains of a session hold fewer than 30 pages, too few for a prompt to
+  recall any, the summary names each Memory that is a fact or a lesson, one
+  line with its title and summary, where before only a search found them. Once
+  the brains hold more, each prompt brings the ones that bear on it, as since
+  0.4.0, and the summary lists none.
 
 ## 0.5.0
 
