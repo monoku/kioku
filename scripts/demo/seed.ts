@@ -1161,26 +1161,77 @@ function generated(
       sections: { Rule: `${title}.`, Why: why },
     });
   });
-  const SKILLS =
-    brain === "app"
-      ? ["Refund an order"]
-      : brain === "sam"
-        ? ["Review before merge"]
-        : ["Release checklist", "Triage an incident", "Postmortem template", "Dependency upgrade"];
-  SKILLS.forEach((title) => {
+  // Written out, not drawn: a Skill is run step by step, so what it says has to hold together (the eval opens them).
+  const SKILLS: Record<
+    BrainName,
+    { title: string; namespace: string; summary: string; when: string; steps: string }[]
+  > = {
+    app: [
+      {
+        title: "Refund an order",
+        namespace: "app/api",
+        summary: "Refund an order through the payments module, never by hand in the database.",
+        when: "A customer or support asks to refund all or part of an order.",
+        steps:
+          "1. Find the order in `src/checkout` by its number and check it was paid.\n2. Call the refund in `src/payments` with the amount; a partial refund names the lines.\n3. Let `src/invoicing` issue the credit note; never edit the invoice.\n4. Tell support the refund's id.",
+      },
+    ],
+    sam: [
+      {
+        title: "Review before merge",
+        namespace: "sam",
+        summary: "What Sam checks in a pull request before approving it.",
+        when: "Sam is asked to review a pull request.",
+        steps:
+          "1. Read the description and the linked issue first.\n2. Run the branch and its tests locally.\n3. Read the diff for names, errors left unhandled and tests missing.\n4. Approve, or leave each remark with what would fix it.",
+      },
+    ],
+    team: [
+      {
+        title: "Release checklist",
+        namespace: "engineering",
+        summary: "What a release needs before it goes out, in order.",
+        when: "A version is about to be released.",
+        steps:
+          "1. Check the release branch's checks are green.\n2. Read the changelog for anything that needs a migration or a note.\n3. Release inside the deploy window, never after 16:00.\n4. Announce the version in the deploys channel.",
+      },
+      {
+        title: "Triage an incident",
+        namespace: "operations",
+        summary: "The first half hour of an incident: who, where and what to say.",
+        when: "An incident is declared.",
+        steps:
+          "1. Open the incident channel first.\n2. Name one person who leads and one who writes.\n3. Check the dashboards and the last deploy.\n4. Post a status every thirty minutes until it is over.",
+      },
+      {
+        title: "Postmortem template",
+        namespace: "operations",
+        summary: "How a postmortem is written after an incident, blameless.",
+        when: "An incident is over and customers saw it.",
+        steps:
+          "1. Write the timeline from the incident channel.\n2. Say what made it possible, not who.\n3. List the actions, each with an owner and a date.\n4. Share it within five working days.",
+      },
+      {
+        title: "Dependency upgrade",
+        namespace: "platform/infrastructure",
+        summary: "Upgrade a dependency to its next major version without breaking a service.",
+        when: "A dependency bumps a major version.",
+        steps:
+          "1. Find the dependency's owner before touching it.\n2. Read its changelog and migration guide for what breaks.\n3. Upgrade on a branch of its own, nothing else in it, and run the whole test suite.\n4. Ship it behind the canary and tell the owner.",
+      },
+    ],
+  };
+  SKILLS[brain].forEach(({ title, namespace, summary, when, steps }) => {
     const age = anAge(300);
     out.push({
       brain,
       kind: "skill",
-      namespace: ns(),
+      namespace,
       title,
-      summary: `${title}, step by step, run by the agent when it applies.`,
+      summary,
       age,
       source: `docs/skills/${title.toLowerCase().replace(/\s+/g, "-")}.md in ${pick(repos)}`,
-      sections: {
-        "When to use": `${pick(TRIG).replace(/^./, (c) => c.toUpperCase())}.`,
-        Steps: `1. ${pick(ACT).replace(/^./, (c) => c.toUpperCase())}.\n2. Check ${pick(ASPECT)}.\n3. Tell ${pick(PEOPLE)}.`,
-      },
+      sections: { "When to use": when, Steps: steps },
     });
   });
   // A few deliberate links between pages of one namespace, on top of the ones `save --create` makes by itself.

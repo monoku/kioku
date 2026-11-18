@@ -7,7 +7,7 @@
  * the session's shell, leaving any other key there as it was, and
  * writes a `.mise.toml` in `<out>` so that a terminal anywhere under it (the code repository, a demo brain, the remotes)
  * has the same `KIOKU_HOME` and this launcher first on its `PATH`: `kioku` there is this checkout's, never the installed
- * one against `~/.kioku`. Both say to git that the person is sam, `github.user` (§2.3), added to the
+ * one against `~/.kioku`. Both say to git that the person is sam, `github.user` (§2.3) and the name and address, added to the
  * person's own git configuration through git's variables, so the demo's story stays sam's whatever that says.
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -16,7 +16,16 @@ import { join } from "node:path";
 
 /** Who the demo is about: the name git gives the person (§2.3), through the variables that add to git's configuration. */
 export const DEMO_USER = "sam";
-const GIT_USER = { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "github.user", GIT_CONFIG_VALUE_0: DEMO_USER };
+const GIT_USER = {
+  GIT_CONFIG_COUNT: "3",
+  GIT_CONFIG_KEY_0: "github.user",
+  GIT_CONFIG_VALUE_0: DEMO_USER,
+  // The name and address too: an agent that reads the person's own in git takes `sam/brain` for someone else's.
+  GIT_CONFIG_KEY_1: "user.name",
+  GIT_CONFIG_VALUE_1: "Sam",
+  GIT_CONFIG_KEY_2: "user.email",
+  GIT_CONFIG_VALUE_2: "sam@northwind.example",
+};
 
 export function prepareSession(root: string, out: string): void {
   const app = join(out, "app");
