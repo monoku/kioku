@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.6.3
 
 - **Nothing changes in the tool or the plugin.** The demo Kioku is developed
   and measured against holds together: its Skills say what they are for, its
