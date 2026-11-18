@@ -20,6 +20,7 @@ export type HookVerb =
   | "session-start-holds"
   | "user-prompt-submit"
   | "pre-compact"
+  | "subagent-start"
   | "post-tool-use"
   | "pre-tool-use";
 
@@ -57,6 +58,8 @@ export function pluginHooks(): { hooks: Record<string, HookGroup[]>; modules: st
       UserPromptSubmit: [{ hooks: [{ type: "command", command: run("user-prompt-submit") }] }],
       // What the conversation held and nothing saved, kept by the compaction's summary to be saved after it (§1.1).
       PreCompact: [{ hooks: [{ type: "command", command: run("pre-compact") }] }],
+      // A subagent runs no session start: the Rules, always on, reach it here, whatever its type (§4.1).
+      SubagentStart: [{ hooks: [{ type: "command", command: run("subagent-start") }] }],
       PreToolUse: [
         { matcher: "Skill", hooks: [{ type: "command", command: run("pre-tool-use") }] },
         // A namespace is structure: the person confirms each one before it is made (§3.2).

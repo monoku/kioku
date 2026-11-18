@@ -172,5 +172,5 @@ complete -c kioku -n '__fish_seen_subcommand_from namespace; and __fish_seen_sub
 complete -c kioku -n '__fish_seen_subcommand_from namespace; and __fish_seen_subcommand_from describe' -l brain -x -a '(__kioku_brains)' -d 'brain'
 complete -c kioku -n '__fish_seen_subcommand_from namespace; and __fish_seen_subcommand_from rename' -l brain -x -a '(__kioku_brains)' -d 'brain'
 complete -c kioku -n '__fish_seen_subcommand_from namespace; and __fish_seen_subcommand_from rename' -l dry-run -d 'dry run'
-complete -c kioku -n '__fish_seen_subcommand_from hook; and not __fish_seen_subcommand_from page brain namespace plugin' -a 'session-start session-start-holds user-prompt-submit pre-compact pre-tool-use post-tool-use'
+complete -c kioku -n '__fish_seen_subcommand_from hook; and not __fish_seen_subcommand_from page brain namespace plugin' -a 'session-start session-start-holds user-prompt-submit pre-compact subagent-start pre-tool-use post-tool-use'
 complete -c kioku -n '__fish_seen_subcommand_from hook; and not __fish_seen_subcommand_from page brain namespace plugin' -l host -x -d 'claude-code'

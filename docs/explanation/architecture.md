@@ -96,6 +96,14 @@ finds the launcher by `KIOKU_BIN`, then the `PATH`, then `KIOKU_BIN_DIR` or
    one row, and into the journal; the process ends with its answer, whatever
    the recall left running.
 
+## The start of a subagent
+
+Claude Code runs `kioku hook subagent-start` when the session starts a
+subagent, which runs no session start of its own. The hook reads the chain's
+brains as the session's start does and answers the Rules alone (spec §4.1,
+`composeForSubagent` in `src/core/session/summary.ts`); it starts no `sync`
+and writes nothing.
+
 ## The path of a compaction
 
 1. Before Claude Code compacts a session it runs `kioku hook pre-compact`
