@@ -61,13 +61,15 @@ Once the pull request is merged, `main` holds the release and its merge, and
 `develop` does not: bring them back, so `develop` says the version just
 released and the next release does not fight over `CHANGELOG.md`
 (`release.mjs` refuses to start from a `develop` that lacks any of `main`).
-Then drop the branch:
+`develop` takes nothing that has not passed `ci`, so they come back as any
+change does, through a pull request: from `main` into `develop`, at
+`<repository>/compare/develop...main?expand=1`, titled
+`Bring <version> back into develop`, merged with a merge commit once `ci`
+passes. Then drop the branch and bring `develop` up to date:
 
 ```bash
-git switch develop && git pull --ff-only origin develop
-git fetch origin main && git merge --no-ff origin/main
-git push origin develop
 git branch -d release/v<version> && git push origin --delete release/v<version>
+git switch develop && git pull --ff-only origin develop
 ```
 
 ## A fix that cannot wait

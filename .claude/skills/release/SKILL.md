@@ -126,13 +126,16 @@ git fetch -q --tags origin && git tag --list v<version>
 ```
 
 Then bring `main` back into `develop`, so `develop` says the version just
-released and the next release does not fight over `CHANGELOG.md`, and drop the
-branch. Once the person confirms the merge, offer to run the commands
-`release.mjs` printed; the pushes are theirs to approve:
+released and the next release does not fight over `CHANGELOG.md`. `develop`
+takes nothing that has not passed `ci`, so this too is a pull request, from
+`main` into `develop`: hand the person the address `release.mjs` printed
+(`<repository>/compare/develop...main?expand=1`), titled
+`Bring <version> back into develop`, merged with a merge commit once `ci`
+passes; opening and merging it are theirs. Once they confirm it is merged,
+offer to drop the branch and bring `develop` up to date; the push is theirs to
+approve:
 
 ```bash
-git switch develop && git pull --ff-only origin develop
-git fetch origin main && git merge --no-ff origin/main
-git push origin develop
 git branch -d <branch> && git push origin --delete <branch>
+git switch develop && git pull --ff-only origin develop
 ```
