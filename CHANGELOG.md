@@ -4,6 +4,14 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **A prompt's recall meets a page's words whatever form they have**: `deploy`
+  and `deploying`, `migraciones` and `migración`, `webhook` and `webhooks` now
+  count as a word in common, as two pages' titles already did for `save`.
+  Before, only words cut to the very same stem did, so such a page had to
+  stand further out to be named.
+
 ## 0.5.0
 
 - **`namespace add` and `brain language` always name the brain they write
