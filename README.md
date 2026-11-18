@@ -7,7 +7,7 @@
 
 # Kioku
 
-[![ci](https://github.com/monoku/kioku/actions/workflows/ci.yml/badge.svg)](https://github.com/monoku/kioku/actions/workflows/ci.yml)
+[![ci](https://github.com/monoku/kioku/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/monoku/kioku/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/monoku/kioku)](https://github.com/monoku/kioku/releases/latest)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](https://nodejs.org)
