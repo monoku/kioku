@@ -11,8 +11,8 @@
 //
 // More commits may follow on the branch. Merging its pull request into main is the release: the `release` workflow sees
 // the version move, tests what main then is and publishes it as the latest, so main holds what was released and
-// nothing more. Then main comes back into develop, through a pull request as any change does, so develop says the
-// version and the next release does not fight over CHANGELOG.md.
+// nothing more. Then the workflow brings main back into develop, through a pull request GitHub merges once its checks
+// pass, so develop says the version and the next release does not fight over CHANGELOG.md.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { withVersion } from "./json-version.mjs";
@@ -98,9 +98,9 @@ then open its pull request into main, titled "Release ${version}":
 ${repoPage}/compare/main...${branch}?expand=1
 More commits on ${branch} go out with it. Merge it with a merge commit once its checks pass: that publishes it.
 
-Once it is merged, bring main back into develop with a pull request, titled "Bring ${version} back into develop",
-merged with a merge commit once its checks pass:
+Once it is published, the release workflow brings main back into develop by itself, with a pull request titled
+"Bring ${version} back into develop" that GitHub merges once its checks pass. If it stays open, it is yours:
 ${repoPage}/compare/develop...main?expand=1
-then drop the branch and bring develop up to date:
+Once it is merged, drop the branch and bring develop up to date:
 git branch -d ${branch} && git push origin --delete ${branch}
 git switch develop && git pull --ff-only origin develop`);

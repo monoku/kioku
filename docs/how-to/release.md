@@ -62,10 +62,15 @@ Once the pull request is merged, `main` holds the release and its merge, and
 released and the next release does not fight over `CHANGELOG.md`
 (`release.mjs` refuses to start from a `develop` that lacks any of `main`).
 `develop` takes nothing that has not passed `ci`, so they come back as any
-change does, through a pull request: from `main` into `develop`, at
-`<repository>/compare/develop...main?expand=1`, titled
-`Bring <version> back into develop`, merged with a merge commit once `ci`
-passes. Then drop the branch and bring `develop` up to date:
+change does, through a pull request from `main` into `develop`, and the
+`release` workflow does it by itself once the release is published: it opens
+`Bring <version> back into develop` and has GitHub merge it, with a merge
+commit, once its checks pass. Its head is `main`, whose checks the push that
+released already runs, so nothing else has to run. When the workflow's last
+step fails, or the pull request stays open (a conflict in `CHANGELOG.md`, say),
+it is yours: open it at `<repository>/compare/develop...main?expand=1` if it is
+not there, resolve it, and merge it with a merge commit. Then drop the branch
+and bring `develop` up to date:
 
 ```bash
 git branch -d release/v<version> && git push origin --delete release/v<version>

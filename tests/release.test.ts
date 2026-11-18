@@ -8,8 +8,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 // @ts-expect-error: a plain script, without types
 import { tagProblem } from "../scripts/check-tag.mjs";
-// @ts-expect-error: a plain script, without types
-import { githubApi, publishRelease, releaseIn, releaseNotes } from "../.github/scripts/publish-release.mjs";
+import {
+  bringBack,
+  githubApi,
+  githubGraphql,
+  publishRelease,
+  releaseIn,
+  releaseNotes,
+  // @ts-expect-error: a plain script, without types
+} from "../.github/scripts/publish-release.mjs";
 // @ts-expect-error: a plain script, without types
 import { withVersion } from "../scripts/json-version.mjs";
 import { launcherScript } from "../src/core/setup/install.ts";
@@ -508,4 +515,77 @@ test("a release whose asset fails to upload is taken away, draft and all, and sa
   );
   assert.equal(github.calls.at(-1)!.method, "DELETE");
   assert.ok(!github.calls.some((c) => c.method === "PATCH"), "never published");
+});
+
+/** A GitHub that answers the way back: how far main is ahead of develop, the open pull requests, and what auto-merge says. */
+function fakeWayBack({ ahead = 2, open = [] as unknown[], autoMerge = "ok" as "ok" | "clean" | "refused" } = {}) {
+  const calls: string[] = [];
+  const bodies: unknown[] = [];
+  const pr = { number: 9, node_id: "PR_9", html_url: "https://github.com/o/r/pull/9" };
+  const fetch = async (url: string, init: { method: string; body?: string }) => {
+    calls.push(`${init.method} ${url}`);
+    bodies.push(init.body === undefined ? undefined : JSON.parse(init.body));
+    if (url.endsWith("/graphql")) {
+      if (autoMerge === "clean") return Response.json({ errors: [{ message: "Pull request is in clean status" }] });
+      if (autoMerge === "refused") return Response.json({ errors: [{ message: "Auto merge is not allowed" }] });
+      return Response.json({ data: {} });
+    }
+    if (url.includes("/compare/")) return Response.json({ ahead_by: ahead });
+    if (init.method === "GET") return Response.json(open);
+    return Response.json(pr);
+  };
+  return {
+    calls,
+    bodies,
+    call: githubApi({ repo: "o/r", token: "t", fetch }),
+    graphql: githubGraphql({ token: "t", fetch }),
+  };
+}
+
+test("after a release, main comes back into develop by a pull request GitHub merges once its checks pass (§6.4)", async () => {
+  const github = fakeWayBack();
+  const back = await bringBack(github.call, github.graphql, { version: "1.2.0", owner: "o" });
+  assert.deepEqual(back, { state: "auto", url: "https://github.com/o/r/pull/9" });
+  assert.deepEqual(github.calls, [
+    "GET https://api.github.com/repos/o/r/compare/develop...main",
+    "GET https://api.github.com/repos/o/r/pulls?state=open&base=develop&head=o%3Amain",
+    "POST https://api.github.com/repos/o/r/pulls",
+    "POST https://api.github.com/graphql",
+  ]);
+  const opened = github.bodies[2] as Record<string, string>;
+  assert.deepEqual([opened.title, opened.head, opened.base], ["Bring 1.2.0 back into develop", "main", "develop"]);
+  const merge = github.bodies[3] as { query: string; variables: Record<string, string> };
+  assert.match(merge.query, /enablePullRequestAutoMerge\(input: \{ pullRequestId: \$id, mergeMethod: MERGE \}\)/);
+  assert.deepEqual(merge.variables, { id: "PR_9" });
+});
+
+test("the way back merges at once when the checks passed already, uses a pull request already open, and does nothing when develop holds main", async () => {
+  const clean = fakeWayBack({ autoMerge: "clean" });
+  assert.equal((await bringBack(clean.call, clean.graphql, { version: "1.2.0", owner: "o" })).state, "merged");
+  assert.equal(clean.calls.at(-1), "PUT https://api.github.com/repos/o/r/pulls/9/merge");
+  assert.deepEqual(clean.bodies.at(-1), { merge_method: "merge" });
+
+  const open = fakeWayBack({ open: [{ number: 5, node_id: "PR_5", html_url: "https://github.com/o/r/pull/5" }] });
+  assert.equal(
+    (await bringBack(open.call, open.graphql, { version: "1.2.0", owner: "o" })).url,
+    "https://github.com/o/r/pull/5",
+  );
+  assert.ok(!open.calls.includes("POST https://api.github.com/repos/o/r/pulls"), "no second pull request");
+
+  const none = fakeWayBack({ ahead: 0 });
+  assert.deepEqual(await bringBack(none.call, none.graphql, { version: "1.2.0", owner: "o" }), { state: "nothing" });
+  assert.equal(none.calls.length, 1);
+});
+
+test("what GitHub refuses on the way back leaves the pull request open and names it", async () => {
+  const github = fakeWayBack({ autoMerge: "refused" });
+  await assert.rejects(
+    bringBack(github.call, github.graphql, { version: "1.2.0", owner: "o" }),
+    /Auto merge is not allowed; the pull request is open: https:\/\/github\.com\/o\/r\/pull\/9/,
+  );
+  const release = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.ok(
+    release.indexOf("publish-release.mjs publish") < release.indexOf("publish-release.mjs back"),
+    "main comes back only once the release is out",
+  );
 });
