@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.6.2
 
 - **The agent no longer tells you it saved.** Told at a session's start to say
   nothing of a save, which you see by its row, a smaller model still said "I
