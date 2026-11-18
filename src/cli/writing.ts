@@ -59,6 +59,12 @@ export const committed = (r: { commit?: string | null; publication?: Done["publi
   `(commit ${r.commit}, ${PUBLICATION[r.publication!]})`;
 
 /** The one result shape of the writing verbs (§6.1): status, brain, path, commit, publication. */
+/** What a person is told of the pages on the subject in the chain's other brains (§1.4). */
+const elsewhereLine = (pages: Done["elsewhere"]): string =>
+  pages === undefined || pages.length === 0
+    ? ""
+    : `\nOn the same subject in other brains: ${pages.map((e) => `${e.path} (${e.title}; ${brainRepoOfKey(e.brain)})`).join("; ")}`;
+
 export function outcome(verb: string, r: Done | Similar | NeedsNamespace): Outcome {
   const nothing = { brain: r.brain, path: null, commit: null, publication: null };
   if (r.status === "namespace") {
@@ -73,8 +79,8 @@ export function outcome(verb: string, r: Done | Similar | NeedsNamespace): Outco
   }
   if (r.status === "similar") {
     return {
-      data: { status: "similar", ...nothing, similar: r.similar },
-      text: `Nothing written: ${brainRepoOfKey(r.brain)} has pages on the same subject. Update or supersede one, or save again with --create.\n${r.similar.map((s) => `${s.path} (${s.title})`).join("; ")}`,
+      data: { status: "similar", ...nothing, similar: r.similar, ...(r.elsewhere && { elsewhere: r.elsewhere }) },
+      text: `Nothing written: ${brainRepoOfKey(r.brain)} has pages on the same subject. Update or supersede one, or save again with --create.\n${r.similar.map((s) => `${s.path} (${s.title})`).join("; ")}${elsewhereLine(r.elsewhere)}`,
     };
   }
   const { status, brain, path, commit, publication, warnings, ...rest } = r;
@@ -92,7 +98,7 @@ export function outcome(verb: string, r: Done | Similar | NeedsNamespace): Outco
   const what = r.to === undefined ? r.path : `${r.path} and ${r.to}`;
   return {
     data,
-    text: `${verb} ${what} in ${brainRepoOfKey(r.brain)} (commit ${r.commit}, ${PUBLICATION[r.publication]}).${extra}`,
+    text: `${verb} ${what} in ${brainRepoOfKey(r.brain)} (commit ${r.commit}, ${PUBLICATION[r.publication]}).${extra}${elsewhereLine(r.elsewhere)}`,
   };
 }
 

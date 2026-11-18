@@ -283,6 +283,20 @@ aliases, text) in the target brain and, when it finds some, returns them
 
 A save whose path exists is an error, never an overwrite.
 
+**The other brains of the session.** A page is written or held back by the
+brain it goes to alone. But the same subject may have a page in another brain
+of the chain, a personal preference beside a decision of the project's, and
+then "the most specific brain wins" (§2.1) settles it with nobody knowing the
+two disagree. So `save` also answers, as `elsewhere`, the pages on its subject
+in the session's other brains, three at most, the retired and superseded left
+out, whether it wrote or answered `similar`. They are found by full text as
+its own similar pages are, and held to the stricter rule of a report (§4.4),
+since they are only said: a loose match said at every save would be noise. They never
+stop a write: a more shared page on the subject is often the reason the more
+specific one exists. The agent reads them and, when one says otherwise than
+what it saved, tells the person in one line. Inside a brain (§2.7) there is no
+other brain to name.
+
 ## 1.5 What is never saved
 
 Three layers, from the strictest:

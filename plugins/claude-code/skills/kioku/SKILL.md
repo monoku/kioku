@@ -48,8 +48,6 @@ The other verbs, answering the same way, each `kioku page <verb>`:
 - `search <words>`: before answering from memory, or when the summary lacks it; `list [--brain <b>]` (20 at a time; `next` is the `--offset` to read on); `show <path> --brain <b> [--section <heading>]`: a page with its links; `evolve [<path> --brain <b>]`;
 - `kioku brain log [--since <when>]`: the writes (20 at a time, `next`) since today, `yesterday`, `3d` or a date; `kioku brain stats`: what they add up to.
 
-A page is named by its brain and its path; pass both.
-
 What to save as, and the `## ` sections its body holds, in order:
 
 | What | Flags | Sections |
@@ -90,7 +88,7 @@ To write something new, always start with `save` without `--create`. When it ans
 - **a decision that changed**: `supersede` it; a decision's substance is never updated in place;
 - **related, but a different subject**: run the same `save` again with `--create`; the new page links to the similar ones under See also, or only to those named with `--see-also <path,path>` (`none` for none).
 
-When you already know the page, go straight to `update`. Pages that belong together: `link` them.
+When you already know the page, go straight to `update`. Pages that belong together: `link` them. An answer's `elsewhere` lists similar pages of other brains: when one disagrees, tell the person.
 
 ## Never saved
 
@@ -102,7 +100,7 @@ When you already know the page, go straight to `update`. Pages that belong toget
 
 ## In your reply
 
-- Never ask "should I save this?", and say nothing about a save: no file, no path, no commit, no "I saved it to…"; the person sees it by itself.
+- Never ask "should I save this?", and say nothing about a save (file, path, commit): the person sees it by itself.
 - Something is saved only when the tool answered `done`: never say or imply a save it did not confirm, and never say you remember something that is not in a brain or in this conversation.
 - When a write answers `error`, say so in one line with the reason in plain words and no path; fix what can be fixed and retry.
 

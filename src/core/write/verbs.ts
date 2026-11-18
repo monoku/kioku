@@ -22,7 +22,7 @@ import { namespaceOverview } from "../brain/namespaces.ts";
 import { namedError, userError, type Field } from "../errors.ts";
 import { openIndex } from "../index/db.ts";
 import { updateIndex } from "../index/indexer.ts";
-import { similarPages } from "../index/similar.ts";
+import { sameSubject, similarPages, type Subject } from "../index/similar.ts";
 import { candidateOccasions, evolvedInstinct } from "../lint.ts";
 import { lastTouched, touchedOf } from "../touched.ts";
 import {
@@ -77,6 +77,8 @@ export interface Done extends Applied {
   status: "done";
   brain: string;
   path: string;
+  /** `save`: pages on the subject in the chain's other brains (§1.4); absent when there are none. */
+  elsewhere?: ElsewherePage[];
   id?: string;
   /** What the page is (§6.1), as it stands after the write, or stood before a forget: for the session's journal (§4.6). */
   title?: string;
@@ -106,6 +108,8 @@ export interface Similar {
   status: "similar";
   brain: string;
   similar: SimilarPage[];
+  /** Pages on the subject in the chain's other brains (§1.4); absent when there are none. */
+  elsewhere?: ElsewherePage[];
 }
 
 export interface PageInput {
@@ -148,6 +152,47 @@ export interface SaveInput extends PageInput {
   create?: boolean;
   /** With `create`: the pages to link under See also instead of every similar one; empty for none (§3.3). */
   seeAlso?: string[];
+  /** The other brains of the session's chain, whose pages on the same subject the answer names beside its own (§1.4). */
+  others?: { key: string; root: string }[];
+}
+
+/** The most pages of other brains one save names. */
+const ELSEWHERE_MAX = 3;
+
+/** A page of another brain of the chain on the subject of the one saved (§1.4): named, never a reason not to write. */
+export type ElsewherePage = Omit<SimilarPage, "touched">;
+
+/**
+ * The pages on a subject in the chain's other brains (§1.4), by full text alone, three at most: those whose title and
+ * aliases share most of what the shorter of the two says. Whatever goes wrong here, the write stands: it answers none.
+ */
+async function elsewhereOf(home: string, others: SaveInput["others"], subject: Subject): Promise<ElsewherePage[]> {
+  if (others === undefined || others.length === 0) return [];
+  try {
+    const index = await openIndex(home);
+    try {
+      updateIndex(index, others);
+      return others
+        .flatMap((o) =>
+          similarPages(index, o.key, subject)
+            // Stricter than for the brain written to: this is only said, and a loose match said at every save is noise.
+            .filter((h) => h.status === null && sameSubject(index, subject.title, subject.aliases ?? [], o.key, h))
+            .map((h) => ({
+              brain: o.key,
+              path: h.path,
+              title: h.title,
+              kind: h.kind,
+              subkind: h.subkind,
+              summary: h.summary,
+            })),
+        )
+        .slice(0, ELSEWHERE_MAX);
+    } finally {
+      index.close();
+    }
+  } catch {
+    return [];
+  }
 }
 
 export const oneLine = (s: string, field: Field): string => {
@@ -252,18 +297,24 @@ export async function save(
       "namespace_unknown",
     );
   }
+  const subject: Subject = {
+    title: input.title,
+    ...(input.aliases && { aliases: input.aliases }),
+    body: input.body,
+  };
   let related: Related[] = [];
   if (!input.create || input.seeAlso === undefined) {
     const index = await openIndex(env.home);
     try {
       updateIndex(index, [{ key: brain.key, root: brain.root }]);
-      const subject = { title: input.title, ...(input.aliases && { aliases: input.aliases }), body: input.body };
       const found = similarPages(index, brain.key, subject);
       if (found.length > 0 && !input.create) {
         const touched = lastTouched(brain.root);
+        const elsewhere = await elsewhereOf(env.home, input.others, subject);
         return {
           status: "similar",
           brain: brain.key,
+          ...(elsewhere.length > 0 && { elsewhere }),
           similar: found.map((h) => ({
             brain: brain.key,
             path: h.path,
@@ -319,6 +370,8 @@ export async function save(
     env,
     seen,
   );
+  // Said after the write, and never a reason not to make it: a more shared page on the subject is often why this one exists.
+  const elsewhere = await elsewhereOf(env.home, input.others, subject);
   return {
     status: "done",
     brain: brain.key,
@@ -328,6 +381,7 @@ export async function save(
     namespace: file.front.getString("namespace")!,
     ...applied,
     ...candidacy(type, rel, file),
+    ...(elsewhere.length > 0 && { elsewhere }),
   };
 }
 

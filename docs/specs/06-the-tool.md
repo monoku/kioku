@@ -137,7 +137,8 @@ state (`pushed`, `pending`, or `local` for a brain with no remote), with the
 page's `id`, `title`, `kind` and `subkind` (after the write, or before
 `forget`), the validator's warnings, and what the verb adds: the decision
 replaced, the pages that linked to a forgotten one, an instinct's candidacy
-(§3.6). A refusal answers in the same shape with `status: error`, a code and
+(§3.6), and for `save` the pages on its subject in the session's other brains
+(§1.4). A refusal answers in the same shape with `status: error`, a code and
 the reason. The hook writes what it did into the session's journal (§4.6),
 from which the mod draws the rows (§1.2). A publication not yet pushed is kept
 as machine state (§2.5) for `sync` to retry (§1.6).
