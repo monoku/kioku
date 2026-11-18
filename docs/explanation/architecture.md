@@ -96,6 +96,17 @@ finds the launcher by `KIOKU_BIN`, then the `PATH`, then `KIOKU_BIN_DIR` or
    one row, and into the journal; the process ends with its answer, whatever
    the recall left running.
 
+## A file the agent reads or changes
+
+Before Claude Code's `Read`, `Edit`, `Write` or `NotebookEdit` runs, the
+plugin's wrapper looks for a marker beside the index, which exists while some
+page has `applies_to` (spec §3.3), and ends there when it does not. Otherwise
+`kioku hook pre-tool-path` reads the `applies` table of the index as it is,
+matches the project brain's globs against the file relative to the project
+folder (`recallForPath` in `src/core/session/recall.ts`), and answers the
+pages as context beside the tool's result, as a row and as a journal entry
+(spec §4.7). It gives no decision about the call.
+
 ## The start of a subagent
 
 Claude Code runs `kioku hook subagent-start` when the session starts a

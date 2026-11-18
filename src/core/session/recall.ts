@@ -1,3 +1,5 @@
+import { isAbsolute, relative, sep } from "node:path";
+import { globMatches } from "../brain/applies.ts";
 import { resolveChain } from "../config/chain.ts";
 import type { MachineConfig } from "../config/machine.ts";
 import { brainIn, openIndexAsItIs, type Index } from "../index/db.ts";
@@ -66,8 +68,11 @@ export interface RecallPage extends Recalled {
   aliases?: string;
 }
 
-/** How a prompt's pages were found (§4.7): by meaning, or by their words where meaning cannot run. */
-export type RecallBy = "meaning" | "words";
+/**
+ * How a recall's pages were found (§4.7): by meaning, by a prompt's words where meaning cannot run, or by the path of
+ * a file the agent read or changed, which a page says it is about.
+ */
+export type RecallBy = "meaning" | "words" | "path";
 
 /** What a prompt recalled, and how. */
 export interface Recall {
@@ -265,18 +270,7 @@ async function recallIn(
   const index = await openIndexAsItIs(home);
   if (index === undefined) return NOTHING;
   try {
-    // What this session already opened or was already recalled is not named again.
-    const seen = new Set(
-      input.sessionId === undefined
-        ? []
-        : readJournal(home, input.sessionId).flatMap((e) =>
-            e.what === "opened" && e.brain !== undefined && e.path !== undefined
-              ? [keyOf({ brain: e.brain, path: e.path })]
-              : e.what === "recalled"
-                ? (e.hits ?? []).map(keyOf)
-                : [],
-          ),
-    );
+    const seen = seenIn(home, input.sessionId);
     const named = ({ kind: _k, status: _s, aliases: _a, ...page }: RecallPage): Recalled => page;
     const current = "embedder" in meaning ? currentPages(index, keys, meaning.embedder.model) : [];
     // By meaning, where the model is here and enough pages have a current vector: among a few the measure says nothing (§4.7).
@@ -308,12 +302,70 @@ async function recallIn(
   }
 }
 
+/** What this session already opened or was already recalled, by key: not named again (§4.7). */
+function seenIn(home: string, sessionId: string | undefined): Set<string> {
+  return new Set(
+    sessionId === undefined
+      ? []
+      : readJournal(home, sessionId).flatMap((e) =>
+          e.what === "opened" && e.brain !== undefined && e.path !== undefined
+            ? [keyOf({ brain: e.brain, path: e.path })]
+            : e.what === "recalled"
+              ? (e.hits ?? []).map(keyOf)
+              : [],
+        ),
+  );
+}
+
+/**
+ * The pages of the project brain that say they are about a file (§3.3 `applies_to`, §4.7), for a file the agent reads
+ * or changes in the chain of `cwd`: three at most, by path, none a Rule, retired, superseded, or already opened or
+ * recalled in this session. None inside a brain, for a file outside the project folder, or with no index: it reads the
+ * index as it is, with no model, and writes nothing.
+ */
+export async function recallForPath(
+  home: string,
+  config: MachineConfig,
+  input: { cwd: string; file: string; sessionId?: string },
+  max: number = RECALL_MAX,
+): Promise<Recalled[]> {
+  const chain = resolveChain(input.cwd, config, home);
+  if (chain.inside !== undefined || chain.root === undefined || chain.project === undefined) return [];
+  if (!chain.links.some((l) => l.cloned && l.key === chain.project)) return [];
+  const rel = relative(chain.root, isAbsolute(input.file) ? input.file : `${input.cwd}${sep}${input.file}`);
+  if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) return [];
+  const path = rel.split(sep).join("/");
+  const index = await openIndexAsItIs(home);
+  if (index === undefined) return [];
+  try {
+    const rows = index.db
+      .prepare(`
+        SELECT a.glob AS glob, p.brain AS brain, p.path AS path, p.id AS id, p.title AS title, p.summary AS summary,
+               p.kind AS kind, p.status AS status
+        FROM applies a JOIN pages p ON p.brain = a.brain AND p.path = a.path AND p.hash = a.hash
+        WHERE a.brain = ? ORDER BY p.path`)
+      .all(chain.project) as unknown as (RecallPage & { glob: string })[];
+    const seen = seenIn(home, input.sessionId);
+    const found = new Map<string, Recalled>();
+    for (const { glob, kind, status, ...page } of rows) {
+      if (found.has(keyOf(page)) || seen.has(keyOf(page)) || !recallable({ kind, status })) continue;
+      if (globMatches(glob, path)) found.set(keyOf(page), page);
+    }
+    return [...found.values()].slice(0, max);
+  } catch {
+    // An index an older version made has no such table: no page says what it is about yet.
+    return [];
+  } finally {
+    index.close();
+  }
+}
+
 /** What a prompt's context carries for the pages it recalled (§4.7): one line each, under what to do with them. */
 export function recallText(pages: Recalled[], by: RecallBy = "meaning"): string {
   return [
-    "## Kioku: pages that may bear on this prompt",
+    by === "path" ? "## Kioku: pages about this file" : "## Kioku: pages that may bear on this prompt",
     "",
-    `Found by ${by === "words" ? "the words of this prompt" : "meaning"} in the brains of this session. Read one with \`kioku page show <path> --brain <brain>\` before relying on it; the line here is only its summary.`,
+    `Found by ${by === "words" ? "the words of this prompt" : by === "path" ? "the file you just read or are changing, which each says it is about," : "meaning"} in the brains of this session. Read one with \`kioku page show <path> --brain <brain>\` before relying on it; the line here is only its summary.`,
     "",
     ...pages.map((p) => {
       const summary = oneLine(p.summary);

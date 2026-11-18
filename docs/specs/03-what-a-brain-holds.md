@@ -141,10 +141,19 @@ repairing links, never shown to the agent, which neither mentions nor uses it.
 | `source_version` | no | the version of the source the page was written from: a commit sha, a date or a hash, one line; `kioku brain sources` reads it |
 | `evidence` | when a person said it | a short quote, chosen under §1.5 |
 | `stale_after` | no | a date, `YYYY-MM-DD`, after which the page needs a second look; `brain lint` lists the page from that day |
+| `applies_to` | no | the files of the project the page is about: a list of globs relative to the project folder (§2.4), ten at most, such as `src/billing/**`, `db/migrations` or `*.sql`; the page is named to the agent when it reads or changes one (§4.7); a project brain's |
 | `status` | no | `deprecated` when the page was retired: kept as history, not current; absent means current |
 | `verified` | no | written by the tool: a list of one entry, `by` (`human:<name>`, the name the person goes by, §2.3: the name git on the machine knows, else the system user) and `at` (an ISO 8601 moment in UTC), when a person confirmed the page is still true |
 | `supersedes` | decisions only, optional | relative link to the decision this one replaces (`./old.md`); a brain-relative path is also accepted |
 | `superseded_by` | decisions only, written by the tool | relative link to the decision that replaced this one |
+
+In a glob of `applies_to`, `*` is anything inside one folder's name, `?` one
+character and `**` any folders; one with none of them is a file, or a folder
+and everything under it. A glob is inside the project folder and never all of
+it: `save` and `update` refuse one that is absolute, leaves the folder or
+matches every file (`applies_to_invalid`), and `update --applies-to` replaces
+the list, `none` removing it. It is a key an older tool ignores, so the format
+does not move (§3.2).
 
 There is no `state`, `confidence` or `approved_by`. Knowledge, Rule and Skill
 pages carry a `## Changelog` the tool appends to on every update, one line per

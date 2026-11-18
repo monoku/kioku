@@ -4,6 +4,7 @@ import type {
   NamespaceAdd,
   PreCompactInput,
   SessionStartInput,
+  ToolPath,
   ToolResult,
   UserPromptInput,
 } from "./harness.ts";
@@ -62,6 +63,34 @@ export const subagentContextAnswer = (context: string): HookAnswer => ({
   data: { hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context } },
   text: context,
 });
+
+/** Claude Code's tools that read or change one file, and where each says which: the matcher of the plugin's hook (§4.7). */
+export const FILE_TOOLS = ["Read", "Edit", "Write", "NotebookEdit"] as const;
+
+/** The file such a tool is about to read or change: `tool_input.file_path`, or a notebook's `notebook_path`. */
+export function parseToolPath(raw: string): ToolPath | undefined {
+  const r = record(raw);
+  if (r === undefined || !(FILE_TOOLS as readonly unknown[]).includes(r.tool_name)) return undefined;
+  const input = r.tool_input as { file_path?: unknown; notebook_path?: unknown } | undefined;
+  const file = typeof input?.file_path === "string" ? input.file_path : input?.notebook_path;
+  if (typeof file !== "string" || file.trim() === "") return undefined;
+  return {
+    file,
+    ...(typeof r.cwd === "string" && { cwd: r.cwd }),
+    ...(typeof r.session_id === "string" && { sessionId: r.session_id }),
+  };
+}
+
+/** Context beside a tool's result, with no decision about the call: the host's permissions go on as they were. */
+export function toolContextAnswer(context: string, said?: string): HookAnswer {
+  return {
+    data: {
+      hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: context },
+      ...(said !== undefined && { systemMessage: `\n${said}` }),
+    },
+    text: [said, context].filter(Boolean).join("\n\n"),
+  };
+}
 
 /** The session any hook runs in: `session_id`. */
 export function parseSessionId(raw: string): string | undefined {

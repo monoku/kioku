@@ -191,7 +191,7 @@ full text alone, `limit`, `more`, and `hits`, each with `brain`, `path`, `id`,
 **`kioku page list`**: `pages`, `total`, `offset`, `limit` and `next`. A page
 has `brain`, `path`, `id`, `kind`, `subkind`, `namespace`, `title`, `summary`,
 `aliases`, `created`, `source`, `source_version`, `evidence`, `stale_after`,
-`supersedes`, `superseded_by`, `status`, `verified`, `touched`, `occasions`
+`applies_to` (a list, empty when the page names no files), `supersedes`, `superseded_by`, `status`, `verified`, `touched`, `occasions`
 (an instinct's), `change` (`added`, `changed`, or null), `links`, `linkedFrom`
 and `relations` (`type`, `path`).
 

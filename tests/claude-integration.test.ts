@@ -94,6 +94,13 @@ test("the plugin's hooks run its own wrapper, one handler per event, the journal
     [{ type: "command", if: "Bash(kioku namespace add *)", command: run("pre-tool-use") }],
     "the person confirms each namespace (§3.2)",
   );
+  assert.equal(hooks.PreToolUse!.length, 3);
+  assert.equal(hooks.PreToolUse![2]!.matcher, "Read|Edit|Write|NotebookEdit", "the tools that read or change one file");
+  assert.deepEqual(
+    hooks.PreToolUse![2]!.hooks,
+    [{ type: "command", command: run("pre-tool-path") }],
+    "a page about a file is named when the agent reads or changes it (§4.7)",
+  );
   assert.equal(hooks.PostToolUse!.length, 1);
   assert.equal(hooks.PostToolUse![0]!.matcher, "Bash");
   assert.deepEqual(
