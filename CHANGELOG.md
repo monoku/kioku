@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.6.4
 
 - **The README's `ci` badge says how `main` stands.** It showed the last run of
   `ci` on any event from `main`, so the pull request that brings a release back
