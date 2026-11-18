@@ -9,8 +9,12 @@
 //       appends what it found to $GITHUB_OUTPUT, `tag` and `sha`, which stay absent when there is nothing to publish
 //   node .github/scripts/publish-release.mjs publish <tag> <sha> <file for the notes> <asset>...
 //       creates the GitHub release, its tag on <sha>, with the assets under their own names, as the latest
+//   node .github/scripts/publish-release.mjs back <tag>
+//       opens the pull request that brings main back into develop, and has GitHub merge it, with a merge commit, once
+//       its checks pass: its head is main, whose checks have run already, so nothing else has to run
 //
-// It speaks to GitHub's REST API with fetch and the workflow's GITHUB_TOKEN, for GITHUB_REPOSITORY: no other tool.
+// It speaks to GitHub's REST and GraphQL APIs with fetch and the workflow's GITHUB_TOKEN, for GITHUB_REPOSITORY: no
+// other tool.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
@@ -86,6 +90,23 @@ export function githubApi({ repo, token, fetch: get = fetch, api = "https://api.
   };
 }
 
+/** GitHub's GraphQL API, through `fetch`: the data a query answers, or an error that says what GitHub said. */
+export function githubGraphql({ token, fetch: get = fetch, api = "https://api.github.com" }) {
+  return async (query, variables) => {
+    const response = await get(`${api}/graphql`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    const said = response.ok
+      ? await response.json()
+      : { errors: [{ message: `${response.status} ${await response.text()}` }] };
+    if (said.errors?.length)
+      throw new Error(`GitHub answered to GraphQL: ${said.errors.map((e) => e.message).join("; ")}`);
+    return said.data;
+  };
+}
+
 /** Whether a tag has its release on GitHub. */
 export const hasRelease = (call) => async (tag) =>
   (await call("GET", `/releases/tags/${encodeURIComponent(tag)}`)) !== undefined;
@@ -117,6 +138,40 @@ export async function publishRelease(call, { tag, sha, notes, assets }) {
   }
 }
 
+const AUTO_MERGE = `mutation($id: ID!) {
+  enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: MERGE }) { clientMutationId }
+}`;
+
+/**
+ * Brings main back into develop after a release, as git flow has it, so develop says the version just released and the
+ * next release does not fight over CHANGELOG.md. develop takes nothing that has not passed ci, so this is a pull
+ * request, from main into develop: its head is main, whose checks the push that released has run, and GitHub merges it
+ * with a merge commit once they pass. One already open is used; when develop holds all of main, there is nothing to do.
+ * Checks that passed already leave nothing to wait for, so it is merged at once. What GitHub refuses, a conflict
+ * included, leaves the pull request open for a person, and says so.
+ */
+export async function bringBack(call, graphql, { version, owner }) {
+  const compared = await call("GET", "/compare/develop...main");
+  if (compared?.ahead_by === 0) return { state: "nothing" };
+  const open = await call("GET", `/pulls?state=open&base=develop&head=${encodeURIComponent(`${owner}:main`)}`);
+  const pr =
+    open?.[0] ??
+    (await call("POST", "/pulls", {
+      title: `Bring ${version} back into develop`,
+      head: "main",
+      base: "develop",
+      body: `After the release of ${version}: \`main\` back into \`develop\`, so \`develop\` says ${version} and the next release does not fight over \`CHANGELOG.md\`. Opened by the \`release\` workflow, merged by GitHub once its checks pass.`,
+    }));
+  try {
+    await graphql(AUTO_MERGE, { id: pr.node_id });
+    return { state: "auto", url: pr.html_url };
+  } catch (e) {
+    if (!/clean status/i.test(e.message)) throw new Error(`${e.message}; the pull request is open: ${pr.html_url}`);
+  }
+  await call("PUT", `/pulls/${pr.number}/merge`, { merge_method: "merge" });
+  return { state: "merged", url: pr.html_url };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [step, ...args] = process.argv.slice(2);
   const call = githubApi({ repo: process.env.GITHUB_REPOSITORY, token: process.env.GITHUB_TOKEN });
@@ -137,9 +192,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const assets = files.map((f) => ({ name: basename(f), bytes: readFileSync(f) }));
       const done = await publishRelease(call, { tag, sha, notes: readFileSync(notesFile, "utf8"), assets });
       console.log(`Published ${tag}: ${done.html_url}`);
+    } else if (step === "back") {
+      const [tag] = args;
+      const graphql = githubGraphql({ token: process.env.GITHUB_TOKEN });
+      const owner = process.env.GITHUB_REPOSITORY.split("/")[0];
+      const back = await bringBack(call, graphql, { version: tag.replace(/^v/, ""), owner });
+      console.log(
+        back.state === "nothing"
+          ? "develop holds all of main: nothing to bring back."
+          : back.state === "auto"
+            ? `main comes back into develop once its checks pass: ${back.url}`
+            : `main came back into develop: ${back.url}`,
+      );
     } else {
       throw new Error(
-        "usage: publish-release.mjs find <before> <after> <notes> | publish <tag> <sha> <notes> <asset>...",
+        "usage: publish-release.mjs find <before> <after> <notes> | publish <tag> <sha> <notes> <asset>... | back <tag>",
       );
     }
   } catch (e) {

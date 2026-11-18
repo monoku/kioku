@@ -56,7 +56,8 @@ memory, with `pnpm eval:memory` before and after. Tests never touch the real hom
   merged with a merge commit once `ci` passes. Releases follow git flow: `develop` reaches `main` only through a
   branch `release/v<version>` off it (a fix that cannot wait, `hotfix/v<version>`
   off `main`) and its pull request, and `main` comes back into `develop` after
-  each release, through a pull request from `main` into `develop`. Never commit to `main`.
+  each release, through a pull request from `main` into `develop` that the
+  `release` workflow opens and GitHub merges once `ci` passes. Never commit to `main`.
 - Every commit that changes what a person or a machine sees adds its line under
   `## Unreleased` in `CHANGELOG.md`, above the last version's section.
 - The skill is capped at 2,000 words and names no paths or ids; a test enforces

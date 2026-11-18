@@ -128,12 +128,13 @@ git fetch -q --tags origin && git tag --list v<version>
 Then bring `main` back into `develop`, so `develop` says the version just
 released and the next release does not fight over `CHANGELOG.md`. `develop`
 takes nothing that has not passed `ci`, so this too is a pull request, from
-`main` into `develop`: hand the person the address `release.mjs` printed
-(`<repository>/compare/develop...main?expand=1`), titled
-`Bring <version> back into develop`, merged with a merge commit once `ci`
-passes; opening and merging it are theirs. Once they confirm it is merged,
-offer to drop the branch and bring `develop` up to date; the push is theirs to
-approve:
+`main` into `develop`, and the `release` workflow opens it once the release is
+published, `Bring <version> back into develop`, and has GitHub merge it once
+its checks pass. If the workflow's last step failed or the pull request stays
+open (a conflict, say), tell the person: it is theirs to open at
+`<repository>/compare/develop...main?expand=1`, resolve and merge with a merge
+commit. Once it is merged, offer to drop the branch and bring `develop` up to
+date; the push is theirs to approve:
 
 ```bash
 git branch -d <branch> && git push origin --delete <branch>
