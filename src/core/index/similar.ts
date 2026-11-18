@@ -51,10 +51,12 @@ export function similarPages(index: Index, brain: string, subject: Subject): Hit
  */
 export function stemsMet(stems: string[], text: string): number {
   const theirs = significantWords(text).map(stemOf);
-  return stems.filter((s) =>
-    theirs.some((t) => t === s || (t.length >= 4 && s.startsWith(t)) || (s.length >= 4 && t.startsWith(s))),
-  ).length;
+  return stems.filter((s) => theirs.some((t) => stemMeets(s, t))).length;
 }
+
+/** Whether two stems meet: equal, or one the start of the other when it is at least four letters. */
+export const stemMeets = (s: string, t: string): boolean =>
+  t === s || (t.length >= 4 && s.startsWith(t)) || (s.length >= 4 && t.startsWith(s));
 
 export function aliasesOf(index: Index, brain: string, path: string): string {
   const row = index.db.prepare("SELECT aliases FROM pages WHERE brain = ? AND path = ?").get(brain, path) as
