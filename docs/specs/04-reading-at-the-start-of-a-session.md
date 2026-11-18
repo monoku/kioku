@@ -61,7 +61,10 @@ brain only through `kioku page search` and `show`, never through its files,
 since only `show` counts a page as opened (§4.5); and, in a few lines, when to
 save (§1.1): the two tests, the moments that usually pass them, that at such a
 moment it loads the skill and saves without asking, and that secrets are never
-saved, nor personal remarks to a shared brain. Then it lists the brains, saying
+saved, nor personal remarks to a shared brain; in a session just compacted, that
+it saves now what the compaction's summary kept under `Not yet saved to Kioku`,
+and any correction, preference or decision of the person's that summary holds
+and no brain does (§1.1). Then it lists the brains, saying
 for one that declares a `language` (§3.2) that its pages are written in it, and
 for the machine configuration's `team` (§2.5) that it is the machine's, the
 folder naming none, and under each its namespaces, one line each, indented by

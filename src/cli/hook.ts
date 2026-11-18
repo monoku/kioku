@@ -3,7 +3,9 @@ import { machineReader, mutes, type MachineConfig } from "../core/config/machine
 import { loadedRow, startHolds, startSession } from "../core/session/start.ts";
 import { currentVersion, installDirs, installOrigin, managerCommand, newerThan } from "../core/setup/install.ts";
 import { dueForCheck, recordCheck, takeAvailable } from "../core/setup/update.ts";
-import { entriesFor, labelled, nextTurn, ownTurn, record } from "../core/session/journal.ts";
+import { entriesFor, labelled, nextTurn, ownTurn, readJournal, record } from "../core/session/journal.ts";
+import { compactInstructions, savedTitles } from "../core/session/compact.ts";
+import { resolveChain } from "../core/config/chain.ts";
 import { labelsFor } from "../core/session/labels.ts";
 import { recordSurfaced } from "../core/reads.ts";
 import { newVersionPair } from "../core/session/versions.ts";
@@ -191,6 +193,21 @@ export const sessionStartHolds: Handler = guarded(async (harness, ctx) => {
     ctx.now(),
   );
   return holds === undefined ? undefined : harness.sessionStartAnswer(holds, []);
+});
+
+/**
+ * The `PreCompact` hook (§1.1, §6.2): asks the host's compaction to keep, under a heading of its own, what the person
+ * said that is worth saving and the session did not save, naming what it did save from the journal. The session's next
+ * start, compacted, tells the agent to save it (§4.1). Nothing where no brain is loaded; it never stops a compaction.
+ */
+export const preCompact: Handler = guarded(async (harness, ctx) => {
+  const config = machineOf(ctx)();
+  if (config === undefined) return undefined;
+  const input = harness.parsePreCompact(await ctx.stdin());
+  const chain = resolveChain(resolve(input.cwd ?? ctx.cwd), config, ctx.home);
+  if (!chain.links.some((l) => l.cloned)) return undefined;
+  const saved = input.sessionId === undefined ? [] : savedTitles(readJournal(ctx.home, input.sessionId));
+  return harness.compactInstructionsAnswer(compactInstructions(saved));
 });
 
 /** How messages are laid out, as the configuration's `display` and the terminal say (§1.2). */

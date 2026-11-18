@@ -63,11 +63,19 @@ test("the skill says how to work inside a brain, how a created page links to its
 test("the plugin's hooks run its own wrapper, one handler per event, the journal's filters on the shell tool, and its skill let through (§6.2)", () => {
   const { hooks } = pluginHooks();
   const run = (verb: string): string => `bash "\${CLAUDE_PLUGIN_ROOT}/hooks/kioku.sh" hook ${verb}`;
-  assert.deepEqual(Object.keys(hooks).sort(), ["PostToolUse", "PreToolUse", "SessionStart", "UserPromptSubmit"]);
+  assert.deepEqual(Object.keys(hooks).sort(), [
+    "PostToolUse",
+    "PreCompact",
+    "PreToolUse",
+    "SessionStart",
+    "UserPromptSubmit",
+  ]);
   for (const [event, verbs] of [
     // The summary in two parts, a hook each, since the host caps what one hook injects (§4.1).
     ["SessionStart", ["session-start", "session-start-holds"]],
     ["UserPromptSubmit", ["user-prompt-submit"]],
+    // Before a compaction, what was not saved is kept by its summary (§1.1).
+    ["PreCompact", ["pre-compact"]],
   ] as const) {
     assert.equal(hooks[event]!.length, verbs.length);
     verbs.forEach((verb, i) => {
