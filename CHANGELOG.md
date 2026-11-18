@@ -4,6 +4,17 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## 0.6.2
+
+- **The agent no longer tells you it saved.** Told at a session's start to say
+  nothing of a save, which you see by its row, a smaller model still said "I
+  saved that as a decision" most of the time: by its answer, the agent was far
+  from that start. `kioku page save` now says it again where the agent reads
+  last before it answers: its answer has `tell`, which says to tell nothing of
+  the save itself and to answer what was asked. Measured with
+  `pnpm eval:memory` on the demo with Haiku, ten runs of each saving scenario:
+  answers that named the save went from 12 of 17 saves to 2 of 19.
+
 ## 0.6.1
 
 - **The agent saves before it answers, also when you ask for one line.** A

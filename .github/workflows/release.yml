@@ -3,7 +3,8 @@
 # commit main is at is tested, and the GitHub release creates the tag on it and carries the bundle, built here from that
 # commit, as kioku.mjs, which the installer and `kioku update` fetch
 # (§6.3), its checksum as kioku.mjs.sha256, the plugin that travels beside it as kioku-plugin.tar.gz with its
-# checksum (§6.2), and the CHANGELOG's section as its notes. Every release is the latest (§6.4).
+# checksum (§6.2), and the CHANGELOG's section as its notes. Every release is the latest (§6.4). Then main comes back
+# into develop, through a pull request that GitHub merges once its checks pass.
 name: release
 on:
   push:
@@ -12,6 +13,7 @@ on:
     branches: [main]
 permissions:
   contents: write
+  pull-requests: write   # the pull request that brings main back into develop, and its merge
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -70,3 +72,9 @@ jobs:
           sha256sum lib/kioku.mjs | awk '{ print $1 "  kioku.mjs" }' > kioku.mjs.sha256
           sha256sum lib/kioku-plugin.tar.gz | awk '{ print $1 "  kioku-plugin.tar.gz" }' > kioku-plugin.tar.gz.sha256
           node .github/scripts/publish-release.mjs publish "$TAG" "$SHA" "$RUNNER_TEMP/notes.md" lib/kioku.mjs kioku.mjs.sha256 lib/kioku-plugin.tar.gz kioku-plugin.tar.gz.sha256
+      - name: Bring main back into develop
+        if: steps.found.outputs.tag != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.found.outputs.tag }}
+        run: node .github/scripts/publish-release.mjs back "$TAG"

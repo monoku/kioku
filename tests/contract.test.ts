@@ -240,6 +240,12 @@ test("a writing verb answers one shape: done, similar or error", () =>
     );
     has(saved.out, ["status", "brain", "path", "commit", "publication", "id"], "a done result", "## Writing verbs");
     assert.equal(saved.out.status, "done");
+    has(saved.out, ["tell"], "a save's done result", "## Writing verbs");
+    assert.match(
+      String(saved.out.tell),
+      /^Nothing of this save/,
+      "the person is told nothing of the save itself (§1.1)",
+    );
 
     const similar = await w.kioku(
       [
