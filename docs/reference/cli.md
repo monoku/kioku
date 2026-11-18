@@ -398,14 +398,28 @@ kioku brain stats [--since <when>] [--brain <b>]
 What the writes of the chain's brains add up to over a span, 30d unless you say: by verb, and how many saved pages were forgotten.
 <!-- /generated -->
 
-A page saved before the span and forgotten in it is a forget, not a revert.
+One row a brain, then, when a commit says how it arrived (spec §1.6), the same
+counts by `via`; a commit that says none is `unknown`:
 
 ```text
-acme: 41 writes
-  saved 18, updated 11, superseded 3, confirmed 6, forgotten 3
-  3 of 18 saved pages were forgotten (17%)
-  opened 42, unopened 5, on this machine since 2026-09-01
+Writes since 2026-10-14
+
+BRAIN           WRITES  SAVED  UPDATED  SUPERSEDED  CONFIRMED  FORGOTTEN  OPENED  UNOPENED  RECALLED  FOLLOWED
+northwind/acme      41     18       11           3          6          3      42         5        30        12
+
+BRAIN           VIA          WRITES  SAVED  FORGOTTEN
+northwind/acme  claude-code      38     17          3
+northwind/acme  unknown           3      1          0
+
+Opens are counted on this machine since 2026-09-01; recalled is the times a prompt or a file brought a page, followed the times the session then opened it.
 ```
+
+In the second table `FORGOTTEN` is the pages saved in the span and forgotten in
+it, and not restored since; a page saved before the span and forgotten in it
+is a forget, not a revert. `--json` answers them as `reverted`, with
+`revert_rate`, and every verb's count in `by_verb`
+([What the verbs answer](answers.md)). The columns from `OPENED` on are there
+only where this machine counts what is opened (spec §4.5).
 
 `recalled` is the times a prompt or a file brought one of the brain's pages to
 a session on this machine, and `followed` the times that session then opened
