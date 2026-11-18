@@ -55,6 +55,10 @@ shape, with `status`
   and on `similar`: the pages on the subject in the session's other brains,
   each with `brain`, `path`, `title`, `kind`, `subkind` and `summary`. They
   never stop a write.
+- `tell`, from `page save` alone, on `done`: what to tell the person of the
+  save, which is nothing of the save itself, since they see it by its row, and
+  to answer what they asked (spec §1.1). A page of `elsewhere` that says
+  otherwise is still told.
 - `namespace`: nothing written; `namespaces`, each with `namespace`, `summary`
   (or null), `pages` and `below`.
 - `error`: `error` holds `code`, `message` and, when the validator refused the
