@@ -52,6 +52,8 @@ test("a session in acme-api shows the summary in the order of §4.1", () =>
       "only `show` counts a page as opened",
       "Save on your own, without asking, the moment",
       "At that moment load the `kioku` skill",
+      "save before you answer, whatever else the message asks for",
+      "your answer says nothing of the save",
       "- personal: sam",
     ]);
     inOrder(s, [
