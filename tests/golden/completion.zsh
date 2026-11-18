@@ -4,7 +4,7 @@ _kioku_brains() { local -a b; b=(${(f)"$(kioku brain list --json 2>/dev/null | g
 _kioku_keys() { local -a k; k=(${(f)"$(kioku config --json 2>/dev/null | grep -o '"key":"[^"]*"' | cut -d'"' -f4)"}); compadd -a k }
 _kioku_targets() { _kioku_brains; compadd personal project team }
 _kioku() {
-  local -a top; top=('setup:once per machine  the configuration, kioku on your PATH, your shell'\''s completion, the search model; no brain' 'doctor:checks the machine and says how to fix what is missing' 'update:installs the latest release, or the one named, rewrites the agent integration and refreshes the brains' 'completion:prints your shell'\''s completion script, which setup makes the shell source' 'config:lists, reads and sets the machine'\''s preferences, the owners it trusts and its team' 'init:links a project folder to its project brain, cloned from an address or made by name; alone, accepts and clones what its kioku.yaml names' 'sync:pulls the brains of this folder'\''s chain, pushes what is pending, updates the index' 'hook:what the plugin'\''s hooks call' 'page:search, list and show the pages of this folder'"'"'s brains, and write them' 'brain:make, clone, sync, publish and check the brains of this machine' 'namespace:list, add, describe and rename the namespaces of a brain' 'plugin:install or uninstall a host'"'"'s integration')
+  local -a top; top=('setup:once per machine  the configuration, kioku on your PATH, your shell'\''s completion, the search model; no brain' 'doctor:checks the machine and says how to fix what is missing' 'update:installs the latest release, or the one named, rewrites the agent integration and refreshes the brains' 'completion:prints your shell'\''s completion script, which setup makes the shell source' 'config:lists, reads and sets the machine'\''s preferences, the owners it trusts and its team' 'init:links a project folder to its project brain, cloned from an address or made by name; alone, accepts and clones what its kioku.yaml names' 'sync:pulls the brains of this folder'\''s chain, pushes what is pending, updates the index' 'handoff:where this folder'\''s last session stopped, for the next one on this machine' 'hook:what the plugin'\''s hooks call' 'page:search, list and show the pages of this folder'"'"'s brains, and write them' 'brain:make, clone, sync, publish and check the brains of this machine' 'namespace:list, add, describe and rename the namespaces of a brain' 'plugin:install or uninstall a host'"'"'s integration')
   if (( CURRENT == 2 )); then top+=('help:the verbs, a group'"'"'s verbs, or how one verb is used'); _describe -t verbs 'kioku verb' top; return; fi
   local verb=$words[2]
   case $verb in
@@ -22,6 +22,7 @@ _kioku() {
     'config') _arguments -s '1: :(config)' '2:action:(get set unset)' '3:key:_kioku_keys' '--json[answer in JSON]' ;;
     'init') _arguments -s '1: :(init)' '--json[answer in JSON]' ;;
     'sync') _arguments -s '1: :(sync)' '--json[answer in JSON]' '--cwd[dir]:file:_files' '--background[background]' ;;
+    'handoff') _arguments -s '1: :(handoff)' '2:word:(set show clear)' '--json[answer in JSON]' '--cwd[dir]:file:_files' '--branch[branch]:branch:' ;;
     'brain create') _arguments -s '1: :(brain)' '2: :(create)' '--json[answer in JSON]' '--tier[tier]:tier:(personal project team)' '--language[tag]:tag:' ;;
     'brain clone') _arguments -s '1: :(brain)' '2: :(clone)' '--json[answer in JSON]' ;;
     'brain sync') _arguments -s '1: :(brain)' '2: :(sync)' '3:brain:_kioku_brains' '--json[answer in JSON]' '--all[all]' ;;
@@ -56,7 +57,7 @@ _kioku() {
     'namespace add') _arguments -s '1: :(namespace)' '2: :(add)' '--json[answer in JSON]' '--summary[text]:text:' '--brain[brain]:brain:_kioku_brains' ;;
     'namespace describe') _arguments -s '1: :(namespace)' '2: :(describe)' '--json[answer in JSON]' '--summary[text]:text:' '--brain[brain]:brain:_kioku_brains' ;;
     'namespace rename') _arguments -s '1: :(namespace)' '2: :(rename)' '--json[answer in JSON]' '--brain[brain]:brain:_kioku_brains' '--dry-run[dry run]' ;;
-    'hook') _arguments -s '1: :(hook)' '2:word:(session-start session-start-holds user-prompt-submit pre-compact subagent-start pre-tool-use pre-tool-path post-tool-use)' '--json[answer in JSON]' '--host[claude-code]:claude-code:' ;;
+    'hook') _arguments -s '1: :(hook)' '2:word:(session-start session-start-holds session-start-handoff user-prompt-submit pre-compact subagent-start pre-tool-use pre-tool-path post-tool-use)' '--json[answer in JSON]' '--host[claude-code]:claude-code:' ;;
   esac
 }
 (( $+functions[compdef] )) || { autoload -Uz compinit && compinit -i; }

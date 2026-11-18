@@ -69,6 +69,27 @@ What changed in each version of Kioku. What is true now is in the
   run on the brains of a folder together, lists the pages of one on the
   subject of a page in a more shared one, `similarElsewhere`, apart from its
   count.
+- **A session can pick up where the last one stopped.** When you stop with
+  work unfinished, the agent leaves a handoff with the new
+  `kioku handoff set`: what was being done and why, what is left, what comes
+  next, what is not decided, and what it takes to go on, with the pages of
+  the memory that session wrote and opened. The next session you start in the
+  same place is given it, said as what it is, a note on this machine and not
+  memory. A place is a folder and its branch: a worktree has its own handoff,
+  a folder that is no repository has one, and a checkout that moves between
+  branches has one a branch, the session being told when another branch has
+  one and this one has none. Ask "what were we doing here?" and the agent
+  reads it with `kioku handoff show`; `kioku handoff clear` drops it. It is
+  the short memory of a place, where the brains are the long one: in no
+  brain, never synced or searched, 4,000 characters at most, replaced by the
+  next and dropped after thirty days. A fuller handoff document for someone
+  else is still yours to have written, and the handoff says where it is. The
+  progress of a task is still never a page.
+- **A session's journal is kept thirty days, not two.** A session resumed
+  weeks later, with `claude --resume`, still has its memory history, its
+  footer's counts, and what it was already given, so nothing is recalled to
+  it twice. The journal stays what it was: names and counts on this machine,
+  never a page's text or a prompt.
 
 ## 0.5.0
 

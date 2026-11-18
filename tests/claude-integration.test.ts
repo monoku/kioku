@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AGENTS_MD, agentsMd } from "../src/core/brains/agents-md.ts";
 import { claudeMd, INGEST_COMMAND, ingestCommand } from "../src/harness/claude-code-files.ts";
-import { pluginHooks, READ_FILTERS, WRITE_FILTERS } from "../src/harness/claude-code-integration.ts";
+import { HANDOFF_FILTER, pluginHooks, READ_FILTERS, WRITE_FILTERS } from "../src/harness/claude-code-integration.ts";
 import { SKILL_CANDIDATE_OCCASIONS } from "../src/core/lint.ts";
 import { WRITING_VERBS } from "../src/core/log.ts";
 
@@ -73,7 +73,8 @@ test("the plugin's hooks run its own wrapper, one handler per event, the journal
   ]);
   for (const [event, verbs] of [
     // The summary in two parts, a hook each, since the host caps what one hook injects (§4.1).
-    ["SessionStart", ["session-start", "session-start-holds"]],
+    // And the handoff of the place in a third, whole under a cap of its own (§4.8).
+    ["SessionStart", ["session-start", "session-start-holds", "session-start-handoff"]],
     ["UserPromptSubmit", ["user-prompt-submit"]],
     // Before a compaction, what was not saved is kept by its summary (§1.1).
     ["PreCompact", ["pre-compact"]],
@@ -105,8 +106,9 @@ test("the plugin's hooks run its own wrapper, one handler per event, the journal
   assert.equal(hooks.PostToolUse![0]!.matcher, "Bash");
   assert.deepEqual(
     hooks.PostToolUse![0]!.hooks.map((h) => h.if),
-    [...WRITE_FILTERS, ...READ_FILTERS],
+    [...WRITE_FILTERS, ...READ_FILTERS, HANDOFF_FILTER],
   );
+  assert.equal(HANDOFF_FILTER, "Bash(kioku handoff set *)", "a handoff left takes the session's pages (§4.8)");
   assert.deepEqual(
     READ_FILTERS,
     ["page show", "page search", "page list", "brain log", "brain stats", "brain lint"].map(

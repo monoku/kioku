@@ -27,10 +27,12 @@ export const syncLeftPath = (home: string): string => kioku(home, "sync-left.jso
 export const lintReportPath = (home: string): string => kioku(home, "lint.json");
 /** When the person was last told that the personal brain lives only on this machine (§2.3). */
 export const backupStatePath = (home: string): string => kioku(home, "backup.json");
-/** Each session's journal, one file per session, dropped two days after its last entry (§4.6). */
+/** Each session's journal, one file per session, dropped thirty days after its last entry (§4.6). */
 export const sessionsPath = (home: string): string => kioku(home, "sessions");
 /** What this machine has opened and been offered, per page, and since when it counts (§4.5). */
 export const readsStatePath = (home: string): string => kioku(home, "reads.json");
+/** Where each folder's last session stopped, as the agent left it (§4.8). */
+export const handoffsPath = (home: string): string => kioku(home, "handoffs");
 /** The embedding engine, fetched at first use (§4.3). */
 export const enginePath = (home: string): string => kioku(home, "engine");
 /** The embedding model, fetched at first use (§4.3). */
