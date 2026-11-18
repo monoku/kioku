@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.6.0
 
 - **A prompt's recall meets a page's words whatever form they have**: `deploy`
   and `deploying`, `migraciones` and `migración`, `webhook` and `webhooks` now
