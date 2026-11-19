@@ -49,7 +49,9 @@ try {
   sh("node", ["scripts/demo/make.ts", "--out", tmp, "--force"], { timeout: 5 * 60_000 });
 
   const home = join(tmp, ".home");
-  const app = join(tmp, "kioku-app");
+  const app = join(tmp, "app");
+  // The demo's project brain, by the name its app's `kioku.yaml` gives it, and its folder on the demo's machine.
+  const BRAIN = "northwind/app-brain";
   // Full text always, and no daily look for a new version: the same run on any machine.
   appendFileSync(
     join(home, ".kioku/config.yaml"),
@@ -77,7 +79,7 @@ try {
   const context = contextIn(home, app, { env });
   await runTool(["sync", "--json"], context);
 
-  const first = answerOf((await runTool(["page", "list", "--brain", "kioku", "--json"], context)).raw).pages[0];
+  const first = answerOf((await runTool(["page", "list", "--brain", BRAIN, "--json"], context)).raw).pages[0];
   // A page is pointed to once per session, so each call is a session of its own.
   let sessions = 0;
   const hookInput = (extra) => () => JSON.stringify({ cwd: app, session_id: `bench-${sessions++}`, ...extra });
@@ -100,7 +102,7 @@ try {
     { name: "page list --limit 10", args: ["page", "list", "--limit", "10", "--json"] },
     { name: "page search release", args: ["page", "search", "release", "--json"] },
     { name: "page search release --limit 5", args: ["page", "search", "release", "--limit", "5", "--json"] },
-    { name: "page show", args: ["page", "show", first.path, "--brain", "kioku", "--json"] },
+    { name: "page show", args: ["page", "show", first.path, "--brain", BRAIN, "--json"] },
     { name: "doctor", args: ["doctor", "--json"] },
     {
       name: "hook session-start",
@@ -131,11 +133,11 @@ try {
   measure(commands);
 
   // A brain of thousands of pages, which the demo's few hundred do not show (§6.1, bounded answers): the pages of the
-  // `kioku` brain copied under a namespace of its own, after the commands above so that their answers stay the demo's.
+  // project brain copied under a namespace of its own, after the commands above so that their answers stay the demo's.
   // (`brain lint` is not measured on copies: they would all be findings.)
   // `--big <n>` sets how many (2000 by default); the commands below are measured on it.
   const bigCount = Number(values.big ?? 2000);
-  const folder = join(tmp, "kioku");
+  const folder = join(home, ".kioku/brains", BRAIN);
   const sample = readFileSync(join(folder, first.path), "utf8");
   mkdirSync(join(folder, "memory/bench"), { recursive: true });
   for (let i = 0; i < bigCount; i++)
@@ -158,11 +160,11 @@ try {
   ]);
   const big = `(${bigCount + 1}+ pages)`;
   const bigCommands = [
-    { name: `page list ${big}`, args: ["page", "list", "--brain", "kioku", "--json"] },
-    { name: `page list --limit 100 ${big}`, args: ["page", "list", "--brain", "kioku", "--limit", "100", "--json"] },
-    { name: `page list --count ${big}`, args: ["page", "list", "--brain", "kioku", "--count", "--json"] },
-    { name: `page search release ${big}`, args: ["page", "search", "release", "--brain", "kioku", "--json"] },
-    { name: `brain log --since 90d ${big}`, args: ["brain", "log", "--since", "90d", "--brain", "kioku", "--json"] },
+    { name: `page list ${big}`, args: ["page", "list", "--brain", BRAIN, "--json"] },
+    { name: `page list --limit 100 ${big}`, args: ["page", "list", "--brain", BRAIN, "--limit", "100", "--json"] },
+    { name: `page list --count ${big}`, args: ["page", "list", "--brain", BRAIN, "--count", "--json"] },
+    { name: `page search release ${big}`, args: ["page", "search", "release", "--brain", BRAIN, "--json"] },
+    { name: `brain log --since 90d ${big}`, args: ["brain", "log", "--since", "90d", "--brain", BRAIN, "--json"] },
   ];
   measure(bigCommands);
 
@@ -195,7 +197,7 @@ try {
   const line = (cells) => cells.map((c, i) => (i === 0 ? c.padEnd(widths[i]) : c.padStart(widths[i]))).join("  ");
   console.log([line(head), ...rows.map(line)].join("\n"));
   console.log(
-    `\nA session starts with ${sessionBytes} bytes (~${Math.round(sessionBytes / 4)} tokens) of summary and ${skillWords} words of skill (the limit is under 1,500).`,
+    `\nA session starts with ${sessionBytes} bytes (~${Math.round(sessionBytes / 4)} tokens) of summary and ${skillWords} words of skill (the limit is under 2,000).`,
   );
   console.log(
     `Median of ${runs} runs after one thrown away; Node ${process.version}, ${process.platform} ${process.arch}. Search is full text: hybrid is not measured (no embedding model on the clean home).`,
