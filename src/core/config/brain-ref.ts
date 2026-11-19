@@ -68,7 +68,18 @@ export function addressUrl(input: string): string {
   return `https://${s.replace(/\/+$/, "").replace(/\.git$/, "")}.git`;
 }
 
-/** The host and the path of a repository's address; undefined for a folder or `file://`, which have no host. */
+/** A host as an address may write it: letters, digits, `.` and `-`, so nothing in it ends the host early for git (§2.2). */
+const HOST = /^[A-Za-z0-9.-]+$/;
+
+/** One segment of an address's path: letters, digits, `_`, `.` and `-`, and never `.` or `..`, which git resolves away (§2.2). */
+const isPathSegment = (p: string): boolean => /^[\w.-]+$/.test(p) && p !== "." && p !== "..";
+
+/**
+ * The host and the path of a repository's address; undefined for a folder or `file://`, which have no host, and for
+ * an address Kioku and git could read differently (§2.2): one whose host, user or path holds anything but plain
+ * characters (`?`, `#`, `%`, `\`, a space), or whose path has an empty, `.` or `..` segment. Such an address has no
+ * owner and is the same repository as none but itself, so trust never rests on a reading git does not share (§2.4).
+ */
 export function addressParts(url: string): { host: string; path: string } | undefined {
   const s = url.trim();
   const scp = SCP.exec(s);
@@ -78,9 +89,9 @@ export function addressParts(url: string): { host: string; path: string } | unde
     host = scp[1]!;
     path = scp[2]!;
   } else {
-    const m = /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/(.+)$/i.exec(s);
+    const m = /^(?:https?|ssh|git):\/\/(?:[\w.-]+(?::[\w.-]+)?@)?([^/:@]+)(?::\d+)?\/(.+)$/i.exec(s);
     if (!m) {
-      if (isFolder(s) || /^file:\/\//i.test(s) || /:\/\//.test(s)) return undefined;
+      if (isFolder(s) || /:\/\//.test(s)) return undefined;
       const parts = s.split("/");
       if (parts.length < 3 || !parts[0]!.includes(".")) return undefined;
       host = parts[0]!;
@@ -90,11 +101,12 @@ export function addressParts(url: string): { host: string; path: string } | unde
       path = m[2]!;
     }
   }
+  if (!HOST.test(host)) return undefined;
   path = path
     .replace(/^\/+|\/+$/g, "")
     .replace(/\.git$/, "")
-    .replace(/^~[^/]*\//, "");
-  return path === "" ? undefined : { host: host.toLowerCase(), path };
+    .replace(/^~[\w.-]*\//, "");
+  return path.split("/").every(isPathSegment) ? { host: host.toLowerCase(), path } : undefined;
 }
 
 /**
@@ -129,11 +141,11 @@ export function sameRepository(a: string, b: string): boolean {
 /** The canonical key of an owner of addresses, `host/owner`: what `trust.owners` holds (§2.4). */
 export const ownerKey = (r: { host: string; owner: string }): string => `${r.host}/${r.owner}`;
 
-/** An owner of addresses as a person types it, `host/owner`, the host with a dot (§2.4); undefined for anything else. */
+/** An owner of addresses as a person types it, `host/owner`, the host with a dot (§2.4); undefined for anything else, `host/..` included. */
 export function parseOwner(input: string): { host: string; owner: string } | undefined {
   const t = input.trim().replace(/\/+$/, "");
   const m = /^([\w-]+(?:\.[\w-]+)+)\/([\w.-]+)$/.exec(t);
-  return m ? { host: m[1]!.toLowerCase(), owner: m[2]! } : undefined;
+  return m && isPathSegment(m[2]!) ? { host: m[1]!.toLowerCase(), owner: m[2]! } : undefined;
 }
 
 export type RefResult = { ok: true; ref: BrainRef } | { ok: false; reason: string };
