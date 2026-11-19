@@ -11,7 +11,10 @@ any other key, `team` among them, is refused naming it.
 2. A required field missing, or `kind` or `tier` outside their lists.
 3. `id` missing, malformed, or duplicated within the brain.
 4. A `namespace` not declared in `kioku.yaml`.
-5. A file in the wrong folder for its kind or subkind.
+5. A file in the wrong folder for its kind or subkind, or, for a knowledge page
+   and, from `format: 3`, a Memory page, in another namespace's folder than
+   the one it names; a Memory page in a namespace's folder in a brain of an
+   earlier format, which keeps none (§3.1, §3.2).
 6. A required section missing.
 7. A relative link, `supersedes` or `superseded_by` whose target does not
    exist.

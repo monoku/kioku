@@ -122,7 +122,10 @@ brain of the machine, and reindexes them for full text, leaving meaning to the
 next `sync`. With `--background`, a failed fetch of the search model (§4.3) is
 tried again after six hours; by hand it is tried at once, as a step that names
 its size. Commits of this machine that cannot go on top of what others
-published are kept on a branch, and the brain is `conflict` (§1.6).
+published are kept on a branch, and the brain is `conflict` (§1.6). In a brain
+of format 3, Memory pages the pull brought outside the folder of their
+namespace are moved there, in one commit that is then pushed (§3.2); one with
+no namespace of the brain stays where it is, for the validator to name.
 
 ## 4.3 Search
 
