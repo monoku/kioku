@@ -113,6 +113,40 @@ test("an address is any address git clones from, and a name never reads as one (
   assert.equal(parseOwner("northwind"), undefined, "an owner names its host");
 });
 
+test("an address Kioku and git could read differently has no owner and is no other repository (§2.2, §2.4)", () => {
+  for (const a of [
+    "https://github.com/northwind/../attacker/brain.git",
+    "https://github.com/northwind/./brain.git",
+    "https://github.com/northwind//brain.git",
+    "https://evil.example?@github.com/northwind/brain-acme.git",
+    "https://evil.example#@github.com/northwind/brain-acme.git",
+    "https://evil.example\\@github.com/northwind/brain-acme.git",
+    "https://github.com/northwind/brain-acme.git?x=1",
+    "https://github.com/northwind/brain-acme.git#x",
+    "https://github.com/northwind/%2e%2e/attacker/brain.git",
+    "https://github.com/north wind/brain.git",
+    "evil.example?@github.com/northwind/brain-acme",
+    "git@github.com:northwind/../attacker/brain.git",
+    "ssh://git@github.com/~sam/../attacker/brain.git",
+  ]) {
+    assert.equal(addressParts(a), undefined, a);
+    assert.equal(ownerOfAddress(a), undefined, a);
+    assert.ok(!sameRepository(a, ACME), a);
+    assert.ok(sameRepository(a, a), "an address is still itself");
+  }
+  assert.equal(
+    ownerOfAddress("https://sam:token@github.com/northwind/brain-acme.git"),
+    "github.com/northwind",
+    "a user and a password of plain characters are not the host",
+  );
+  assert.equal(
+    ownerOfAddress("ssh://git@git.example.com/~sam/brain.git"),
+    "git.example.com/brain",
+    "~user/ is ssh's home",
+  );
+  assert.equal(parseOwner("github.com/.."), undefined, "an owner is never ..");
+});
+
 test("a project folder's reference is a name, or { name, url }; an address alone, as 0.1.0 wrote it, says its name (§2.2)", () => {
   const name = parseBrainReference("northwind/brain-acme", "brain");
   assert.ok(name.ok);

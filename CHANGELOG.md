@@ -4,6 +4,21 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## 0.6.5
+
+- **A trusted owner covers only its own addresses.** With an owner in
+  `trust.owners`, a project folder's `kioku.yaml` could give an address Kioku
+  read as that owner's and git took elsewhere,
+  `https://github.com/northwind/../other/brain.git` or
+  `https://other.example?@github.com/northwind/brain.git`, and the brain there
+  was cloned and loaded without asking, its pushes going to that address. An
+  address now has an owner only where Kioku and git read it the same: plain
+  characters in its host, user and path, and no empty, `.` or `..` segment. Any
+  other is under no owner and the same repository as none but itself, so the
+  session says it did not load it and `kioku init`, in a terminal, is how you
+  accept it. `trust.owners` no longer takes `host/..`. Nothing changes with
+  `trust.owners` empty, as it is until you set it.
+
 ## 0.6.4
 
 - **The README's `ci` badge says how `main` stands.** It showed the last run of
