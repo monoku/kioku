@@ -327,6 +327,7 @@ export const preToolPath: Handler = guarded(async (harness, ctx) => {
   const pages = await recallForPath(ctx.home, config, {
     cwd,
     file: input.file,
+    now: ctx.now(),
     ...(input.sessionId !== undefined && { sessionId: input.sessionId }),
   });
   if (pages.length === 0) return undefined;
@@ -391,7 +392,7 @@ export const userPromptSubmit: Handler = guarded(async (harness, ctx) => {
   const { pages, by } = await recallFor(
     ctx.home,
     config,
-    { cwd, prompt: input.prompt, ...(input.sessionId !== undefined && { sessionId: input.sessionId }) },
+    { cwd, prompt: input.prompt, now: ctx.now(), ...(input.sessionId !== undefined && { sessionId: input.sessionId }) },
     ctx.semantic,
     ctx.recall ?? RECALL_TUNING,
   );

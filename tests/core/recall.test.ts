@@ -199,6 +199,24 @@ test("a prompt brings the page that stands out by meaning, one line and never it
     assert.equal(contextOf(await prompt(w, f, ASK)), "", "a page already recalled in this session is not named again");
   }));
 
+test("a page past its date is recalled as ever, and its line says so (§4.4, §4.7)", () =>
+  recallWorld(async (w, f) => {
+    const dated = await w.kioku([
+      "page",
+      "update",
+      WIFI,
+      "--brain",
+      "northwind/brain-acme",
+      "--stale-after",
+      "2026-10-07",
+    ]);
+    assert.equal(dated.out.status, "done", JSON.stringify(dated.out));
+    assert.equal((await w.kioku(["sync", "--cwd", w.repo], { context: { semantic: f.deps } })).code, 0);
+    const text = contextOf(await prompt(w, f, ASK));
+    assert.match(text, /office-wifi-password-location\.md\) \[past its date, 2026-10-07\]$/m);
+    assert.match(text, /A line that ends in brackets is due a second look/);
+  }));
+
 test("no recall inside a brain, for a command, among too few pages, or past the budget (§4.7)", () =>
   recallWorld(async (w, f) => {
     await w.kioku(["sync", "--cwd", w.repo], { context: { semantic: f.deps } });

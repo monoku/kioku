@@ -20,7 +20,7 @@ export const runSources: Handler = (args, ctx) => {
   const brains =
     parsed.values.brain === undefined ? chain.filter((b) => b.cloned) : [pickBrain(chain, parsed.values.brain, ctx)];
   const sources = brains.flatMap((b) =>
-    sourcesOf(pagesOf(b, changesOf(ctx.home, b)), {
+    sourcesOf(pagesOf(b, changesOf(ctx.home, b), ctx.now()), {
       ...(parsed.values.all === true && { all: true }),
       ...(only !== undefined && { only }),
     }),

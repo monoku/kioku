@@ -66,5 +66,9 @@ export function historyOf(root: string, rel: string): HistoryEntry[] {
   });
 }
 
+/** The last touch of one page, asked of git for that page alone: what `lastTouched` says of it, without reading the whole history. */
+export const lastTouchOf = (root: string, rel: string): string | null =>
+  historyOf(root, rel).find((h) => !movesOnly(h.message))?.date ?? null;
+
 /** The last touch of one page, or null for a page git has not seen. */
 export const touchedOf = (touched: Map<string, string>, rel: string): string | null => touched.get(rel) ?? null;

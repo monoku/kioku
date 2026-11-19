@@ -209,12 +209,15 @@ tree.
 **`kioku page search`**: `mode` (`hybrid`, `full-text`), `reason` when
 full text alone, `limit`, `more`, and `hits`, each with `brain`, `path`, `id`,
 `title`, `kind`, `subkind`, `namespace`, `summary`, `snippet`, `created`,
-`touched` and, with `--include-retired`, `status` (`deprecated`, `superseded`).
+`touched`, with `--include-retired` `status` (`deprecated`, `superseded`),
+and, on a hit of a page due a second look, `review` (`reason`: `expired` or
+`unconfirmed`; `since`, the day it counts from).
 
 **`kioku page list`**: `pages`, `total`, `offset`, `limit` and `next`. A page
 has `brain`, `path`, `id`, `kind`, `subkind`, `namespace`, `title`, `summary`,
 `aliases`, `created`, `source`, `source_version`, `evidence`, `stale_after`,
-`applies_to` (a list, empty when the page names no files), `supersedes`, `superseded_by`, `status`, `verified`, `touched`, `occasions`
+`applies_to` (a list, empty when the page names no files), `supersedes`, `superseded_by`, `status`, `verified`, `touched`,
+`review` (`reason` and `since`, as a search hit's, or null), `occasions`
 (an instinct's), `change` (`added`, `changed`, or null), `links`, `linkedFrom`
 and `relations` (`type`, `path`).
 

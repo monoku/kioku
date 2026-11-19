@@ -6,6 +6,17 @@ What changed in each version of Kioku. What is true now is in the
 
 ## Unreleased
 
+- **A page due a second look says so where it is used.** That a page is past
+  its `stale_after` date, or that nobody has changed or confirmed it for longer
+  than its kind lasts, was said only by `kioku brain lint`, which is read when
+  someone asks. It is now said beside the page: `kioku page show`, `kioku page
+  list` and each hit of `kioku page search` answer `review`, with why
+  (`expired`, `unconfirmed`) and the day it counts from, and the line a recall
+  names a page by, at a prompt or at a file, ends with it. Nothing is hidden or
+  reordered, and `kioku page confirm` or an update ends the mark at once. At a
+  recall, that a page is not confirmed is taken from the report the last `sync`
+  recorded.
+
 - **A brain keeps its memory pages by namespace: format 3.** Every lesson was
   in `memory/` and every instinct in `memory/instincts/`, whatever its
   namespace, which only its front matter said: one folder that grew with
