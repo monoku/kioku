@@ -159,7 +159,8 @@ itself; until the model is on the machine, or while more pages wait, it
 answers with full text alone and says why; with `--json` it answers
 `{mode, reason, hits}`. A retired or superseded page is a hit only with
 `--include-retired`, and its hit carries `status`, `deprecated` or
-`superseded`. `doctor` reports the same, and how many pages are indexed by
+`superseded`. A hit of a page due a second look says so, `review`, and ranks
+where it ranked (§4.4). `doctor` reports the same, and how many pages are indexed by
 meaning. Indexing a whole brain never runs inside a hook. The similar pages of
 `save` (§1.4) come from full text alone: a page whose title holds every word
 of the new title first, then by the share of the new page's words each holds;
@@ -198,6 +199,19 @@ Each list shows its first 20 entries and says how many there are (§6.1).
 action happens in conversation, with the verbs of §6.1, when the person asks:
 linking a pair or merging it, forgetting a page or a stale instinct, evolving a candidate,
 confirming a page that is still true or retiring one that is not.
+
+**Said where the page is used.** The report is read when someone asks for it,
+and a page is relied on long before. So a page past its `stale_after` date, or
+one nobody has changed or confirmed for longer than its kind lasts, says so
+wherever the tool gives it: in `page show` and `page list`, in a hit of `page
+search` (§4.3), and in the line a recall names it by (§4.7). The mark,
+`review`, says why, `expired` or `unconfirmed`, the first when both are true,
+and the day it counts from: the `stale_after` date, or the day the page was
+last changed or confirmed. It hides nothing, orders nothing and retires
+nothing: a marked page is where it would be without the mark, and the mark
+ends the moment the page is confirmed or changed. A retired page has none. Not
+in the session summary (§4.1): its lines are counted against the host's cap,
+and a Rule, whole there, is the person's to confirm from the report.
 
 ## 4.5 What is opened
 
@@ -323,6 +337,16 @@ the index is brought up to date, by a `sync`, a search or a save (§4.3). Where
 no page of the machine's brains says which files it is about, the hook's
 wrapper ends before it starts the tool, so every other machine pays nothing
 for it.
+
+**Due a second look.** The line of a page that is (§4.4) ends with why and
+since when, and the line above the pages then says that a marked page is
+checked before it is relied on, and that `kioku page confirm` says it is still
+true. The mark is part of its line. That a page is past its date is read from
+the page. That nobody changed or confirmed it is taken from the report `sync`
+or `brain lint` last recorded for its brain, since a hook does not read a
+brain's whole history, and then asked of the page as it is, so one confirmed
+or changed since has no mark; on a machine with no report yet, only a page
+past its date is marked.
 
 Never recalled: a Rule, whole in every summary (§4.1); a retired or superseded
 page (§3.5); a page this session already opened or was already recalled. Nothing
