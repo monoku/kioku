@@ -75,8 +75,13 @@ is any address git clones from: https, ssh, `git@host:path.git` or `ssh://…`,
 `~`. `host/path`, whose first segment has a dot, is read as
 `https://<host>/<path>.git`; Kioku has no default host, and a name never reads as
 an address, for it has two segments, no dot and no leading `/`, `.` or `~`. An address that begins with `-`
-is refused wherever one is taken. The machine keeps the address of each brain
-(§2.5), so a brain is cloned from where it is.
+is refused wherever one is taken. **An address has a host and an owner only
+where Kioku and git read it the same**: its host and its user are plain
+characters, letters, digits, `.`, `-` and `_`, and its path is segments of those,
+none of them empty, `.` or `..`. Any other, one that holds `?`, `#`, `%`, `\` or
+a space say, is still an address git is given as written, and is the same
+repository as none but itself and under no owner (§2.4). The machine keeps the
+address of each brain (§2.5), so a brain is cloned from where it is.
 
 ## 2.3 Where Kioku is active
 
@@ -143,7 +148,8 @@ it at its root, committed, so a teammate who clones the code gets the link, and
 machine trusts it. A brain is trusted when it is in `repositories` of the
 machine configuration (§2.5), when the owner of its address, the host and the
 first segment of its path, `github.com/northwind`, is in `trust.owners`, which
-never reaches another host, or when it is the personal brain or the machine
+never reaches another host and takes no address Kioku and git could read
+differently (§2.2), or when it is the personal brain or the machine
 configuration's `team`, both the person's own act, or a brain made on this
 machine; every brain the folder names is checked on its own. **Trust follows the
 address, never the name**: a name is what a brain says of itself, and anyone can

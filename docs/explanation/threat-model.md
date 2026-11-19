@@ -110,9 +110,13 @@ is the remedy; rewriting history is the person's, outside Kioku.
   cloned from, never its name, and a clone that holds another name than the
   link says is refused (§2.4).
 - **Git runs nothing a repository ships.** A clone is a plain `git clone` of
-  a `url` the machine trusts: one the person recorded or gave, or the https or
-  ssh form of it, never one a folder's `kioku.yaml` alone gives (§2.4); an
-  address beginning with `-` is refused, and addresses go after `--`. Hooks,
+  a `url` the machine trusts: one the person recorded or gave, the https or
+  ssh form of it, or one under an owner the person trusted, never one a
+  folder's `kioku.yaml` alone gives (§2.4); an address beginning with `-` is
+  refused, and addresses go after `--`. An owner and a host are read only from
+  an address Kioku and git read the same (§2.2): one with `..`, `?`, `#` or
+  the like in it is under no owner, so a folder cannot write an address that
+  looks like a trusted owner's and that git takes elsewhere. Hooks,
   filters and drivers need configuration a clone does not carry, and nothing
   recurses into submodules. The person's own git configuration is theirs.
 

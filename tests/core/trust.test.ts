@@ -119,6 +119,35 @@ test("trusting an owner with kioku config lets the folder's brains load and clon
     assert.equal(init.code, 0, `${init.raw}: an owner trusted needs no terminal`);
   }, NOT_KNOWN));
 
+test("an address git would read as another owner's, or another host's, is not under a trusted owner (§2.2, §2.4)", () =>
+  world(async (w) => {
+    writeFileSync(
+      join(w.home, ".kioku", "config.yaml"),
+      "brain: sam/brain\ntrust:\n  owners:\n    - github.com/northwind\n",
+    );
+    for (const url of [
+      "https://github.com/northwind/../attacker/notes.git",
+      "https://evil.example?@github.com/northwind/notes.git",
+      "https://evil.example#@github.com/northwind/notes.git",
+    ]) {
+      link(w, `brain:\n  name: northwind/notes\n  url: "${url}"\n`);
+      const r = await start(w);
+      assert.equal(r.code, 0, url);
+      assert.match(r.out.systemMessage, /did not load northwind\/notes/, url);
+      assert.doesNotMatch(r.out.systemMessage, /cloning/, url);
+      const sync = await w.kioku(["sync"]);
+      assert.equal(sync.code, 0, sync.raw);
+      assert.deepEqual(
+        sync.out.outcomes.filter((o: { status: string }) => o.status === "cloned"),
+        [],
+        url,
+      );
+      assert.equal(readMachineConfig(w.home)!.repositories["northwind/notes"], undefined, `${url}: not recorded`);
+      const init = await w.kioku(["init", url]);
+      assert.equal(init.out.error.code, "needs_terminal", `${url}: an agent cannot accept it`);
+    }
+  }, NOT_KNOWN));
+
 test("a trusted owner's brain at an address the machine knows for another is not trusted: the recorded address wins (§2.4)", () =>
   world(async (w) => {
     const elsewhere = join(w.dir, "elsewhere", "brain-acme.git");
