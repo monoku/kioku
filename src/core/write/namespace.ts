@@ -5,12 +5,12 @@ import { isFrontPageAt, listMarkdown, readBrainConfig } from "../brain/brain.ts"
 import { appendChangelog, parseBrainFile, serializeBrainFile } from "../brain/file.ts";
 import { placementOf, specFor } from "../brain/kinds.ts";
 import { linkBetween, resolveLink } from "../brain/paths.ts";
-import { stringifyFolderConfig } from "../config/folder-config.ts";
+import { memoryByNamespace, stringifyFolderConfig } from "../config/folder-config.ts";
 import { depthOf, isUnder, MAX_NAMESPACE_DEPTH, namespaceProblem, parentOf } from "../brain/namespace-name.ts";
 import { newIndex, withDescription } from "../brain/namespace-index.ts";
 import { namedError, userError } from "../errors.ts";
 import { applyChanges, bringIn, type Applied, type FileChange, type TargetBrain } from "./apply.ts";
-import { retargetLinksBy } from "./body.ts";
+import { rebaseLinks, retargetLinksBy } from "./body.ts";
 import type { WriteContext } from "./apply.ts";
 import { today } from "./verbs.ts";
 
@@ -86,10 +86,15 @@ export async function renameNamespace(
       `${tooDeep} would be ${depthOf(renamed(tooDeep))} deep as ${renamed(tooDeep)}; a namespace is at most ${MAX_NAMESPACE_DEPTH} deep`,
       "usage",
     );
-  const oldDir = `knowledge/${from}/`;
-  const newDir = `knowledge/${to}/`;
+  // The namespace's folders: its knowledge, and its Memory in a brain that keeps Memory by namespace (§3.1).
+  const tops = memoryByNamespace(config.format) ? ["knowledge", "memory"] : ["knowledge"];
   const moves = new Map<string, string>(
-    filesUnder(brain.root, `knowledge/${from}`).map((f) => [f, newDir + f.slice(oldDir.length)]),
+    tops.flatMap((top) =>
+      filesUnder(brain.root, `${top}/${from}`).map((f): [string, string] => [
+        f,
+        `${top}/${to}/${f.slice(`${top}/${from}/`.length)}`,
+      ]),
+    ),
   );
   const now = today(env.now);
 
@@ -115,7 +120,9 @@ export async function renameNamespace(
       if (parsed.ok) {
         const file = parsed.file;
         let changed = false;
-        const body = retargetLinksBy(file.body, newRel, moves);
+        // A page that moved has its own links written again from where it is, which matters when the namespace's
+        // depth changes; then every link to a file that moved points at its new path.
+        const body = retargetLinksBy(newRel === rel ? file.body : rebaseLinks(file.body, rel, newRel), newRel, moves);
         if (body !== file.body) {
           file.body = body;
           changed = true;
@@ -123,9 +130,11 @@ export async function renameNamespace(
         for (const field of ["supersedes", "superseded_by"]) {
           const v = file.front.getString(field);
           if (v === undefined) continue;
-          const targetRel = moves.get(resolveLink(newRel, v) ?? "") ?? moves.get(resolveLink("x", v) ?? "");
-          if (targetRel !== undefined) {
-            file.front.set(field, linkBetween(newRel, targetRel));
+          const target = resolveLink(rel, v) ?? resolveLink("x", v);
+          if (target === undefined) continue;
+          const written = linkBetween(newRel, moves.get(target) ?? target);
+          if ((moves.has(target) || newRel !== rel) && written !== v) {
+            file.front.set(field, written);
             changed = true;
           }
         }
@@ -171,8 +180,9 @@ export async function renameNamespace(
   if (seen === undefined) return { status: "dry-run", ...base };
   const applied = await applyChanges(brain, changes, `namespace: rename ${from} to ${to}`, env, seen);
   // The files left their folders; git does not track the empty ones.
-  if (filesUnder(brain.root, `knowledge/${from}`).length === 0)
-    rmSync(join(brain.root, "knowledge", from), { recursive: true, force: true });
+  for (const top of tops)
+    if (filesUnder(brain.root, `${top}/${from}`).length === 0)
+      rmSync(join(brain.root, top, from), { recursive: true, force: true });
   return { status: "done", ...base, ...applied };
 }
 

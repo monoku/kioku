@@ -2,7 +2,8 @@ import { brainRepoOfKey } from "../config/brain-ref.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { appendChangelog, parseBrainFile, serializeBrainFile, type BrainFile } from "../brain/file.ts";
-import { placementOf, specFor } from "../brain/kinds.ts";
+import { folderFor, placementOf, specFor } from "../brain/kinds.ts";
+import { memoryByNamespace } from "../config/folder-config.ts";
 import { linkBetween, pagePath, resolveLink } from "../brain/paths.ts";
 import { userError } from "../errors.ts";
 import { applyChanges, bringIn, type FileChange, type TargetBrain } from "./apply.ts";
@@ -78,8 +79,8 @@ function rebaseOwnLinks(file: BrainFile, rel: string, newRel: string): void {
 
 /**
  * `kioku page move <path> --namespace <ns>` (§3.2, §6.1): a page changes namespace of its brain. A knowledge page's
- * file moves to the folder of that namespace and the rest of its path stays; any other kind keeps its folder and its
- * `namespace` changes. The `id` does not; every page that linked to it, an index included, now links to the new path,
+ * file moves to the folder of that namespace and the rest of its path stays, and so does a Memory page's in a brain
+ * that keeps Memory by namespace (§3.1); any other keeps its folder and its `namespace` changes. The `id` does not; every page that linked to it, an index included, now links to the new path,
  * and its own relative links are written again from where it is, in the same commit.
  */
 export async function move(
@@ -99,12 +100,16 @@ export async function move(
     );
   const place = placementOf(rel);
   const from = place?.namespace ?? file.front.getString("namespace") ?? config.namespaces[0]!;
-  if (from === to && file.front.getString("namespace") === to)
-    throw userError(`${rel} is already in ${to}; nothing was written`, "unchanged");
+  // A Memory page of a brain that keeps it by namespace moves to that namespace's folder, as a knowledge page does,
+  // also from outside any (§3.1): one saved before the brain was raised.
   const newRel =
     type.kind === "knowledge" && place?.namespace !== undefined
       ? `knowledge/${to}/${rel.slice(`knowledge/${from}/`.length)}`
-      : rel;
+      : type.kind === "memory" && memoryByNamespace(config.format)
+        ? `${folderFor(type, to, true)}/${rel.split("/").at(-1)}`
+        : rel;
+  if (newRel === rel && from === to && file.front.getString("namespace") === to)
+    throw userError(`${rel} is already in ${to}; nothing was written`, "unchanged");
   if (newRel !== rel && existsSync(join(brain.root, newRel)))
     throw userError(`${newRel} already exists in ${brainRepoOfKey(brain.key)}; rename the page first`, "path_exists");
   const title = file.front.getString("title") ?? rel;
@@ -148,7 +153,7 @@ export async function rename(
   const oldTitle = file.front.getString("title") ?? rel;
   if (title === oldTitle) throw userError(`${rel} is already called "${title}"; nothing was written`, "unchanged");
   const namespace = file.front.getString("namespace") ?? seen.repo.config().namespaces[0]!;
-  const newRel = pagePath(type, namespace, title);
+  const newRel = pagePath(type, namespace, title, seen.repo.config().format);
   if (newRel !== rel && existsSync(join(brain.root, newRel)))
     throw userError(`${newRel} already exists in ${brainRepoOfKey(brain.key)}; choose another title`, "path_exists");
 

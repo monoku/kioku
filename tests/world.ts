@@ -81,7 +81,7 @@ export async function world<T>(fn: (w: World) => Promise<T>, o: WorldOptions = {
         "northwind/brain-acme",
         "project",
         "acme",
-        o.acmePages ?? validPages().filter((p) => !p.path.startsWith("memory/run-migrations")),
+        o.acmePages ?? validPages().filter((p) => !p.path.startsWith("memory/acme/run-migrations")),
       ),
       team: publish(
         dir,

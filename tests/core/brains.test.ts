@@ -53,10 +53,10 @@ async function kioku(
 }
 
 // §2.5, the two brains' files.
-const PROJECT_8 = "format: 2\nname: northwind/brain-acme\ntier: project\nnamespaces:\n  - acme\n";
-const TEAM_ONE = "format: 2\nname: northwind/brain\ntier: team\nnamespaces:\n  - northwind\n";
+const PROJECT_8 = "format: 3\nname: northwind/brain-acme\ntier: project\nnamespaces:\n  - acme\n";
+const TEAM_ONE = "format: 3\nname: northwind/brain\ntier: team\nnamespaces:\n  - northwind\n";
 /** What `brain create` writes: its name, and no namespace yet (§2.2, §3.2). */
-const newBrain = (name: string, tier: string): string => `format: 2\nname: ${name}\ntier: ${tier}\nnamespaces: []\n`;
+const newBrain = (name: string, tier: string): string => `format: 3\nname: ${name}\ntier: ${tier}\nnamespaces: []\n`;
 const PROJECT_NEW = newBrain("northwind/brain-acme", "project");
 const TEAM_NEW = newBrain("northwind/brain", "team");
 
@@ -165,14 +165,14 @@ test("brain create --language writes the language from the first commit; without
     assert.equal(r.code, 0, r.raw);
     assert.equal(r.out.language, "es-419");
     const yaml = readFileSync(join(r.out.path, "kioku.yaml"), "utf8");
-    assert.match(yaml, /^format: 2$/m);
+    assert.match(yaml, /^format: 3$/m);
     assert.match(yaml, /^language: es-419$/m);
     assert.deepEqual(validateBrain(r.out.path).findings, []);
     assert.equal(sh(r.out.path, "rev-list", "--count", "HEAD"), "1", "the language is in the first commit");
 
     const plain = await kioku(["brain", "create", "northwind/brain-plain", "--tier", "project"], home);
     const text = readFileSync(join(plain.out.path, "kioku.yaml"), "utf8");
-    assert.match(text, /^format: 2$/m);
+    assert.match(text, /^format: 3$/m);
     assert.doesNotMatch(text, /language/);
 
     const bad = await kioku(
@@ -310,7 +310,7 @@ test("a brain's kioku.yaml holds its name, and create answers it (§2.2, §5.1 r
     const r = await kioku(["brain", "create", "northwind/brain-x", "--tier", "personal"], home);
     assert.equal(r.code, 0, r.raw);
     assert.deepEqual([r.out.brain, r.out.userFrom], ["northwind/brain-x", undefined]);
-    assert.match(readFileSync(join(r.out.path, "kioku.yaml"), "utf8"), /^format: 2\nname: northwind\/brain-x\n/);
+    assert.match(readFileSync(join(r.out.path, "kioku.yaml"), "utf8"), /^format: 3\nname: northwind\/brain-x\n/);
   }));
 
 test("an address that begins with - is refused wherever one is taken, since git would read it as an option (§2.2)", () =>
@@ -619,7 +619,7 @@ function instinct(n: number, title: string, dates: string[]): Made {
   });
   for (const d of dates) appendEvidence(file, d, "seen", "https://x.io");
   return {
-    path: `memory/instincts/${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`,
+    path: `memory/acme/instincts/${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`,
     text: serializeBrainFile(file),
   };
 }
@@ -677,10 +677,10 @@ test("brain lint reports one case per category, changes nothing in the brain, an
     assert.equal(r.code, 0, r.raw);
     const report = r.out.brains[0];
     assert.deepEqual(report.similar, [
-      { a: "memory/run-migrations-before-deploying.md", b: "memory/run-migrations-before-the-deploy.md" },
+      { a: "memory/acme/run-migrations-before-deploying.md", b: "memory/acme/run-migrations-before-the-deploy.md" },
     ]);
     assert.deepEqual(report.staleInstincts, [
-      { path: "memory/instincts/rebase-before-pushing.md", last: daysAgo(181) },
+      { path: "memory/acme/instincts/rebase-before-pushing.md", last: daysAgo(181) },
     ]);
     assert.deepEqual(report.superseded, [
       { path: "knowledge/acme/decisions/mysql-for-acme.md", by: "knowledge/acme/decisions/postgres-over-mysql.md" },
@@ -688,7 +688,7 @@ test("brain lint reports one case per category, changes nothing in the brain, an
     assert.deepEqual(report.brokenLinks, [{ path: "knowledge/acme/context/who-is-who.md", target: "./gone.md" }]);
     assert.deepEqual(report.missingSummary, ["rules/never-deploy-on-fridays.md"]);
     assert.deepEqual(report.skillCandidates, [
-      { path: "memory/instincts/run-database-tests-serially.md", occasions: 3 },
+      { path: "memory/acme/instincts/run-database-tests-serially.md", occasions: 3 },
     ]);
     assert.equal(report.count, 6);
     assert.equal(sh(root, "status", "--porcelain", "--ignored"), "", "nothing written in the brain");
@@ -701,9 +701,12 @@ test("brain lint reports one case per category, changes nothing in the brain, an
     });
     assert.match(
       text.out,
-      /^northwind\/brain-acme {2}6 things to review\n  similar pages\n    memory\/run-migrations-before-deploying\.md ~ memory\/run-migrations-before-the-deploy\.md\n/,
+      /^northwind\/brain-acme {2}6 things to review\n  similar pages\n    memory\/acme\/run-migrations-before-deploying\.md ~ memory\/acme\/run-migrations-before-the-deploy\.md\n/,
     );
-    assert.match(text.out, /Skill candidates\n    memory\/instincts\/run-database-tests-serially\.md \(3 occasions\)/);
+    assert.match(
+      text.out,
+      /Skill candidates\n    memory\/acme\/instincts\/run-database-tests-serially\.md \(3 occasions\)/,
+    );
 
     // What the memory holds carries the count (§4.1).
     const s = await kioku(["hook", "session-start-holds"], home, { cwd: join(home, "work/acme-api") });
@@ -726,7 +729,7 @@ test("an instinct whose latest occasion is 181 days old is stale; at 179 days it
     const r = await kioku(["brain", "lint", root], home);
     assert.deepEqual(
       r.out.brains[0].staleInstincts.map((s: { path: string }) => s.path),
-      ["memory/instincts/old-habit.md"],
+      ["memory/acme/instincts/old-habit.md"],
     );
   }));
 

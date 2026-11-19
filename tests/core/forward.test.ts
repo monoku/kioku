@@ -60,7 +60,7 @@ function assertForward(home: string): void {
     "the clone's own address, and none for the personal brain, which had no remote",
   );
   assert.equal(existsSync(join(home, "code/sam/brain")), false, "moved from its path");
-  assert.match(readFileSync(join(brains, "sam/brain/kioku.yaml"), "utf8"), /^format: 2\nname: sam\/brain\n/);
+  assert.match(readFileSync(join(brains, "sam/brain/kioku.yaml"), "utf8"), /^format: 3\nname: sam\/brain\n/);
   assert.match(readFileSync(join(brains, "northwind/brain-acme/kioku.yaml"), "utf8"), /^format: 1$/m);
 }
 
@@ -112,9 +112,9 @@ test("the hand-over of update brings a 0.1.0 machine forward: the configuration 
     assert.doesNotMatch(readFileSync(join(home, ".kioku/config.yaml"), "utf8"), /github\.com\/sam|path:/);
 
     // The person's own brain is raised; the shared ones are left for the person, once teammates have updated.
-    assert.deepEqual([f.raised?.brain, f.raised?.from, f.raised?.to], ["sam/brain", 1, 2]);
+    assert.deepEqual([f.raised?.brain, f.raised?.from, f.raised?.to], ["sam/brain", 1, 3]);
     const raised = readFileSync(join(brains, "sam/brain/kioku.yaml"), "utf8");
-    assert.match(raised, /^format: 2\nname: sam\/brain\ntier: personal\n/);
+    assert.match(raised, /^format: 3\nname: sam\/brain\ntier: personal\n/);
     assert.equal(sh(join(brains, "sam/brain"), "rev-list", "--count", "HEAD"), "2", "one commit");
     assert.deepEqual(
       validateBrain(join(brains, "sam/brain")).findings.filter((x) => x.severity === "error"),
@@ -148,7 +148,7 @@ test("two 0.1.0 keys that give one name are left where they were, and said (§2.
     assert.deepEqual(readMachineConfig(home)!.repositories, {});
   }));
 
-test("brain upgrade raises a brain of format 1 in one commit with the name it has here, and pushes it; a brain of format 2 is left (§3.2)", () =>
+test("brain upgrade raises a brain of format 1 in one commit with the name it has here, and pushes it; a brain of the newest is left (§3.2)", () =>
   scratch(async (dir) => {
     const remotes = new Remotes(dir);
     try {
@@ -169,15 +169,15 @@ test("brain upgrade raises a brain of format 1 in one commit with the name it ha
       assert.equal(agent.out.error.code, "needs_terminal", "teammates on an older version are the person's to weigh");
       const r = await kioku(["brain", "upgrade", "northwind/brain-acme"], home);
       assert.equal(r.code, 0, r.raw);
-      assert.deepEqual([r.out.from, r.out.to, r.out.published], [1, 2, "pushed"]);
-      assert.match(readFileSync(join(folder, "kioku.yaml"), "utf8"), /^format: 2\nname: northwind\/brain-acme\n/);
+      assert.deepEqual([r.out.from, r.out.to, r.out.published], [1, 3, "pushed"]);
+      assert.match(readFileSync(join(folder, "kioku.yaml"), "utf8"), /^format: 3\nname: northwind\/brain-acme\n/);
       assert.equal(
         sh(join(remotes.base, "northwind/brain-acme.git"), "rev-parse", "main"),
         sh(folder, "rev-parse", "HEAD"),
         "published",
       );
       const again = await kioku(["brain", "upgrade", "northwind/brain-acme"], home);
-      assert.deepEqual([again.code, again.out.from, again.out.to, again.out.commit], [0, 2, 2, undefined]);
+      assert.deepEqual([again.code, again.out.from, again.out.to, again.out.commit], [0, 3, 3, undefined]);
     } finally {
       remotes.close();
     }
@@ -198,10 +198,10 @@ test("doctor says a brain of an older format can be raised: the personal one by 
     const r = await kioku(["doctor"], home);
     const check = r.out.checks.find((c: { name: string }) => c.name === "brain northwind/brain-acme format");
     assert.equal(check.state, "warn");
-    assert.match(check.detail, /format 1; this version writes 2/);
+    assert.match(check.detail, /format 1; this version writes 3/);
     assert.match(
       check.fix,
-      /once your teammates run a version that reads format 2, `kioku brain upgrade northwind\/brain-acme` raises it/,
+      /once your teammates run a version that reads format 3, `kioku brain upgrade northwind\/brain-acme` raises it/,
     );
   }));
 
@@ -215,7 +215,7 @@ test("setup brings a 0.1.0 machine forward as the hand-over of update does, and 
       r.out.forwarded.moved.map((m: { brain: string }) => m.brain),
       ["sam/brain"],
     );
-    assert.deepEqual([r.out.forwarded.raised?.brain, r.out.forwarded.raised?.to], ["sam/brain", 2]);
+    assert.deepEqual([r.out.forwarded.raised?.brain, r.out.forwarded.raised?.to], ["sam/brain", 3]);
     assert.deepEqual(r.out.forwarded.behind, ["northwind/brain-acme"]);
     assert.equal(r.out.personal, "sam/brain");
     assertForward(home);

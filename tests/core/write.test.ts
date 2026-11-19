@@ -91,7 +91,7 @@ test("a brain in a format newer than the tool reads is not written to: refused b
     assert.equal(r.code, 2, r.raw);
     assert.equal(r.out.status, "error");
     assert.equal(r.out.error.code, "format_newer");
-    assert.match(r.out.error.message, /format 99, newer than the newest this tool reads \(2\).*run kioku update/);
+    assert.match(r.out.error.message, /format 99, newer than the newest this tool reads \(3\).*run kioku update/);
     assert.equal(commits(w.acme), before);
     assert.ok(!existsSync(join(w.acme, PATH_8)));
     assert.ok(clean(w.acme));
@@ -111,7 +111,7 @@ test("brain language declares the language in kioku.yaml, leaves the format, and
     assert.equal(commits(w.acme), before + 1);
     assert.equal(sh(w.acme, "log", "-1", "--format=%s"), "language: es");
     const yaml = readFileSync(join(w.acme, "kioku.yaml"), "utf8");
-    assert.match(yaml, /^format: 2$/m);
+    assert.match(yaml, /^format: 3$/m);
     assert.match(yaml, /^language: es$/m);
     assert.deepEqual(
       validateBrain(w.acme).findings.filter((f) => f.severity === "error"),
@@ -276,7 +276,7 @@ test("update --section replaces that section only and appends one Changelog line
 
 test("two writes to one page at once on one machine lose neither: the one that read it before the other wrote is refused, and run again it lands (§1.6)", () =>
   world(async (w) => {
-    const rel = "memory/instincts/run-database-tests-serially.md";
+    const rel = "memory/sam/instincts/run-database-tests-serially.md";
     const evidence = (what: string) => [
       "page",
       "update",
@@ -312,7 +312,7 @@ test("a write is not refused when what changed meanwhile is another page (§1.6)
       w.kioku([
         "page",
         "update",
-        "memory/instincts/run-database-tests-serially.md",
+        "memory/sam/instincts/run-database-tests-serially.md",
         "--brain",
         "personal",
         "--evidence",
@@ -320,7 +320,7 @@ test("a write is not refused when what changed meanwhile is another page (§1.6)
         "--source",
         "Session 2026-10-07",
       ]),
-      w.kioku(["page", "confirm", "memory/prefer-small-commits.md", "--brain", "personal"]),
+      w.kioku(["page", "confirm", "memory/sam/prefer-small-commits.md", "--brain", "personal"]),
     ]);
     assert.equal(a.out.status, "done", a.raw);
     assert.equal(b.out.status, "done", b.raw);
@@ -328,7 +328,7 @@ test("a write is not refused when what changed meanwhile is another page (§1.6)
 
 test("update --evidence on an instinct adds one dated Evidence line and leaves the rest untouched", () =>
   world(async (w) => {
-    const rel = "memory/instincts/run-database-tests-serially.md";
+    const rel = "memory/sam/instincts/run-database-tests-serially.md";
     const before = readFileSync(join(w.sam, rel), "utf8");
     const r = await w.kioku([
       "page",
@@ -356,7 +356,7 @@ test("update --evidence on an instinct adds one dated Evidence line and leaves t
     const wrong = await w.kioku([
       "page",
       "update",
-      "memory/prefer-small-commits.md",
+      "memory/sam/prefer-small-commits.md",
       "--evidence",
       "x",
       "--source",
@@ -369,7 +369,7 @@ test("update --evidence on an instinct adds one dated Evidence line and leaves t
 
 test("update of a Memory corrects it in place with no Changelog; an update that changes nothing is refused", () =>
   world(async (w) => {
-    const rel = "memory/prefer-small-commits.md";
+    const rel = "memory/sam/prefer-small-commits.md";
     const body =
       "## What happened\n\nA big commit hid a bug.\n\n## Lesson\n\nSmall commits.\n\n## Rule of thumb\n\nOne change per commit.\n";
     const r = await w.kioku(["page", "update", rel], body);
@@ -561,7 +561,7 @@ test("a new instinct starts with one Evidence line", () =>
     assert.deepEqual(evidenceOf(page.file), [
       { date: "2026-10-07", text: "the push was refused until a rebase", source: "Session 2026-10-07 in acme-api" },
     ]);
-    assert.equal(r.out.path, "memory/instincts/rebase-before-pushing-a-shared-brain.md");
+    assert.equal(r.out.path, "memory/sam/instincts/rebase-before-pushing-a-shared-brain.md");
   }));
 
 test("every verb answers with the same shape, and in one or two lines of text", () =>
@@ -574,7 +574,7 @@ test("every verb answers with the same shape, and in one or two lines of text", 
         ["page", "supersede", PATH_8, "--title", "Migrations run in the deploy job", "--source", "https://x.io"],
         "## Decision\n\nx\n\n## Why\n\ny\n\n## Consequences\n\nz\n",
       ),
-      await w.kioku(["page", "forget", "memory/prefer-small-commits.md"]),
+      await w.kioku(["page", "forget", "memory/sam/prefer-small-commits.md"]),
       await w.kioku(
         ["page", "save", "--brain", "northwind/brain-acme", "--kind", "wiki", "--title", "x", "--source", "y"],
         "x",
@@ -594,7 +594,7 @@ test("every verb answers with the same shape, and in one or two lines of text", 
         [
           "page",
           "update",
-          "memory/instincts/run-database-tests-serially.md",
+          "memory/sam/instincts/run-database-tests-serially.md",
           "--brain",
           "sam/brain",
           "--evidence",
@@ -660,10 +660,16 @@ test("--brain names a brain by name or tier; a path is found in the one brain th
 
     // The same relative path in two brains.
     put(w.sam, "INDEX2.md", "x");
-    writeFileSync(join(w.sam, "memory/same.md"), readFileSync(join(w.sam, "memory/prefer-small-commits.md"), "utf8"));
+    writeFileSync(
+      join(w.sam, "memory/same.md"),
+      readFileSync(join(w.sam, "memory/sam/prefer-small-commits.md"), "utf8"),
+    );
     writeFileSync(
       join(w.acme, "memory/same.md"),
-      readFileSync(join(w.sam, "memory/prefer-small-commits.md"), "utf8").replace("namespace: sam", "namespace: acme"),
+      readFileSync(join(w.sam, "memory/sam/prefer-small-commits.md"), "utf8").replace(
+        "namespace: sam",
+        "namespace: acme",
+      ),
     );
     assert.equal((await w.kioku(["page", "forget", "memory/same.md"])).out.error.code, "ambiguous");
     const named = await w.kioku(["page", "forget", "memory/same.md", "--brain", "northwind/brain-acme"]);
@@ -671,12 +677,12 @@ test("--brain names a brain by name or tier; a path is found in the one brain th
     const absolute = await w.kioku([
       "page",
       "update",
-      join(w.sam, "memory/prefer-small-commits.md"),
+      join(w.sam, "memory/sam/prefer-small-commits.md"),
       "--summary",
       "Small.",
     ]);
     assert.equal(absolute.out.brain, "sam/brain", absolute.raw);
-    assert.equal(absolute.out.path, "memory/prefer-small-commits.md");
+    assert.equal(absolute.out.path, "memory/sam/prefer-small-commits.md");
   }));
 
 test("bodies: sections in the template's order, unknown ones after, the tool's own kept from the page", () => {

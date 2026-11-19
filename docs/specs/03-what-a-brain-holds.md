@@ -20,11 +20,14 @@ validator checks.
 ├── .claude/commands/ingest.md   /ingest for Claude Code, offered only in this folder (§1.7)
 ├── kioku.yaml                   format, name, tier, namespaces, language (§2.5)
 ├── knowledge/<namespace>/       INDEX.md, decisions/, playbooks/, context/ (§3.2)
-├── memory/                      lessons and facts
+├── memory/<namespace>/          lessons and facts (§3.2)
 │   └── instincts/               learned conditionals with evidence
 ├── rules/
 └── skills/
 ```
+
+Knowledge and Memory, the two kinds that grow, are kept by namespace; Rules and
+Skills, which are few, stay in one folder each.
 
 The person's own profile, who they are and how they work, is a context page of
 the personal brain. No page waits in an inbox: it is in the brain or it is not.
@@ -37,8 +40,9 @@ names every link (§5.1 rule 12).
 
 ## 3.2 Namespaces
 
-`knowledge/` is split by namespace. Every page belongs to one; the other kinds
-stay at the root and carry their namespace in front matter. **A brain starts
+`knowledge/` and `memory/` are split by namespace. Every page belongs to one and
+carries it in front matter; a Rule and a Skill, which stay at the root, say it
+there alone. **A brain starts
 with none**: `kioku brain create` writes `kioku.yaml` with `namespaces: []`,
 `BRAIN.md` and the files the tool owns, and each namespace, the first included,
 is made when there is something to put in it. **A namespace is a path**,
@@ -46,7 +50,10 @@ written with `/` as the folder is: `payments`, `payments/billing`,
 `payments/billing/invoices`, at most three deep. A knowledge page's folder is
 `knowledge/<namespace>/<decisions|playbooks|context>/…`: the namespace is what
 lies between `knowledge/` and the first of those three names, which are
-therefore reserved. A page may live in a namespace that has others under it; a
+therefore reserved. A Memory page's folder is `memory/<namespace>/…`, and an
+instinct's `memory/<namespace>/instincts/…`, `instincts` being reserved too:
+the namespace is what lies between `memory/` and the file, or that folder. A
+page may live in a namespace that has others under it; a
 namespace's parent is a namespace of the brain too; and subfolders under one
 of the three folders are the person's and do not change the namespace.
 
@@ -65,8 +72,11 @@ namespace has its own description and its own `## Load first`.
 declares a namespace in `kioku.yaml` and writes its `INDEX.md`, in one commit;
 its parent must exist, and the brain is always named (§6.1). `kioku namespace describe` changes its description;
 `kioku namespace rename <from> <to>` gives it another path, parent included,
-and takes everything under it along. `kioku page move` gives a page another
-namespace: a knowledge page's file moves, its `id` stays and the links follow.
+and takes everything under it along, its knowledge and its Memory. `kioku page
+move` gives a page another namespace: a knowledge or a Memory page's file moves
+to that namespace's folder, its `id` stays and the links follow, the page's own
+written again from where it now is; a Rule or a Skill keeps its place and says
+the new namespace.
 
 **Choosing.** The agent chooses a page's namespace by the descriptions, the
 deepest that fits; a namespace that fits needs no one's yes. When a brain has
@@ -88,9 +98,13 @@ underscores, starting with a letter or a digit. Reserved, in any case:
 that is not this, is reserved, or is more than three deep; the validator
 (§5.1) refuses only what cannot be a folder and warns of the rest.
 
-**The format.** A brain is `format: 2`: namespaces as paths, a `language`, and
-its `name` in `kioku.yaml` (§2.2). `format: 1`, what 0.1.0 made, is the same
-without a name. The counter moves only when an older tool would misread the
+**The format.** A brain is `format: 3`: namespaces as paths, a `language`, its
+`name` in `kioku.yaml` (§2.2), and its Memory pages in the folder of their
+namespace (§3.1). `format: 2` is the same with every Memory page in `memory/`
+and every instinct in `memory/instincts/`, whatever its namespace, which only
+its front matter says; `format: 1`, what 0.1.0 made, is `format: 2` without a
+name. The tool reads and writes each as it is: where a Memory page lives is
+what its brain's format says. The counter moves only when an older tool would misread the
 files (§5.1 rule 10); a key an older tool can ignore never raises it; nothing
 lowers it, `kioku brain refresh` never changes it, and a brain any released
 version wrote stays readable and writable by every later one.
@@ -99,14 +113,28 @@ version wrote stays readable and writable by every later one.
 format before and after, and pushes in a brain with a remote. From `format: 1`
 it writes the name the brain had on this machine, its repository's owner and
 name (`github.com/sam/brain` is `sam/brain`), and moves the brain to its folder
-under that name (§2.5) when it was elsewhere. Until then the tool reads and
+under that name (§2.5) when it was elsewhere. From a format before 3 it moves
+each Memory page to the folder of its namespace, with its file name: nothing
+else of the page changes, its `id` and its `namespace` included, every link of
+the brain to it points at its new path, its own links are written again from
+there, and a page whose `source` is its path, a Skill evolved from an instinct
+(§3.6), says the new one. **It refuses, touching nothing, while a Memory page
+has no folder to go to**, one that names no namespace or one the brain does not
+declare (`memory_unplaced`, exit 2): it names each and says how to give it one,
+`kioku page move`, or `kioku namespace add` for the namespace it names; no
+namespace is made for them and none is a default. **A Memory page that reaches a
+brain of format 3 outside the folder of its namespace**, one a teammate saved
+before the brain was raised and published after, is moved there by `sync`
+(§4.2), in a commit of its own, and until then the validator names it (§5.1
+rule 5). Until then the tool reads and
 writes a brain of an older format as it is, with that name; one cloned from an
 address, on a machine that never had it, has the name of the last two segments
 of the address's path, `https://github.com/northwind/app-brain.git` is
 `northwind/app-brain`, which is the name the link must say. **The version that
 brings a newer format raises the person's own brain by itself** when `kioku
 update` hands over to it (§6.4), or when `kioku setup` first runs it (§6.3),
-and says so; it never raises a project or team
+and says so, and where its Memory pages have no folder to go to it leaves the
+brain as it is and says which; it never raises a project or team
 brain, whose teammates on an older version could then no longer write to it
 (§5.1): `kioku brain upgrade` does, in a terminal, when the person says, and
 until then `doctor` and the session say it can be raised (`format-behind`,
@@ -174,18 +202,21 @@ while both pages are current; retiring or superseding one, or removing the
 link, settles it.
 
 The date a page was last touched is not a field: the tool derives
-**`touched`**, the date of the last commit that changed it, and shows it beside
+**`touched`**, the date of the last commit that changed it, across its moves: a
+commit that changed it at an earlier path counts, and one that only raised the
+brain's format or put pages where the format keeps them (§3.2) does not. It
+shows it beside
 `created` wherever it lists pages with `--json`: the hits of `page search`, the
 similar pages of `page save`, `page list` and `page show`, which also answers
 the page's **`history`**, the commits that changed it, newest first, each with
-commit, day, author and message.
+commit, day, author and message, those at an earlier path included.
 
 ## 3.4 Each kind
 
 | Kind | Folder | Extra fields | Required sections | Changelog |
 |---|---|---|---|---|
-| Memory | `memory/` | | What happened, Lesson, Rule of thumb | no |
-| Memory, instinct | `memory/instincts/` | | When, Do, Evidence | no |
+| Memory | `memory/<ns>/` | | What happened, Lesson, Rule of thumb | no |
+| Memory, instinct | `memory/<ns>/instincts/` | | When, Do, Evidence | no |
 | Knowledge, decision | `knowledge/<ns>/decisions/` | `supersedes`, `superseded_by` | Decision, Why, Consequences | yes |
 | Knowledge, playbook | `knowledge/<ns>/playbooks/` | | When, Steps | yes |
 | Knowledge, context | `knowledge/<ns>/context/` | | free | yes |
@@ -240,7 +271,9 @@ gone comes back:
   one commit, with its `id`. It is the undo of `forget`. It is refused where a
   page stands at the path, where the brain's history deleted none there, and,
   as any write, where the page as it was no longer passes the validator (§5.1):
-  a page it linked to is gone, or its namespace is. The links a merge pointed
+  a page it linked to is gone, or its namespace is. A Memory page forgotten
+  before its brain kept Memory by namespace (§3.2) comes back in the folder of
+  its namespace, its own links written again from there. The links a merge pointed
   elsewhere stay where the merge left them.
 
 ## 3.6 Instincts and Skills

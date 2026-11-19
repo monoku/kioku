@@ -20,7 +20,7 @@ else on every brain of the chain on the machine.
 |---|---|
 | 0 | success |
 | 1 | a usage error, a file of yours that is wrong, or a report with something to say (`brain validate` with errors, `doctor` with something required missing, `sync` or `init` with a failed clone) |
-| 2 | the brain refused the write: `locked`, `changed` (a page changed since the verb read it: run it again) or `format_newer` |
+| 2 | the brain refused the write: `locked`, `changed` (a page changed since the verb read it: run it again), `format_newer` or `memory_unplaced` (`brain upgrade`: a memory page has no namespace of the brain to go to) |
 | 3 | the environment lacks something or could not be reached (a brain folder, a release), or git answered more than 64 MiB (`git_output_too_large`) |
 
 **Refusals.** A verb that changes the machine answers `needs_terminal` outside
@@ -477,8 +477,15 @@ Raises a brain to the newest format, in one commit.
 <!-- /generated -->
 
 From format 1, which 0.1.0 made, it writes the brain's name into its
-`kioku.yaml` (spec §3.2), and pushes when the brain has a remote. A brain in
-the newest format is left as it is. Teammates on an older version still read a
+`kioku.yaml` (spec §3.2). From a format before 3 it moves each memory page to
+the folder of its namespace, `memory/<namespace>/` and
+`memory/<namespace>/instincts/`, and the links of the brain follow; a page's
+`id`, its fields, its last-touched day and its history stay. It refuses,
+touching nothing, while a memory page names no namespace or one the brain does
+not declare (`memory_unplaced`): it lists them, and `kioku page move <path>
+--namespace <ns>` gives each one, or `kioku namespace add` declares the one it
+names. It pushes when the brain has a remote. A brain in the newest format is
+left as it is. Teammates on an older version still read a
 raised brain but no longer write to it until they update (`format_newer`), so
 a project or team brain is yours to raise once they have; `kioku update`
 raises your personal brain by itself. Needs a terminal.
@@ -682,6 +689,11 @@ kioku page move <path> --namespace <ns> [--brain <b>]
 Moves a page to another namespace of its brain; its id stays and links follow.
 <!-- /generated -->
 
+A knowledge page's file moves to the folder of the namespace, and so does a
+memory page's in a brain of format 3 (spec §3.1); a Rule or a Skill, and a
+memory page in a brain of an earlier format, keeps its path and says the new
+namespace.
+
 ### `kioku page link`
 
 ```text
@@ -770,7 +782,8 @@ Gives a namespace another path, with everything under it; its folder, its pages 
 <!-- /generated -->
 
 `<to>` must not exist (`path_exists`: namespaces are not merged), its parent
-must (`not_found`), and it is not under `<from>` (`usage`). Links from outside
+must (`not_found`), and it is not under `<from>` (`usage`). Its knowledge
+moves, and in a brain of format 3 its memory pages too. Links from outside
 the brain are not rewritten.
 
 ## Used by the agent integration, not by people

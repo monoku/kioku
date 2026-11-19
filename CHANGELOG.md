@@ -4,6 +4,35 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **A brain keeps its memory pages by namespace: format 3.** Every lesson was
+  in `memory/` and every instinct in `memory/instincts/`, whatever its
+  namespace, which only its front matter said: one folder that grew with
+  everything the agent saved. A memory page now lives in
+  `memory/<namespace>/`, an instinct in `memory/<namespace>/instincts/`, as a
+  knowledge page lives in `knowledge/<namespace>/`; Rules and Skills stay as
+  they were. `kioku page move` and `kioku namespace rename` move memory pages
+  with the rest. **Moving to it:** `kioku update` raises your personal brain by
+  itself; a project or team brain is yours to raise with `kioku brain upgrade
+  <brain>`, in a terminal, once your teammates have updated, since a version
+  before this one reads a brain of format 3 and refuses to write to it
+  (`format_newer`). The raise is one commit that moves the files: ids, fields
+  and text stay, links follow, and a page keeps its last-touched day and its
+  history. It refuses, touching nothing, while a memory page names no namespace
+  of the brain (`memory_unplaced`), and lists them with the command that gives
+  each one. Until a brain is raised the tool reads and writes it as it is. A
+  memory page a teammate saved before the raise and published after is moved to
+  its folder by `sync`.
+- **A page keeps its history when it moves.** `touched` and `history` followed
+  a page's path, so a page moved to another namespace, or whose namespace was
+  renamed, looked written that day and lost what came before. They now follow
+  the page across its moves.
+- **Renaming a namespace to another depth keeps the links out of it.** A page
+  moved from `payments/billing` to `billing` kept its links as written from the
+  old depth, which then pointed nowhere and the rename was refused. They are
+  written again from where the page now is.
+
 ## 0.6.5
 
 - **A trusted owner covers only its own addresses.** With an owner in

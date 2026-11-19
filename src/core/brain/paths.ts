@@ -1,5 +1,6 @@
 import { posix } from "node:path";
 import { folderFor, type PageType } from "./kinds.ts";
+import { memoryByNamespace } from "../config/folder-config.ts";
 import { userError } from "../errors.ts";
 
 const SLUG_MAX = 80;
@@ -18,11 +19,14 @@ export function slugify(title: string): string {
   return (at > SLUG_MAX / 2 ? cut.slice(0, at) : cut).replace(/-+$/, "");
 }
 
-/** The brain-relative path of a page: a slug of the title in the folder of its type (§3.1, §3.4). */
-export function pagePath(type: PageType, namespace: string, title: string): string {
+/**
+ * The brain-relative path of a page: a slug of the title in the folder of its type (§3.1, §3.4), which for a Memory
+ * is its namespace's in a brain of a `format` that keeps Memory by namespace.
+ */
+export function pagePath(type: PageType, namespace: string, title: string, format: number): string {
   const slug = slugify(title);
   if (slug === "") throw userError(`the title "${title}" has no letters or digits to name a file by`, "title_unusable");
-  return `${folderFor(type, namespace)}/${slug}.md`;
+  return `${folderFor(type, namespace, memoryByNamespace(format))}/${slug}.md`;
 }
 
 /**

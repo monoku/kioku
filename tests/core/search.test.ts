@@ -79,7 +79,7 @@ async function kioku(argv: string[], home: string, cwd: string) {
 }
 
 const paths = (r: { out: { hits: { path: string }[] } }) => r.out.hits.map((h) => h.path);
-const MIGRACIONES = "memory/migraciones-antes-del-deploy.md";
+const MIGRACIONES = "memory/acme/migraciones-antes-del-deploy.md";
 
 test("`migración`, `migracion`, `MIGRACION` and the prefix `migr` all find `Migraciones antes del deploy`", () =>
   scratch(async (home) => {
@@ -139,7 +139,7 @@ test("--brain returns that brain's pages alone; without it, the chain's pages, e
     const only = await kioku(["page", "search", "migraciones", "--brain", "northwind/brain-acme"], home, repo);
     assert.deepEqual([...new Set(only.out.hits.map((h: { brain: string }) => h.brain))], ["northwind/brain-acme"]);
     const sam = await kioku(["page", "search", "migraciones", "--brain", "sam/brain"], home, repo);
-    assert.deepEqual(paths(sam), ["memory/prefiero-pruebas-pequenas.md"]);
+    assert.deepEqual(paths(sam), ["memory/sam/prefiero-pruebas-pequenas.md"]);
     const all = await kioku(["page", "search", "migraciones"], home, repo);
     assert.deepEqual(
       new Set(all.out.hits.map((h: { brain: string }) => h.brain)),
@@ -254,7 +254,7 @@ test("text output names the brain, the path, the kind, the title and the snippet
     );
     assert.match(
       raw,
-      /^Migraciones antes del deploy +northwind\/brain-acme · memory\n  memory\/migraciones-antes-del-deploy\.md\n  \[Migraciones\] antes del deploy/m,
+      /^Migraciones antes del deploy +northwind\/brain-acme · memory\n  memory\/acme\/migraciones-antes-del-deploy\.md\n  \[Migraciones\] antes del deploy/m,
     );
     assert.match(
       raw,
@@ -298,7 +298,7 @@ test("indexing is by hash: unchanged pages are left alone and a page that cannot
       assert.deepEqual([second.indexed, second.removed], [0, 0]);
       assert.equal(second.unchanged, first.indexed);
       writeFileSync(join(acme, MIGRACIONES), readFileSync(join(acme, MIGRACIONES), "utf8") + "\nmás\n");
-      rmSync(join(acme, "memory/run-migrations-before-the-deploy.md"));
+      rmSync(join(acme, "memory/acme/run-migrations-before-the-deploy.md"));
       const third = updateIndex(index, brains);
       assert.deepEqual([third.indexed, third.removed], [1, 1]);
       assert.equal(search(index, "broken", [brains[0]!.key]).length, 0);

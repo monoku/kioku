@@ -180,7 +180,8 @@ its `source_version`.
 
 **`kioku brain upgrade`**: `brain`, `from` and `to`, the formats before and
 after, and, when it raised the brain, `commit` and `published` (`pushed`,
-`pending`, `local`).
+`pending`, `local`), and `moved`, the memory pages it put in the folder of
+their namespace, each with `from` and `to`, when it moved any.
 
 **`kioku brain refresh`**: `brains`, each with `brain`, `path`, `written`,
 `commit`, `publication` and, when left, `left` (`newer`, `build`) and

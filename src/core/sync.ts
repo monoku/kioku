@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { cloneMissing, type SyncOutcome, type SyncStatus } from "./brains/clone.ts";
+import { placeMemories } from "./brains/upgrade.ts";
 import { resolveChain, type ChainLink, type LinkTier } from "./config/chain.ts";
 import { readMachineConfig } from "./config/machine.ts";
 import { firstLine, KiokuError } from "./errors.ts";
@@ -104,6 +105,22 @@ async function pullAndPush(link: ChainLink, home: string, now: Date): Promise<Sy
   }
 }
 
+/**
+ * One brain pulled and pushed, then, in a brain that keeps Memory by namespace, the Memory pages the pull brought
+ * outside their folders moved there, in one commit of its own (§3.2): a teammate saved them before the brain was
+ * raised. What could not be moved is left for the next sync, and the validator names it meanwhile. Never throws.
+ */
+async function pullPlaceAndPush(link: ChainLink, home: string, now: Date): Promise<SyncOutcome> {
+  const outcome = await pullAndPush(link, home, now);
+  if (outcome.status === "failed" || outcome.status === "conflict") return outcome;
+  try {
+    await placeMemories({ key: link.key, tier: link.tier, root: link.path }, { home, now });
+  } catch {
+    // Left as it is: nothing was written, and `brain validate` says which pages wait.
+  }
+  return outcome;
+}
+
 /** Reindexing the pages, as a step (§6.1). */
 function indexStep(work: () => IndexReport): IndexReport {
   return currentSteps().run({ doing: "Indexing the pages", done: "Indexed the pages", direction: "down" }, work);
@@ -160,7 +177,7 @@ export async function syncBrains(home: string, links: ChainLink[], now: Date): P
       const top = gitQuiet(link.path, ["rev-parse", "--show-toplevel"]) ?? link.path;
       if (roots.has(top)) continue;
       roots.add(top);
-      outcomes.push(await pullAndPush(link, home, now));
+      outcomes.push(await pullPlaceAndPush(link, home, now));
     }
     recordState(home, outcomes, now);
     let index: BrainsSyncResult["index"];
@@ -239,11 +256,11 @@ async function syncOnce(opts: SyncOptions): Promise<SyncResult> {
   // Pull and push each brain of the chain once: each is a clone of its own.
   const done = new Set(outcomes.map((o) => o.key));
   for (const link of chain.links.filter((l) => l.cloned && !done.has(l.key)))
-    outcomes.push(await pullAndPush(link, home, now));
+    outcomes.push(await pullPlaceAndPush(link, home, now));
   // A pending publication of a brain outside this chain is still retried.
   for (const [key, p] of Object.entries(readPending(home))) {
     if (chain.links.some((l) => l.key === key) || !existsSync(p.path)) continue;
-    outcomes.push(await pullAndPush(linkOf("project", key, p.path), home, now));
+    outcomes.push(await pullPlaceAndPush(linkOf("project", key, p.path), home, now));
   }
   recordState(home, outcomes, now);
 

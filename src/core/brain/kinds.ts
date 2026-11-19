@@ -83,9 +83,19 @@ export function specFor(type: PageType): TypeSpec {
   return found;
 }
 
-/** The folder a page of this type lives in, brain-relative with no trailing slash. Knowledge needs its namespace. */
-export function folderFor(type: PageType, namespace?: string): string {
+/** The folder of an instinct, under `memory/` or under its namespace there (§3.1). */
+const INSTINCTS = "instincts";
+
+/**
+ * The folder a page of this type lives in, brain-relative with no trailing slash. Knowledge needs its namespace, and
+ * so does Memory in a brain that keeps it by namespace (§3.1): `memory/<namespace>` and `memory/<namespace>/instincts`.
+ */
+export function folderFor(type: PageType, namespace?: string, byNamespace = false): string {
   const s = specFor(type);
+  if (type.kind === "memory" && byNamespace) {
+    if (!namespace) throw new Error("a memory page needs a namespace");
+    return type.sub === "instinct" ? `memory/${namespace}/${INSTINCTS}` : `memory/${namespace}`;
+  }
   if (type.kind !== "knowledge") return s.folder;
   if (!namespace) throw new Error("a knowledge page needs a namespace");
   return `knowledge/${namespace}/${s.folder}`;
@@ -93,7 +103,7 @@ export function folderFor(type: PageType, namespace?: string): string {
 
 /** What a page at a brain-relative path must be, from its folder alone (§5.1 rule 5). */
 export interface Placement extends PageType {
-  /** Knowledge only: the namespace the folder names. */
+  /** The namespace the folder names: a knowledge page's always, a Memory's where it is kept by namespace (§3.1). */
   namespace?: string;
 }
 
@@ -109,8 +119,15 @@ export function placementOf(relPath: string): Placement | undefined {
     return { kind: "knowledge", sub: found.sub!, namespace: parts.slice(1, at).join("/") };
   }
   if (top === "memory") {
+    // The path says which of the two layouts a page is in (§3.1), whatever the brain's format, which the validator
+    // holds it to (§5.1 rule 5): `memory/x.md` and `memory/instincts/x.md` name no namespace; under a namespace,
+    // `memory/<namespace>/x.md` and `memory/<namespace>/instincts/x.md`. `instincts` is never a namespace (§3.2).
     if (parts.length === 2) return { kind: "memory" };
-    return second === "instincts" && parts.length === 3 ? { kind: "memory", sub: "instinct" } : undefined;
+    if (second === INSTINCTS) return parts.length === 3 ? { kind: "memory", sub: "instinct" } : undefined;
+    const instinct = parts.at(-2) === INSTINCTS;
+    const namespace = parts.slice(1, instinct ? -2 : -1);
+    if (namespace.includes(INSTINCTS)) return undefined;
+    return { kind: "memory", ...(instinct && { sub: "instinct" as const }), namespace: namespace.join("/") };
   }
   if (parts.length < 2) return undefined;
   const found = TYPE_SPECS.find((t) => t.kind !== "knowledge" && t.kind !== "memory" && t.folder === top);

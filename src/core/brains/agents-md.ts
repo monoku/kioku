@@ -33,8 +33,8 @@ What is here:
 - \`skills/\`: techniques the agent runs on its own when they apply.
 - \`knowledge/<namespace>/\`: what is true, for people: \`decisions/\` (what and why), \`playbooks/\` (how things are
   done here), \`context/\` (people, clients, glossary, where things are).
-- \`memory/\`: lessons and facts the agent learned; \`memory/instincts/\`: learned "when X, do Y" with the occasions
-  that support them.
+- \`memory/<namespace>/\`: lessons and facts the agent learned; \`memory/<namespace>/instincts/\`: learned "when X,
+  do Y" with the occasions that support them. A brain of a format before 3 keeps both with no namespace's folder.
 
 Work on it through the tool, never by editing pages by hand, so that every change is validated and committed:
 
