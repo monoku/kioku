@@ -244,7 +244,7 @@ function newPage(
   const namespace = input.namespace ?? seen.repo.config().namespaces[0];
   if (namespace === undefined) throw noNamespace(brain);
   const title = oneLine(input.title, "title");
-  const rel = pagePath(type, namespace, title);
+  const rel = pagePath(type, namespace, title, seen.repo.config().format);
   if (existsSync(join(brain.root, rel)))
     throw userError(
       `${rel} already exists in ${brainRepoOfKey(brain.key)}; update it, supersede it, or choose another title`,
@@ -604,7 +604,12 @@ export async function supersede(
   const already = old.file.front.getString("superseded_by");
   if (already !== undefined) throw userError(`${oldRel} is already superseded by ${already}`, "already_superseded");
   const namespace = input.namespace ?? old.file.front.getString("namespace");
-  const rel = pagePath(DECISION, namespace ?? seen.repo.config().namespaces[0]!, input.title);
+  const rel = pagePath(
+    DECISION,
+    namespace ?? seen.repo.config().namespaces[0]!,
+    input.title,
+    seen.repo.config().format,
+  );
   const fresh = newPage(brain, DECISION, { ...input, ...(namespace !== undefined && { namespace }) }, env, seen, {
     supersedes: linkBetween(rel, oldRel),
   });

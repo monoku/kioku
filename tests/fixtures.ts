@@ -8,7 +8,7 @@ import type { PageType } from "../src/core/brain/kinds.ts";
 import { buildBody, createPage } from "../src/core/brain/page.ts";
 import { pagePath } from "../src/core/brain/paths.ts";
 import { folderFiles } from "../src/core/brains/owned.ts";
-import type { Tier } from "../src/core/config/folder-config.ts";
+import { CURRENT_FORMAT, type Tier } from "../src/core/config/folder-config.ts";
 import type { Context } from "../src/cli/run.ts";
 import type { SemanticDeps } from "../src/core/semantic/meaning.ts";
 
@@ -33,9 +33,9 @@ export const scratch =
 export const ulid = (n: number): string => `01J9QZ3M7X8K2V5B6N4P0R${String(n).padStart(4, "0")}`;
 
 /** A brain's `kioku.yaml`, with one namespace, `name` by default: a brain's name is its repository's, not the file's (§2.3). */
-/** A brain's `kioku.yaml` (§2.5): `format: 2`, with the brain's name, its tier and one namespace. */
+/** A brain's `kioku.yaml` (§2.5): the format the tool writes, with the brain's name, its tier and one namespace. */
 export const brainYaml = (tier: string, name = "acme", brain = "northwind/acme"): string =>
-  `format: 2\nname: ${brain}\ntier: ${tier}\nnamespaces:\n  - ${name}\n`;
+  `format: ${CURRENT_FORMAT}\nname: ${brain}\ntier: ${tier}\nnamespaces:\n  - ${name}\n`;
 
 /** The name a brain in `root` takes: its folder's last two parts when they make one, as the managed folder lays it out (§2.5). */
 const nameAt = (root: string): string => {
@@ -61,6 +61,8 @@ interface PageOptions {
   supersedes?: string;
   noChangelog?: boolean;
   occasions?: number;
+  /** The brain's format, which says where a Memory page lives (§3.1); the one the tool writes when absent. */
+  format?: number;
 }
 
 /** A valid page of any type, built the way the tool builds it. */
@@ -83,7 +85,7 @@ export function made(o: PageOptions): Made {
       appendEvidence(file, "2026-10-07", `occasion ${i + 1}`, "https://example.com");
   let text = serializeBrainFile(file);
   if (o.noChangelog) text = text.replace(/\n?## Changelog\n$/, "");
-  return { path: pagePath(o.type, ns, o.title), text };
+  return { path: pagePath(o.type, ns, o.title, o.format ?? CURRENT_FORMAT), text };
 }
 
 export const DECISION: PageType = { kind: "knowledge", sub: "decision" };

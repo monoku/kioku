@@ -17,8 +17,8 @@ const edit = (root: string, rel: string, f: (text: string) => string) =>
 
 const POSTGRES = "knowledge/acme/decisions/postgres-over-mysql.md";
 const RULE_PAGE = "rules/no-prod-migrations-from-a-session.md";
-const INSTINCT_PAGE = "memory/instincts/run-database-tests-serially.md";
-const MEMORY_PAGE = "memory/run-migrations-before-the-deploy.md";
+const INSTINCT_PAGE = "memory/acme/instincts/run-database-tests-serially.md";
+const MEMORY_PAGE = "memory/acme/run-migrations-before-the-deploy.md";
 const SKILL_PAGE = "skills/release-a-hotfix.md";
 const CONTEXT_PAGE = "knowledge/acme/context/who-is-who.md";
 
@@ -85,8 +85,8 @@ breaks("id duplicated", 3, (r) => edit(r, MEMORY_PAGE, (t) => t.replace(/^id: .*
 breaks(
   "namespace not declared",
   4,
-  (r) => edit(r, MEMORY_PAGE, (t) => t.replace("namespace: acme", "namespace: other")),
-  MEMORY_PAGE,
+  (r) => edit(r, RULE_PAGE, (t) => t.replace("namespace: acme", "namespace: other")),
+  RULE_PAGE,
 );
 breaks(
   "a context page in the rules folder",
@@ -105,6 +105,29 @@ breaks(
     renameSync(join(r, MEMORY_PAGE), join(r, "stray/lesson.md"));
   },
   "stray/lesson.md",
+);
+breaks(
+  "a memory outside the folder of its namespace, where format 3 keeps it (§3.1)",
+  5,
+  (r) => renameSync(join(r, MEMORY_PAGE), join(r, "memory/lesson.md")),
+  "memory/lesson.md",
+);
+breaks(
+  "an instinct in the folder of another namespace than it names",
+  5,
+  (r) => {
+    edit(r, "kioku.yaml", (t) => `${t}  - other\n`);
+    put(r, "knowledge/other/INDEX.md", "# other\n");
+    mkdirSync(join(r, "memory/other/instincts"), { recursive: true });
+    renameSync(join(r, INSTINCT_PAGE), join(r, "memory/other/instincts/habit.md"));
+  },
+  "memory/other/instincts/habit.md",
+);
+breaks(
+  "a memory in a namespace's folder in a brain of format 2, which keeps none",
+  5,
+  (r) => edit(r, "kioku.yaml", (t) => t.replace(/format: \d+/, "format: 2")),
+  MEMORY_PAGE,
 );
 breaks(
   "a knowledge page in another namespace's folder",
@@ -165,16 +188,16 @@ breaks(
 breaks(
   "a format newer than the tool reads",
   10,
-  (r) => edit(r, "kioku.yaml", (t) => t.replace("format: 2", "format: 4")),
+  (r) => edit(r, "kioku.yaml", (t) => t.replace(/format: \d+/, "format: 99")),
   "kioku.yaml",
 );
 
 test("rule 10 names both numbers", () =>
   withBrain((root) => {
-    edit(root, "kioku.yaml", (t) => t.replace("format: 2", "format: 7"));
+    edit(root, "kioku.yaml", (t) => t.replace(/format: \d+/, "format: 7"));
     const f = validateBrain(root).findings;
     assert.equal(f.length, 1);
-    assert.match(f[0]!.message, /format 7.*newest this tool reads \(2\)/);
+    assert.match(f[0]!.message, /format 7.*newest this tool reads \(3\)/);
   }));
 
 test("a folder that is no brain is an environment error, not a finding", () => {

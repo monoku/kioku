@@ -155,7 +155,7 @@ test("kioku brain log: today's writes of the chain, newest first, by brain; --br
     const text = await k(["brain", "log", "--brain", "northwind/brain-acme"], { tty: true });
     assert.match(
       text.raw,
-      /Staging deploys wait for a green build +save · northwind\/brain-acme · \d{4}-\d\d-\d\d \d\d:\d\d\n  memory\/staging-deploys-wait-for-a-green-build\.md · Sam/,
+      /Staging deploys wait for a green build +save · northwind\/brain-acme · \d{4}-\d\d-\d\d \d\d:\d\d\n  memory\/acme\/staging-deploys-wait-for-a-green-build\.md · Sam/,
     );
 
     const first = await k(["brain", "log", "--limit", "1"]);

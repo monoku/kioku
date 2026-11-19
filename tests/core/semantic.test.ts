@@ -26,7 +26,7 @@ const MEM = { "What happened": "x", Lesson: "x", "Rule of thumb": "x" };
 
 /** The §2.5 machine, with pages on two subjects written in both languages. */
 const PAGES = [
-  ...validPages().filter((p) => !p.path.startsWith("memory/run-migrations")),
+  ...validPages().filter((p) => !p.path.startsWith("memory/acme/run-migrations")),
   made({
     n: 70,
     type: CONTEXT,
@@ -57,7 +57,7 @@ const PAGES = [
 ];
 const WIFI = "knowledge/acme/context/office-wifi-password-location.md";
 const HOURS = "knowledge/acme/context/oficina-horario-de-la-oficina.md";
-const MIGRACIONES = "memory/migraciones-antes-del-deploy.md";
+const MIGRACIONES = "memory/acme/migraciones-antes-del-deploy.md";
 const PARTY = "knowledge/acme/context/deploy-party-before-the-weekend.md";
 
 type Run = (argv: string[], o?: { stdin?: string; tty?: boolean }) => ReturnType<World["kioku"]>;
@@ -233,7 +233,7 @@ test("a page saved after the last sync is embedded by the next search; many chan
 
     for (let i = 0; i < 40; i++)
       writeFileSync(
-        join(w.acme, `memory/bulk-${i}.md`),
+        join(w.acme, `memory/acme/bulk-${i}.md`),
         made({ n: 100 + i, type: MEMORY, title: `Bulk lesson ${i}`, sections: MEM }).text,
       );
     const many = await k(["page", "search", "wifi"]);

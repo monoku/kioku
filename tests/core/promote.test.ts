@@ -7,7 +7,7 @@ import { sh, stdinWorld } from "../world.ts";
 
 isolateGit();
 
-const MEMORY = "memory/prefer-small-commits.md";
+const MEMORY = "memory/sam/prefer-small-commits.md";
 const BODY =
   "## What happened\n\nBig commits were hard to review at Acme.\n\n## Lesson\n\nKeep commits small.\n\n## Rule of thumb\n\nOne idea per commit.\n";
 
@@ -17,11 +17,11 @@ test("promote writes the page again in a more shared brain, retires the original
     assert.equal(r.code, 0, r.raw);
     assert.equal(r.out.status, "done");
     assert.equal(r.out.brain, "northwind/brain");
-    assert.equal(r.out.path, "memory/prefer-small-commits.md");
+    assert.equal(r.out.path, "memory/northwind/prefer-small-commits.md");
     assert.deepEqual(r.out.promotedFrom, { brain: "sam/brain", path: MEMORY, action: "retired" });
 
-    const made = readFileSync(join(w.team, "memory/prefer-small-commits.md"), "utf8");
-    assert.match(made, /^source: "Promoted from sam\/brain: memory\/prefer-small-commits\.md"$/m);
+    const made = readFileSync(join(w.team, "memory/northwind/prefer-small-commits.md"), "utf8");
+    assert.match(made, /^source: "Promoted from sam\/brain: memory\/sam\/prefer-small-commits\.md"$/m);
     assert.match(made, /Big commits were hard to review at Acme/);
     assert.equal(sh(w.team, "log", "-1", "--format=%s"), "save: Prefer small commits");
 
@@ -141,7 +141,7 @@ test("--forget deletes the original; --keep leaves it as it was; --evidence and 
     assert.equal(kept.code, 0, kept.raw);
     assert.equal(kept.out.promotedFrom.action, "kept");
     assert.doesNotMatch(readFileSync(join(w.sam, MEMORY), "utf8"), /status:/);
-    const made = readFileSync(join(w.team, "memory/small-commits-at-northwind.md"), "utf8");
+    const made = readFileSync(join(w.team, "memory/northwind/small-commits-at-northwind.md"), "utf8");
     assert.match(made, /^title: Small commits at Northwind$/m);
     assert.match(made, /^evidence: "ana: keep commits small"$/m);
 

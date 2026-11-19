@@ -73,7 +73,7 @@ test("namespace add makes a path under a parent that exists, and describe change
     const flat = await k("add", "billing", "--summary", "What is charged.");
     assert.equal(flat.out.status, "done", flat.raw);
     assert.equal(flat.out.format, undefined, "nothing raises the format");
-    assert.match(readFileSync(join(w.acme, "kioku.yaml"), "utf8"), /format: 2/);
+    assert.match(readFileSync(join(w.acme, "kioku.yaml"), "utf8"), /format: 3/);
 
     const orphan = await k("add", "ops/oncall", "--summary", "Who answers.");
     assert.equal(orphan.out.error.code, "not_found", "the parent must exist");
@@ -87,9 +87,9 @@ test("namespace add makes a path under a parent that exists, and describe change
 
     const nested = await k("add", "billing/invoices", "--summary", "How an invoice is made.");
     assert.equal(nested.out.status, "done", nested.raw);
-    assert.equal(nested.out.format, undefined, "a path is a namespace in format 2 (§3.2)");
+    assert.equal(nested.out.format, undefined, "a path is a namespace in every format the tool writes (§3.2)");
     const yaml = readFileSync(join(w.acme, "kioku.yaml"), "utf8");
-    assert.match(yaml, /format: 2/);
+    assert.match(yaml, /format: 3/);
     assert.match(yaml, /- billing\/invoices/);
     assert.equal(Number(sh(w.acme, "rev-list", "--count", "HEAD")), before + 2, "one commit each");
     assert.equal(
@@ -168,6 +168,21 @@ test("a page saved under a path namespace lives in its folder, and rename takes 
       { stdin: MEM },
     );
     assert.equal(memory.out.status, "done", memory.raw);
+    assert.equal(
+      memory.out.path,
+      "memory/billing/invoices/invoices-run-at-night.md",
+      "a memory lives by namespace (§3.1)",
+    );
+    // A link out of the namespace, which must still arrive once the namespace's depth changes.
+    const out = await w.kioku([
+      "page",
+      "link",
+      memory.out.path,
+      "knowledge/acme/decisions/postgres-over-mysql.md",
+      "--brain",
+      "northwind/brain-acme",
+    ]);
+    assert.equal(out.out.status, "done", out.raw);
 
     const moved = await k("namespace", "rename", "billing", "charges", "--brain", "northwind/brain-acme");
     assert.equal(moved.out.status, "done", moved.raw);
@@ -176,10 +191,11 @@ test("a page saved under a path namespace lives in its folder, and rename takes 
     const text = readFileSync(join(w.acme, "knowledge/charges/invoices/decisions/invoices-per-month.md"), "utf8");
     assert.match(text, /^namespace: charges\/invoices$/m);
     assert.match(text, new RegExp(`^id: ${id}$`, "m"));
+    assert.ok(!existsSync(join(w.acme, "memory/billing")), "its memory moves with it (§3.1)");
     assert.match(
-      readFileSync(join(w.acme, memory.out.path), "utf8"),
+      readFileSync(join(w.acme, "memory/charges/invoices/invoices-run-at-night.md"), "utf8"),
       /^namespace: charges\/invoices$/m,
-      "a page at the root carries the path too",
+      "a memory carries the path too",
     );
     assert.match(readFileSync(join(w.acme, "knowledge/charges/invoices/INDEX.md"), "utf8"), /^# charges\/invoices$/m);
     const yaml = readFileSync(join(w.acme, "kioku.yaml"), "utf8");
@@ -205,6 +221,13 @@ test("a page saved under a path namespace lives in its folder, and rename takes 
       existsSync(join(w.acme, "knowledge/invoices/decisions/invoices-per-month.md")),
       "a new parent is a rename to a new path",
     );
+    assert.match(
+      readFileSync(join(w.acme, "memory/invoices/invoices-run-at-night.md"), "utf8"),
+      /\(\.\.\/\.\.\/knowledge\/acme\/decisions\/postgres-over-mysql\.md\)/,
+      "a link out of the namespace is written again from the new depth",
+    );
+    assert.equal((await w.kioku(["brain", "validate", "northwind/brain-acme"])).out.errors, 0);
+    assert.deepEqual((await w.kioku(["brain", "lint", "northwind/brain-acme"])).out.brains[0].brokenLinks, []);
   }));
 
 test("a path declared by hand is a namespace like any other: what it lacks is its INDEX.md, rule 9, not rule 11 (§3.2, §5.1)", () =>
@@ -339,8 +362,12 @@ test("page move gives a page another namespace: the file moves, the id stays, li
       terminal,
     );
     assert.equal(mm.out.status, "done", mm.raw);
-    assert.equal(mm.out.path, memory.out.path, "a memory keeps its folder");
-    assert.match(readFileSync(join(w.acme, memory.out.path), "utf8"), /^namespace: billing$/m);
+    assert.equal(memory.out.path, "memory/acme/night-runs.md");
+    assert.equal(mm.out.path, "memory/billing/night-runs.md", "a memory moves to its namespace's folder (§3.1)");
+    assert.equal(mm.out.from, memory.out.path);
+    assert.ok(!existsSync(join(w.acme, memory.out.path)));
+    assert.match(readFileSync(join(w.acme, mm.out.path), "utf8"), /^namespace: billing$/m);
+    assert.equal((await w.kioku(["brain", "validate", "northwind/brain-acme"])).out.errors, 0);
   }));
 
 test("save in a brain with more than one namespace and none named writes nothing and says what each is for (§3.2, §6.1)", () =>

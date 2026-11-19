@@ -20,7 +20,7 @@ import { isUlid } from "../brain/ulid.ts";
 import { AGENTS_MD } from "../brains/agents-md.ts";
 import { folderFiles } from "../brains/owned.ts";
 import { VERSION } from "../../version.ts";
-import { parseFolderConfig, type BrainConfig } from "../config/folder-config.ts";
+import { memoryByNamespace, parseFolderConfig, type BrainConfig } from "../config/folder-config.ts";
 import { environmentError } from "../errors.ts";
 import { DEPRECATED, STATUSES, verifiedShapeProblem } from "../brain/lifecycle.ts";
 import { loadFirstOf, LOAD_FIRST_MAX } from "../brain/load-first.ts";
@@ -325,14 +325,24 @@ function checkPage(ctx: Context, rel: string, text: string, ids: Map<string, str
     sink.error(4, `namespace "${namespace}" is not declared in kioku.yaml (${ctx.config.namespaces.join(", ")})`, rel);
   }
 
-  // Rule 5: the folder matches the kind and, in knowledge, the namespace.
+  // Rule 5: the folder matches the kind and, where the kind is kept by namespace, the namespace: knowledge always, and
+  // Memory from the format that keeps it so (§3.1), before which a Memory has no namespace's folder.
   const place = placementOf(rel);
+  const byNamespace = memoryByNamespace(ctx.config.format);
+  const hint = (k: string): string => folderHint(k, byNamespace);
   let located: Placement | undefined;
   if (kind !== undefined) {
-    if (place === undefined)
-      sink.error(5, `not in the folder of any kind; ${kind} pages live in ${folderHint(kind)}`, rel);
+    if (place === undefined) sink.error(5, `not in the folder of any kind; ${kind} pages live in ${hint(kind)}`, rel);
     else if (place.kind !== kind)
-      sink.error(5, `a ${kind} page in the folder of ${place.kind}; it belongs in ${folderHint(kind)}`, rel);
+      sink.error(5, `a ${kind} page in the folder of ${place.kind}; it belongs in ${hint(kind)}`, rel);
+    else if (kind === "memory" && byNamespace !== (place.namespace !== undefined))
+      sink.error(
+        5,
+        byNamespace
+          ? `a memory page outside the folder of its namespace; it belongs in ${hint(kind)}`
+          : `a memory page in the folder of a namespace, where a brain of format ${ctx.config.format} keeps none; it belongs in ${hint(kind)}`,
+        rel,
+      );
     else if (place.namespace !== undefined && namespace !== undefined && place.namespace !== namespace) {
       sink.error(5, `a page of namespace "${namespace}" in the folder of "${place.namespace}"`, rel);
     } else located = place;
@@ -415,9 +425,11 @@ function checkPage(ctx: Context, rel: string, text: string, ids: Map<string, str
 
 const exists = (ctx: Context, rel: string | undefined): boolean => rel !== undefined && ctx.onDisk(rel);
 
-const folderHint = (kind: string): string =>
+const folderHint = (kind: string, memoryByNamespace: boolean): string =>
   kind === "knowledge"
     ? "knowledge/<namespace>/decisions, playbooks or context"
     : kind === "memory"
-      ? "memory/ or memory/instincts/"
+      ? memoryByNamespace
+        ? "memory/<namespace>/ or memory/<namespace>/instincts/"
+        : "memory/ or memory/instincts/"
       : `${kind}s/`;

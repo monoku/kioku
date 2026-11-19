@@ -22,7 +22,7 @@ import { linkBetween, linksOf, pagePath, resolveLink, slugify } from "../../src/
 import { buildBody, createPage, template } from "../../src/core/brain/page.ts";
 import { isUlid, newUlid } from "../../src/core/brain/ulid.ts";
 import { readBrain, readBrainConfig } from "../../src/core/brain/brain.ts";
-import { stringifyFolderConfig } from "../../src/core/config/folder-config.ts";
+import { CURRENT_FORMAT, stringifyFolderConfig } from "../../src/core/config/folder-config.ts";
 import { scratch as scratchIn } from "../fixtures.ts";
 
 const scratch = scratchIn("brain");
@@ -164,7 +164,7 @@ const TABLE: { type: PageType; path: string; sections: string[]; changelog: bool
 for (const row of TABLE) {
   const name = `${row.type.kind}${row.type.sub ? `/${row.type.sub}` : ""}`;
   test(`§3.4 row ${name}: folder, sections, extra fields, Changelog`, () => {
-    assert.equal(pagePath(row.type, "acme", "X"), row.path);
+    assert.equal(pagePath(row.type, "acme", "X", 2), row.path);
     assert.deepEqual(placementOf(row.path), {
       ...row.type,
       ...(row.type.kind === "knowledge" && { namespace: "acme" }),
@@ -193,13 +193,27 @@ test("typeOf accepts the subkinds of §3.1 and refuses the rest with a reason", 
   assert.match(refused(typeOf("memory", "decision"))(PLAIN), /no subkind/);
 });
 
+test("placement: a Memory page under a namespace's folder names it, an instinct too (§3.1)", () => {
+  assert.deepEqual(placementOf("memory/acme/x.md"), { kind: "memory", namespace: "acme" });
+  assert.deepEqual(placementOf("memory/acme/billing/x.md"), { kind: "memory", namespace: "acme/billing" });
+  assert.deepEqual(placementOf("memory/acme/instincts/x.md"), { kind: "memory", sub: "instinct", namespace: "acme" });
+  assert.deepEqual(placementOf("memory/x.md"), { kind: "memory" });
+  assert.deepEqual(placementOf("memory/instincts/x.md"), { kind: "memory", sub: "instinct" });
+  assert.equal(pagePath({ kind: "memory" }, "acme", "X", 3), "memory/acme/x.md");
+  assert.equal(
+    pagePath({ kind: "memory", sub: "instinct" }, "acme/billing", "X", 3),
+    "memory/acme/billing/instincts/x.md",
+  );
+  assert.equal(pagePath({ kind: "memory", sub: "instinct" }, "acme", "X", 2), "memory/instincts/x.md");
+});
+
 test("placement: a file outside every kind's folder has none", () => {
   for (const p of [
     "x.md",
     "knowledge/acme/x.md",
     "knowledge/acme/notes/x.md",
-    "memory/other/x.md",
     "memory/instincts/a/b.md",
+    "memory/acme/instincts/a/b.md",
     "elsewhere/x.md",
   ]) {
     assert.equal(placementOf(p), undefined, p);
@@ -245,13 +259,13 @@ test("an all-digit id stays a string through a write", () => {
 });
 
 test("paths: slugs of titles with accents and punctuation", () => {
-  assert.equal(pagePath(DECISION_TYPE, "acme", "Postgres over MySQL"), DECISION_PATH);
+  assert.equal(pagePath(DECISION_TYPE, "acme", "Postgres over MySQL", CURRENT_FORMAT), DECISION_PATH);
   assert.equal(slugify("Migración: ¿antes o después del deploy?"), "migracion-antes-o-despues-del-deploy");
   assert.equal(slugify("  Run `pnpm test` --serially!  "), "run-pnpm-test-serially");
   assert.equal(slugify("Ñandú & café"), "nandu-cafe");
   assert.equal(slugify("a".repeat(120)).length, 80);
   assert.equal(slugify("word ".repeat(40)).endsWith("-"), false);
-  assert.throws(() => pagePath({ kind: "rule" }, "acme", "???"), /no letters or digits/);
+  assert.throws(() => pagePath({ kind: "rule" }, "acme", "???", CURRENT_FORMAT), /no letters or digits/);
 });
 
 test("links are relative and resolve to a path inside the brain", () => {

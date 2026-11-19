@@ -16,7 +16,8 @@ isolateGit();
 const commits = (root: string) => Number(sh(root, "rev-list", "--count", "HEAD"));
 const SHAPE = ["status", "brain", "path", "commit", "publication"];
 /** The fixture's instinct: three occasions in acme, one in the personal brain. */
-const INSTINCT_PATH = "memory/instincts/run-database-tests-serially.md";
+const INSTINCT_PATH = "memory/acme/instincts/run-database-tests-serially.md";
+const SAM_INSTINCT = "memory/sam/instincts/run-database-tests-serially.md";
 const SKILL_PATH = "skills/run-database-tests-serially.md";
 
 test("evolve lists the chain's instincts with three Evidence lines and not those with one", () =>
@@ -53,7 +54,7 @@ test("the third occasion says the instinct is a candidate, and no answer says au
     const second = await w.kioku([
       "page",
       "update",
-      INSTINCT_PATH,
+      SAM_INSTINCT,
       "--brain",
       "sam/brain",
       "--evidence",
@@ -67,7 +68,7 @@ test("the third occasion says the instinct is a candidate, and no answer says au
     const third = await w.kioku([
       "page",
       "update",
-      INSTINCT_PATH,
+      SAM_INSTINCT,
       "--brain",
       "sam/brain",
       "--evidence",
@@ -79,13 +80,13 @@ test("the third occasion says the instinct is a candidate, and no answer says au
     assert.equal("autoevolve" in third.out, false, "the agent never evolves one on its own");
     assert.deepEqual(
       (await w.kioku(["page", "evolve", "--brain", "sam/brain"])).out.candidates.map((c: { path: string }) => c.path),
-      [INSTINCT_PATH],
+      [SAM_INSTINCT],
     );
 
     const memory = await w.kioku([
       "page",
       "update",
-      "memory/prefer-small-commits.md",
+      "memory/sam/prefer-small-commits.md",
       "--summary",
       "Small commits find bugs.",
     ]);
@@ -154,7 +155,7 @@ test("evolve <path> writes a valid Skill and links the instinct to it in one com
     );
     assert.match(
       sectionBody(instinct.file.body, "Evidence")!,
-      /\n- 2026-10-07 Evolved into the Skill \[Run database tests serially\]\(\.\.\/\.\.\/skills\/run-database-tests-serially\.md\)\.$/,
+      /\n- 2026-10-07 Evolved into the Skill \[Run database tests serially\]\(\.\.\/\.\.\/\.\.\/skills\/run-database-tests-serially\.md\)\.$/,
     );
     assert.deepEqual(
       validateBrain(w.acme).findings.filter((f) => f.severity === "error"),
@@ -193,13 +194,13 @@ test("evolve refuses what is not an instinct, an instinct already evolved, and a
       assert.equal(notInstinct.out.status, "error");
       assert.equal(notInstinct.out.error.code, "not_instinct");
       assert.equal(
-        (await w.kioku(["page", "evolve", "memory/instincts/nothing.md", "--brain", "northwind/brain-acme"])).out.error
-          .code,
+        (await w.kioku(["page", "evolve", "memory/acme/instincts/nothing.md", "--brain", "northwind/brain-acme"])).out
+          .error.code,
         "not_found",
       );
       assert.equal((await w.kioku(["page", "evolve", "a.md", "b.md"])).out.error.code, "usage");
 
-      const taken = await w.kioku(["page", "evolve", "memory/instincts/release-a-hotfix.md"]);
+      const taken = await w.kioku(["page", "evolve", "memory/acme/instincts/release-a-hotfix.md"]);
       assert.equal(taken.out.error.code, "path_exists");
       assert.equal(sh(w.acme, "rev-parse", "HEAD"), head);
       assert.equal(sh(w.acme, "status", "--porcelain"), "");
@@ -210,7 +211,7 @@ test("evolve refuses what is not an instinct, an instinct already evolved, and a
     },
     {
       acmePages: [
-        ...validPages().filter((p) => !p.path.startsWith("memory/run-migrations")),
+        ...validPages().filter((p) => !p.path.startsWith("memory/acme/run-migrations")),
         made({
           n: 40,
           type: INSTINCT,
@@ -265,7 +266,7 @@ test("with the remote unreachable evolve commits and is pending; in the personal
     await w.kioku([
       "page",
       "update",
-      INSTINCT_PATH,
+      SAM_INSTINCT,
       "--brain",
       "sam/brain",
       "--evidence",
@@ -273,7 +274,7 @@ test("with the remote unreachable evolve commits and is pending; in the personal
       "--source",
       "Session 2026-10-07 in acme-billing",
     ]);
-    const text = await w.kioku(["page", "evolve", INSTINCT_PATH, "--brain", "sam/brain"], "", true);
+    const text = await w.kioku(["page", "evolve", SAM_INSTINCT, "--brain", "sam/brain"], "", true);
     assert.match(
       text.out,
       /^Wrote skills\/run-database-tests-serially\.md in sam\/brain \(commit [0-9a-f]+, local; sync pushes it\)\.\n$/,

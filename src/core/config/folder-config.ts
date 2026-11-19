@@ -3,9 +3,11 @@ import { isMap, parseDocument, stringify } from "yaml";
 import { parseBrainReference, parseName, referenceValue, type BrainRef } from "./brain-ref.ts";
 
 /** Formats of a brain's files that this tool reads (§5.1 rule 10, §6.4). */
-export const KNOWN_FORMATS: readonly number[] = [1, 2];
-/** The format this tool writes: `2`, the brain's `name` in its `kioku.yaml` (§3.2). */
-export const CURRENT_FORMAT = 2;
+export const KNOWN_FORMATS: readonly number[] = [1, 2, 3];
+/** The format this tool writes: `3`, a brain's Memory pages in the folder of their namespace (§3.1, §3.2). */
+export const CURRENT_FORMAT = 3;
+/** Whether a brain of this format keeps its Memory pages by namespace, `memory/<namespace>/` (§3.1): from `format: 3`. */
+export const memoryByNamespace = (format: number): boolean => format >= 3;
 /** A language tag: two or three letters, with an optional region (`en`, `es`, `es-419`, `pt-BR`) (§3.2). */
 export const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 export const TIERS = ["personal", "project", "team"] as const;

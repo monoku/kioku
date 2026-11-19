@@ -12,7 +12,7 @@ import { sh, stdinWorld as world } from "../world.ts";
 
 isolateGit();
 
-const MEMORY = "memory/prefer-small-commits.md";
+const MEMORY = "memory/sam/prefer-small-commits.md";
 const MIGRATE = "knowledge/acme/playbooks/migrate.md";
 const WHO = "knowledge/acme/context/who-is-who.md";
 const BODY =
@@ -49,7 +49,7 @@ test("a promote whose original cannot be retired answers error with the destinat
     assert.equal(r.code, 1);
     assert.equal(r.out.status, "error", r.raw);
     assert.equal(r.out.brain, "northwind/brain", "the destination's");
-    assert.equal(r.out.path, MEMORY);
+    assert.equal(r.out.path, "memory/northwind/prefer-small-commits.md");
     assert.match(r.out.commit, /^[0-9a-f]{7,}$/);
     assert.equal(r.out.publication, "pushed");
     assert.match(

@@ -158,7 +158,7 @@ test("a brain in a format newer than the tool reads is a warning with the comman
     const r = runDoctor(env(w.home));
     const c = byName(r)["brain northwind/brain-acme format"]!;
     assert.equal(c.state, "warn");
-    assert.match(c.detail, /format 99, newer than the newest this tool reads \(2\): it is read, never written/);
+    assert.match(c.detail, /format 99, newer than the newest this tool reads \(3\): it is read, never written/);
     assert.match(c.fix!, /kioku update/);
     assert.equal(r.ok, true);
   }));
