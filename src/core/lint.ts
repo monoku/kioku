@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isFrontPageAt, listMarkdown } from "./brain/brain.ts";
 import { evidenceOf, parseBrainFile, sectionBody, type BrainFile } from "./brain/file.ts";
-import { isRetired, verifiedOf } from "./brain/lifecycle.ts";
+import { isRetired } from "./brain/lifecycle.ts";
 import { placementOf } from "./brain/kinds.ts";
 import { linksOf, resolveLink } from "./brain/paths.ts";
 import { conflictsOf } from "./conflicts.ts";
@@ -16,6 +16,8 @@ import { updateIndex } from "./index/indexer.ts";
 import { sameSubject, similarPages } from "./index/similar.ts";
 export { SIMILAR_REPORT_SHARE } from "./index/similar.ts";
 import { seeAlsoEntries } from "./write/body.ts";
+import { daysSince, expiredSince, unconfirmedSince } from "./review.ts";
+export { CONFIRM_DAYS } from "./review.ts";
 import { lintReportPath } from "./state.ts";
 import { lastTouched, touchedOf } from "./touched.ts";
 import { readJson } from "./util.ts";
@@ -33,12 +35,6 @@ export const UNOPENED_DAYS = 60;
 export const UNFOLLOWED_RECALLS = 5;
 /** An instinct with this many occasions is a candidate for a Skill (§3.6). */
 export const SKILL_CANDIDATE_OCCASIONS = 3;
-/**
- * How many days a kind of page lasts without being changed or confirmed before `lint` asks. What changes
- * under people (context: who, where, which client) is asked after nine months; a way of working, a Rule or a Skill, a
- * year. A decision is history and an instinct has its own staleness: neither is asked.
- */
-export const CONFIRM_DAYS = { context: 270, playbook: 365, rule: 365, skill: 365, memory: 365 } as const;
 
 /**
  * Whether an instinct was evolved: its Evidence carries the line linking the Skill (§3.6), so it is no longer a
@@ -104,14 +100,6 @@ interface Doc {
   rel: string;
   file: BrainFile;
 }
-
-/** Whole days from `date` (YYYY-MM-DD, local) to `now`. */
-const daysSince = (date: string, now: Date): number => {
-  const [y, m, d] = date.split("-").map(Number);
-  const then = new Date(y!, m! - 1, d!);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((today.getTime() - then.getTime()) / 86_400_000);
-};
 
 /** The targets of a page's links and of its `supersedes` and `superseded_by`, as written and as resolved. */
 function targetsOf(d: Doc): { written: string; resolved: string[] }[] {
@@ -242,34 +230,17 @@ export function lintBrain(
 
   const missingSummary = live.filter((d) => d.file.front.getString("summary") === undefined).map((d) => d.rel);
 
-  const day = now.toISOString().slice(0, 10);
   const expired: LintReport["expired"] = [];
   for (const d of live) {
-    const due = d.file.front.getString("stale_after");
-    if (due !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(due) && due <= day)
-      expired.push({ path: d.rel, stale_after: due });
+    const due = expiredSince(d.file, now);
+    if (due !== undefined) expired.push({ path: d.rel, stale_after: due });
   }
 
   const touched = lastTouched(brain.root);
   const unconfirmed: LintReport["unconfirmed"] = [];
   for (const d of live) {
-    const place = placementOf(d.rel);
-    const kind = place === undefined ? undefined : (place.sub ?? place.kind);
-    const window =
-      kind !== undefined && kind in CONFIRM_DAYS ? CONFIRM_DAYS[kind as keyof typeof CONFIRM_DAYS] : undefined;
-    if (window === undefined) continue;
-    const dates = [
-      touchedOf(touched, d.rel),
-      verifiedOf(d.file.front)?.at.slice(0, 10),
-      d.file.front.getString("created"),
-    ].filter((x): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}/.test(x));
-    const since = dates
-      .map((x) => x.slice(0, 10))
-      .sort()
-      .at(-1);
-    if (since === undefined) continue;
-    const days = daysSince(since, now);
-    if (days > window) unconfirmed.push({ path: d.rel, since, days, window });
+    const found = unconfirmedSince(d.rel, d.file, touchedOf(touched, d.rel), now);
+    if (found !== undefined) unconfirmed.push({ path: d.rel, ...found });
   }
 
   const retiredLinks: LintReport["retiredLinks"] = [];

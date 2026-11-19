@@ -146,6 +146,7 @@ test("search, pages, show and log keep the fields programs read", () =>
         "status",
         "verified",
         "touched",
+        "review",
         "occasions",
         "change",
         "links",
