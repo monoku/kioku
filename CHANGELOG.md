@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.6.5
 
 - **A trusted owner covers only its own addresses.** With an owner in
   `trust.owners`, a project folder's `kioku.yaml` could give an address Kioku
