@@ -317,30 +317,32 @@ async function recallIn(
   }
 }
 
-/** What this session already opened or was already recalled, by key: not named again (§4.7). */
+/**
+ * What an agent of this session was already given, by key: not named again (§4.7). The session itself, or one of its
+ * subagents, each with a context of its own: what a subagent was named the session was not, nor the reverse. A page
+ * the session opened is known to it and is named to no one again.
+ */
 function seenIn(
   home: string,
   sessionId: string | undefined,
-  /** For the Rules about a file: what this agent, the session's own or one subagent, still holds of them. */
-  rulesOf?: { agent: string | undefined },
+  /** The subagent asking, or none for the session itself. */
+  agent?: string,
+  /** For the Rules about a file: only what the agent still holds of them, which a compaction took. */
+  rules = false,
 ): Set<string> {
   let entries = sessionId === undefined ? [] : readJournal(home, sessionId);
-  // A Rule is text the agent must still hold (§4.7): what a compaction took is given again, and what a subagent was
-  // given the session was not, nor the reverse, since each has a context of its own.
-  if (rulesOf !== undefined)
+  if (rules)
     entries = entries
       .slice(entries.findLastIndex((e) => e.what === "summary" && e.source === "compact") + 1)
-      .filter((e) => e.what === "recalled" && e.agent === rulesOf.agent);
+      .filter((e) => e.what === "recalled");
   return new Set(
-    sessionId === undefined
-      ? []
-      : entries.flatMap((e) =>
-          e.what === "opened" && e.brain !== undefined && e.path !== undefined
-            ? [keyOf({ brain: e.brain, path: e.path })]
-            : e.what === "recalled"
-              ? (e.hits ?? []).map(keyOf)
-              : [],
-        ),
+    entries.flatMap((e) =>
+      e.what === "opened" && e.brain !== undefined && e.path !== undefined
+        ? [keyOf({ brain: e.brain, path: e.path })]
+        : e.what === "recalled" && e.agent === agent
+          ? (e.hits ?? []).map(keyOf)
+          : [],
+    ),
   );
 }
 
@@ -372,8 +374,8 @@ export async function recallForPath(
         FROM applies a JOIN pages p ON p.brain = a.brain AND p.path = a.path AND p.hash = a.hash
         WHERE a.brain = ? ORDER BY p.path`)
       .all(chain.project) as unknown as (RecallPage & { glob: string })[];
-    const seen = seenIn(home, input.sessionId);
-    const given = seenIn(home, input.sessionId, { agent: input.agent });
+    const seen = seenIn(home, input.sessionId, input.agent);
+    const given = seenIn(home, input.sessionId, input.agent, true);
     const roots = new Map(chain.links.map((l) => [l.key, l.path]));
     const found = new Map<string, Recalled>();
     const rules: Recalled[] = [];

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { globMatches, globProblem } from "../../src/core/brain/applies.ts";
 import { appliesMarkerPath } from "../../src/core/index/db.ts";
-import { readJournal } from "../../src/core/session/journal.ts";
+import { readJournal, record } from "../../src/core/session/journal.ts";
 import { isolateGit } from "../remotes.ts";
 import { world, type World } from "../world.ts";
 
@@ -58,11 +58,12 @@ const SAVE = (title: string, applies: string | undefined, brain = "northwind/bra
 ];
 const BODY = "## What happened\n\nIt broke.\n\n## Lesson\n\nMind it.\n\n## Rule of thumb\n\nCheck first.\n";
 
-const touch = (w: World, tool: string, file: string, o: { session?: string; cwd?: string } = {}) =>
+const touch = (w: World, tool: string, file: string, o: { session?: string; cwd?: string; agent?: string } = {}) =>
   w.kioku(["hook", "pre-tool-path"], {
     stdin: JSON.stringify({
       cwd: o.cwd ?? w.repo,
       session_id: o.session ?? "s",
+      ...(o.agent !== undefined && { agent_id: o.agent, agent_type: "Explore" }),
       hook_event_name: "PreToolUse",
       tool_name: tool,
       tool_input: tool === "NotebookEdit" ? { notebook_path: file } : { file_path: file },
@@ -188,6 +189,32 @@ test("a page that says which files it is about is named when the agent reads or 
     await reindex(w);
     assert.ok(!existsSync(appliesMarkerPath(w.home)));
     assert.equal(contextOf(await touch(w, "Read", join(w.repo, "src/billing/invoice.ts"), { session: "f" })), "");
+  }));
+
+test("a page named to a subagent is still named to the session, and to each subagent once (§4.7)", () =>
+  world(async (w) => {
+    const saved = await w.kioku(SAVE("Billing rounds each line", "src/billing/**"), { stdin: BODY });
+    assert.equal(saved.out.status, "done", JSON.stringify(saved.out));
+    await reindex(w);
+    const file = join(w.repo, "src/billing/invoice.ts");
+    // The subagent first: its context ends with it, so the session is named the page too.
+    assert.match(contextOf(await touch(w, "Read", file, { agent: "a1" })), /Billing rounds/);
+    assert.equal(contextOf(await touch(w, "Read", file, { agent: "a1" })), "", "once to that subagent");
+    assert.match(contextOf(await touch(w, "Edit", file)), /Billing rounds/, "the session after its subagent");
+    assert.equal(contextOf(await touch(w, "Edit", file)), "", "once to the session");
+    assert.match(contextOf(await touch(w, "Read", file, { agent: "a2" })), /Billing rounds/, "another subagent");
+    const entries = readJournal(w.home, "s").filter((e) => e.what === "recalled");
+    assert.deepEqual(
+      entries.map((e) => e.agent),
+      ["a1", undefined, "a2"],
+    );
+    // A page the session opened is known to it: named to no one again.
+    await w.kioku(SAVE("Billing has a second lesson", "src/billing/**"), { stdin: BODY });
+    await reindex(w);
+    const other = "memory/acme/billing-has-a-second-lesson.md";
+    record(w.home, "s", [{ what: "opened", arrow: "read", brain: "northwind/brain-acme", path: other }], new Date());
+    assert.doesNotMatch(contextOf(await touch(w, "Read", file, { agent: "a3" })), /second lesson/);
+    assert.equal(contextOf(await touch(w, "Read", join(w.repo, "src/billing/tax.ts"))), "");
   }));
 
 test("the hook's wrapper starts nothing for a file while no page says which files it is about (§4.7)", () => {
