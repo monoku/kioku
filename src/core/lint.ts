@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isFrontPageAt, listMarkdown } from "./brain/brain.ts";
 import { evidenceOf, parseBrainFile, sectionBody, type BrainFile } from "./brain/file.ts";
-import { isRetired, verifiedOf } from "./brain/lifecycle.ts";
+import { isRetired } from "./brain/lifecycle.ts";
 import { placementOf } from "./brain/kinds.ts";
 import { linksOf, resolveLink } from "./brain/paths.ts";
 import { conflictsOf } from "./conflicts.ts";
@@ -16,6 +16,9 @@ import { updateIndex } from "./index/indexer.ts";
 import { sameSubject, similarPages } from "./index/similar.ts";
 export { SIMILAR_REPORT_SHARE } from "./index/similar.ts";
 import { seeAlsoEntries } from "./write/body.ts";
+import { outpacedBy, recordedOutpaced, type Outpaced, type RecordedOutpaced } from "./outpaced.ts";
+import { daysSince, expiredSince, pageDay, unconfirmedSince } from "./review.ts";
+export { CONFIRM_DAYS } from "./review.ts";
 import { lintReportPath } from "./state.ts";
 import { lastTouched, touchedOf } from "./touched.ts";
 import { readJson } from "./util.ts";
@@ -33,12 +36,6 @@ export const UNOPENED_DAYS = 60;
 export const UNFOLLOWED_RECALLS = 5;
 /** An instinct with this many occasions is a candidate for a Skill (§3.6). */
 export const SKILL_CANDIDATE_OCCASIONS = 3;
-/**
- * How many days a kind of page lasts without being changed or confirmed before `lint` asks. What changes
- * under people (context: who, where, which client) is asked after nine months; a way of working, a Rule or a Skill, a
- * year. A decision is history and an instinct has its own staleness: neither is asked.
- */
-export const CONFIRM_DAYS = { context: 270, playbook: 365, rule: 365, skill: 365, memory: 365 } as const;
 
 /**
  * Whether an instinct was evolved: its Evidence carries the line linking the Skill (§3.6), so it is no longer a
@@ -77,6 +74,10 @@ export interface LintReport {
   expired: { path: string; stale_after: string }[];
   /** Pages nobody has changed or confirmed for longer than their kind lasts without it (§4.4). */
   unconfirmed: { path: string; since: string; days: number; window: number }[];
+  /** In a project brain, the pages whose files have commits of a later day than the page's own (§4.4). */
+  outpaced: ({ path: string } & Outpaced)[];
+  /** When `outpaced` was worked out, in the project folder: now, or when a report recorded it; null when it never was. */
+  outpaced_as_of: string | null;
   /** Current pages (not retired, not superseded) that link to a page that was retired. */
   retiredLinks: { path: string; target: string }[];
   /** Two live pages one of which says it contradicts the other, and nothing has been done about it (§3.3). */
@@ -96,6 +97,8 @@ export interface LintReport {
   counting_since: string | null;
   /** Namespaces that do not say what they are for, in a brain that has more than one (§3.2). */
   undescribed: string[];
+  /** The brain's Rules the summary of a session started in the folder leaves out (§4.1, §4.4); set by `withRulesCut`. */
+  rulesCut: string[];
   /** How many things there are to review, all lists together. */
   count: number;
 }
@@ -104,14 +107,6 @@ interface Doc {
   rel: string;
   file: BrainFile;
 }
-
-/** Whole days from `date` (YYYY-MM-DD, local) to `now`. */
-const daysSince = (date: string, now: Date): number => {
-  const [y, m, d] = date.split("-").map(Number);
-  const then = new Date(y!, m! - 1, d!);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((today.getTime() - then.getTime()) / 86_400_000);
-};
 
 /** The targets of a page's links and of its `supersedes` and `superseded_by`, as written and as resolved. */
 function targetsOf(d: Doc): { written: string; resolved: string[] }[] {
@@ -133,13 +128,16 @@ function targetsOf(d: Doc): { written: string; resolved: string[] }[] {
 /** The reports of these brains, with the machine's index opened and closed around them. */
 export async function lintBrains(
   home: string,
-  brains: { key: string; root: string }[],
+  /** `folder`: the project folder a project brain is linted in; `recorded`: the name its report is kept under, when not `key`. */
+  brains: { key: string; root: string; folder?: string; recorded?: string }[],
   now: Date,
 ): Promise<LintReport[]> {
   const index = await openIndex(home);
   const reads = readReads(home);
   try {
-    const reports = brains.map((b) => lintBrain(b, index, now, reads));
+    const reports = brains.map((b) =>
+      lintBrain(b, index, now, reads, b.folder ?? recordedOutpaced(home, b.recorded ?? b.key)),
+    );
     // Each brain against the ones after it, the more shared: a pair is listed once, in the more specific brain.
     brains.forEach((a, i) => {
       for (const b of brains.slice(i + 1)) reports[i]!.similarElsewhere.push(...similarAcross(index, a, b));
@@ -177,6 +175,8 @@ export function lintBrain(
   index: Index,
   now: Date = new Date(),
   reads?: ReadsState,
+  /** The project folder, for a project brain linted in it; else what its report last recorded of the code (§4.4). */
+  code?: string | RecordedOutpaced,
 ): LintReport {
   updateIndex(index, [brain]);
   const docs: Doc[] = [];
@@ -242,35 +242,32 @@ export function lintBrain(
 
   const missingSummary = live.filter((d) => d.file.front.getString("summary") === undefined).map((d) => d.rel);
 
-  const day = now.toISOString().slice(0, 10);
   const expired: LintReport["expired"] = [];
   for (const d of live) {
-    const due = d.file.front.getString("stale_after");
-    if (due !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(due) && due <= day)
-      expired.push({ path: d.rel, stale_after: due });
+    const due = expiredSince(d.file, now);
+    if (due !== undefined) expired.push({ path: d.rel, stale_after: due });
   }
 
   const touched = lastTouched(brain.root);
   const unconfirmed: LintReport["unconfirmed"] = [];
   for (const d of live) {
-    const place = placementOf(d.rel);
-    const kind = place === undefined ? undefined : (place.sub ?? place.kind);
-    const window =
-      kind !== undefined && kind in CONFIRM_DAYS ? CONFIRM_DAYS[kind as keyof typeof CONFIRM_DAYS] : undefined;
-    if (window === undefined) continue;
-    const dates = [
-      touchedOf(touched, d.rel),
-      verifiedOf(d.file.front)?.at.slice(0, 10),
-      d.file.front.getString("created"),
-    ].filter((x): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}/.test(x));
-    const since = dates
-      .map((x) => x.slice(0, 10))
-      .sort()
-      .at(-1);
-    if (since === undefined) continue;
-    const days = daysSince(since, now);
-    if (days > window) unconfirmed.push({ path: d.rel, since, days, window });
+    const found = unconfirmedSince(d.rel, d.file, touchedOf(touched, d.rel), now);
+    if (found !== undefined) unconfirmed.push({ path: d.rel, ...found });
   }
+
+  // What the code did after a page (§4.4): asked of the project folder's git where the brain is linted in it; elsewhere
+  // the list last recorded, less the pages changed, confirmed or gone since.
+  const outpaced: LintReport["outpaced"] = [];
+  for (const d of live) {
+    const day = pageDay(d.file, touchedOf(touched, d.rel));
+    if (day === undefined || code === undefined || d.file.front.getString("superseded_by") !== undefined) continue;
+    const found =
+      typeof code === "string"
+        ? outpacedBy(code, day, d.file.front.getList("applies_to") ?? [])
+        : [code.pages.get(d.rel)].find((o) => o?.since === day);
+    if (found !== undefined) outpaced.push({ path: d.rel, ...found });
+  }
+  const outpaced_as_of = code === undefined ? null : typeof code === "string" ? now.toISOString() : code.as_of;
 
   const retiredLinks: LintReport["retiredLinks"] = [];
   // A superseded decision is history and always links to what replaced it.
@@ -356,6 +353,7 @@ export function lintBrain(
     skillCandidates.length +
     expired.length +
     unconfirmed.length +
+    outpaced.length +
     retiredLinks.length +
     contradictions.length +
     conflicts.length +
@@ -373,6 +371,8 @@ export function lintBrain(
     skillCandidates,
     expired,
     unconfirmed,
+    outpaced,
+    outpaced_as_of,
     retiredLinks,
     contradictions,
     conflicts,
@@ -381,8 +381,15 @@ export function lintBrain(
     similarElsewhere: [],
     counting_since: reads?.counting_since ?? null,
     undescribed,
+    rulesCut: [],
     count,
   };
+}
+
+/** A report with the Rules of its brain that a session's summary leaves out (§4.4), which count as things to review. */
+export function withRulesCut(report: LintReport, left: { brain: string; path: string }[] | undefined): LintReport {
+  const rulesCut = (left ?? []).filter((l) => l.brain === report.brain).map((l) => l.path);
+  return { ...report, rulesCut, count: report.count - report.rulesCut.length + rulesCut.length };
 }
 
 /** Keep each brain's count and report under `~/.kioku/`, for the session summary (§4.1 item 7). */
@@ -412,6 +419,7 @@ export const LINT_LISTS = [
   "skillCandidates",
   "expired",
   "unconfirmed",
+  "outpaced",
   "retiredLinks",
   "contradictions",
   "conflicts",
@@ -419,6 +427,7 @@ export const LINT_LISTS = [
   "unfollowed",
   "similarElsewhere",
   "undescribed",
+  "rulesCut",
 ] as const;
 
 /** A report with each list cut to its first `limit` entries; `totals` has the lists that were cut, with their full length. */

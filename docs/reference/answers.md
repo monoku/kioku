@@ -59,6 +59,11 @@ shape, with `status`
   save, which is nothing of the save itself, since they see it by its row, and
   to answer what they asked (spec §1.1). A page of `elsewhere` that says
   otherwise is still told.
+- `rules`, from `page save` and `page update` of a Rule, on `done`: how the
+  Rules of the folder's brains fit the summary of a session started there
+  (spec §4.1): `rules` (how many), `characters` (what they take whole), `room`
+  (what the summary leaves them) and `left`, the ones it leaves out, each
+  with `brain` and `path`; empty while they all fit.
 - `namespace`: nothing written; `namespaces`, each with `namespace`, `summary`
   (or null), `pages` and `below`.
 - `error`: `error` holds `code`, `message` and, when the validator refused the
@@ -151,10 +156,14 @@ and the team's with `from` (`folder`, `machine`); `inside`; `notLoaded` (`tier`,
 **`kioku brain lint`**: `brains`, each with `brain`, `count`, `totals` (the
 length of each list that was cut) and its lists: `similar`, `staleInstincts`,
 `superseded`, `brokenLinks`, `missingSummary`, `skillCandidates`, `expired`,
-`unconfirmed`, `retiredLinks`, `contradictions`, `conflicts`, `undescribed`,
+`unconfirmed`, `outpaced` (each with `path`, `since`, `commits` and `last`),
+`retiredLinks`, `contradictions`, `conflicts`, `undescribed`,
 `unopened` (each with `since`, `days`, `surfaced`), `unfollowed` (each with
 `path` and `recalled`) and `similarElsewhere` (each with `path`, `brain` and
-`other`, which `count` leaves out), and `counting_since`.
+`other`, which `count` leaves out), `counting_since`, and `outpaced_as_of`
+(when `outpaced` was worked out in the project folder, or null). `rulesCut` lists
+the brain's Rules that the summary of a session started in the folder leaves
+out.
 
 **`kioku handoff`**: every answer has `folder` and `branch` (null outside a
 repository, or with none checked out). `set` adds `status` (`done`) and `at`;
@@ -180,7 +189,8 @@ its `source_version`.
 
 **`kioku brain upgrade`**: `brain`, `from` and `to`, the formats before and
 after, and, when it raised the brain, `commit` and `published` (`pushed`,
-`pending`, `local`).
+`pending`, `local`), and `moved`, the memory pages it put in the folder of
+their namespace, each with `from` and `to`, when it moved any.
 
 **`kioku brain refresh`**: `brains`, each with `brain`, `path`, `written`,
 `commit`, `publication` and, when left, `left` (`newer`, `build`) and
@@ -208,12 +218,16 @@ tree.
 **`kioku page search`**: `mode` (`hybrid`, `full-text`), `reason` when
 full text alone, `limit`, `more`, and `hits`, each with `brain`, `path`, `id`,
 `title`, `kind`, `subkind`, `namespace`, `summary`, `snippet`, `created`,
-`touched` and, with `--include-retired`, `status` (`deprecated`, `superseded`).
+`touched`, with `--include-retired` `status` (`deprecated`, `superseded`),
+and, on a hit of a page due a second look, `review` (`reason`: `outpaced`,
+`expired` or `unconfirmed`; `since`, the day it counts from; for `outpaced`,
+`commits` and `last`).
 
 **`kioku page list`**: `pages`, `total`, `offset`, `limit` and `next`. A page
 has `brain`, `path`, `id`, `kind`, `subkind`, `namespace`, `title`, `summary`,
 `aliases`, `created`, `source`, `source_version`, `evidence`, `stale_after`,
-`applies_to` (a list, empty when the page names no files), `supersedes`, `superseded_by`, `status`, `verified`, `touched`, `occasions`
+`applies_to` (a list, empty when the page names no files), `supersedes`, `superseded_by`, `status`, `verified`, `touched`,
+`review` (`reason` and `since`, as a search hit's, or null), `occasions`
 (an instinct's), `change` (`added`, `changed`, or null), `links`, `linkedFrom`
 and `relations` (`type`, `path`).
 

@@ -38,7 +38,7 @@ test("the demo builds, every brain validates, and the maintenance report has a f
 
     const pages = await kioku(["page", "list", "--brain", name, "--limit", "1000"]);
     assert.ok(pages.pages.length >= 60, `${name} holds a brain's worth of pages`);
-    // Namespaces are a tree (§3.2): some are under another, every one says what it is for, and the brain is format 1.
+    // Namespaces are a tree (§3.2): some are under another, every one says what it is for, and the brain is of the format the tool writes.
     const tree = (await kioku(["namespace", "list", "--brain", name])).brains[0].namespaces as {
       namespace: string;
       depth: number;
@@ -54,7 +54,15 @@ test("the demo builds, every brain validates, and the maintenance report has a f
       `${name}: every namespace says what it is for`,
     );
     const yaml = readFileSync(join(out, "brains", name, "kioku.yaml"), "utf8");
-    assert.match(yaml, /^format: 2$/m);
+    assert.match(yaml, /^format: 3$/m);
+    // Memory is kept by namespace (§3.1): every Memory page names one in its path, none in `memory/` itself.
+    const memories = (pages.pages as { path: string }[]).filter((p) => p.path.startsWith("memory/"));
+    assert.ok(memories.length > 0, `${name} holds memories`);
+    assert.deepEqual(
+      memories.filter((p) => !/^memory\/.+\/[^/]+\.md$/.test(p.path) || p.path.startsWith("memory/instincts/")),
+      [],
+      `${name}: every memory is in the folder of its namespace`,
+    );
     assert.ok(yaml.includes(`\nname: ${name}\n`), `${name}: the brain carries its name (§2.2)`);
     const lint = (await kioku(["brain", "lint", name])).brains[0];
     assert.ok(lint.count >= 5 && lint.count <= 40, `${name}: ${lint.count} things to review`);
@@ -113,6 +121,7 @@ test("the demo builds, every brain validates, and the maintenance report has a f
     "skillCandidates",
     "expired",
     "unconfirmed",
+    "outpaced",
     "retiredLinks",
     "contradictions",
   ]) {

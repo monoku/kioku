@@ -1,7 +1,9 @@
 import { brainRepoOfKey } from "../core/config/brain-ref.ts";
 import { sectionBody, sectionsOf } from "../core/brain/file.ts";
 import { userError } from "../core/errors.ts";
+import { recordedOutpaced } from "../core/outpaced.ts";
 import { changesOf, pagesOf, showPage, type PageRecord, type ShownPage } from "../core/pages.ts";
+import { REVIEW_ADVICE, reviewSaid, type Review } from "../core/review.ts";
 import { recordOpened } from "../core/reads.ts";
 import { parseVerb } from "./args.ts";
 import { chainBrains, locate, pickBrain } from "./chain.ts";
@@ -21,7 +23,9 @@ export const runPages: Handler = (args, ctx) => {
   const { limit, offset } = windowOf(v.limit, v.offset);
   const chain = chainBrains(ctx);
   const brains = v.brain === undefined ? chain.filter((b) => b.cloned) : [pickBrain(chain, v.brain, ctx)];
-  let pages = brains.flatMap((b) => pagesOf(b, changesOf(ctx.home, b)));
+  let pages = brains.flatMap((b) =>
+    pagesOf(b, changesOf(ctx.home, b), ctx.now(), recordedOutpaced(ctx.home, b.key).pages),
+  );
   if (v.kind !== undefined) pages = pages.filter((p) => p.kind === v.kind);
   if (v.namespace !== undefined) pages = pages.filter((p) => p.namespace === v.namespace);
   const total = pages.length;
@@ -75,7 +79,13 @@ export const runShow: Handler = (args, ctx) => {
     throw userError("--head takes a whole number of lines, at least 1", "usage");
 
   const where = locate(ctx, parsed.positionals[0]!, parsed.values.brain);
-  const page = showPage(where.brain, where.rel, changesOf(ctx.home, where.brain));
+  const page = showPage(
+    where.brain,
+    where.rel,
+    changesOf(ctx.home, where.brain),
+    ctx.now(),
+    recordedOutpaced(ctx.home, where.brain.key).pages,
+  );
   if (page === undefined)
     throw userError(`${where.rel} is not a page of ${brainRepoOfKey(where.brain.key)}`, "not_a_page");
   // Opening a page is counted (§4.5), whole or in part; a count never fails a read.
@@ -116,7 +126,11 @@ export const runShow: Handler = (args, ctx) => {
     .filter(
       ([k, v]) => k !== "brain" && k !== "path" && k !== "title" && v !== null && !(Array.isArray(v) && v.length === 0),
     )
-    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`);
+    .map(([k, v]) =>
+      k === "review"
+        ? `review: ${reviewSaid(v as Review)}; ${REVIEW_ADVICE}`
+        : `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`,
+    );
   const log =
     history.length === 0
       ? ""
@@ -136,7 +150,12 @@ function headline(p: PageRecord): string {
 
 /** A page as two lines: its title, with where it is from and when it was touched, and under it the path `show` takes. */
 function describe(p: PageRecord, ui: Ui): string {
-  const meta = [p.brain, p.subkind ?? p.kind ?? "?", ...(p.touched ? [p.touched] : [])].join(" · ");
+  const meta = [
+    p.brain,
+    p.subkind ?? p.kind ?? "?",
+    ...(p.touched ? [p.touched] : []),
+    ...(p.review ? [reviewSaid(p.review)] : []),
+  ].join(" · ");
   return entry(ui, p.title, meta, [{ text: p.path, keepEnd: true }]);
 }
 

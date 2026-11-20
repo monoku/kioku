@@ -120,6 +120,7 @@ async function saveOrCreate(p: PagePlan, at: Date): Promise<string> {
     ...(p.evidence ? ["--evidence", p.evidence] : []),
     ...(p.aliases ? ["--aliases", p.aliases.join(",")] : []),
     ...(p.staleAfter ? ["--stale-after", p.staleAfter] : []),
+    ...(p.appliesTo ? ["--applies-to", p.appliesTo.join(",")] : []),
     ...(p.sourceVersion ? ["--source-version", p.sourceVersion] : []),
   ];
   const body = sectionsToBody(p.sections);
@@ -231,9 +232,20 @@ async function main(): Promise<void> {
     writeFileSync(join(app, "src", module, "index.ts"), `// Northwind's ${module} module, standing in.\nexport {};\n`);
   }
   writeFileSync(join(app, "src", "server.ts"), "// Northwind's orders API, standing in.\nexport {};\n");
+  // The app's own history, on the demo's timeline: it begins before every page, and one module changes long after the
+  // page that is about it was written, so that lint has a page the code outpaced to show (§4.4).
+  const appCommit = (at: Date, message: string): void => {
+    Object.assign(process.env, { GIT_AUTHOR_DATE: at.toISOString(), GIT_COMMITTER_DATE: at.toISOString() });
+    git(app, ["add", "-A"]);
+    git(app, ["commit", "-q", "-m", message]);
+  };
   git(app, ["init", "-q", "-b", "main"]);
-  git(app, ["add", "-A"]);
-  git(app, ["commit", "-q", "-m", "Link the app to its brains"]);
+  appCommit(new Date(TODAY.getTime() - 900 * 86_400_000), "Link the app to its brains");
+  writeFileSync(
+    join(app, "src", "invoicing", "index.ts"),
+    "// Northwind's invoicing module, standing in.\n// An invoice's number is taken when it is paid, not when it is issued.\nexport {};\n",
+  );
+  appCommit(new Date(TODAY.getTime() - 20 * 86_400_000), "Number an invoice when it is paid");
 
   // Every write as an event on the timeline, oldest first, so history and `touched` tell the truth.
   const events: Event[] = [];

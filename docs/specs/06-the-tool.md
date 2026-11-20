@@ -69,8 +69,8 @@ and steps are not messages (§1.2). `setup`, `brain create`, `brain remove` and
 | | `brain log` | the writes of the chain's brains, newest first, from each brain's history, with who and how (`via`, §1.6); a window |
 | | `brain stats` | what the writes of the chain's brains add up to over a span, by verb and by `via`, naming no author, with how many saved pages were forgotten and not restored, and this machine's count of pages opened, and of the times a recall named a page and the session then opened it (§4.5) |
 | | `brain sources` | what was ingested, per source, with the version each page was written from (§1.7) |
-| pages, reading | `page search` | the mode and the hits, each with its page and a snippet (§4.3) |
-| | `page list` | the pages of the chain's brains, or of one, with their fields, their links both ways (§3.3) and what changed since this machine's last session (§4.1); a window |
+| pages, reading | `page search` | the mode and the hits, each with its page, a snippet (§4.3) and, when the page is due a second look, why (§4.4) |
+| | `page list` | the pages of the chain's brains, or of one, with their fields, their links both ways (§3.3) what changed since this machine's last session (§4.1) and which are due a second look (§4.4); a window |
 | | `page show` | one page: the same fields, its body or one slice of it, and its history (§3.3) |
 | pages, writing | `page save` | answers the similar pages instead of writing when it finds some, else writes; in a brain with several namespaces and none named, says what each is for (§1.4, §3.2) |
 | | `page update` | edits a page in place and appends its Changelog or Evidence line; one that changes nothing is refused (§3.5) |

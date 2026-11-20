@@ -7,7 +7,7 @@ import { sh, stdinWorld } from "../world.ts";
 
 isolateGit();
 
-const INSTINCT = "memory/instincts/run-database-tests-serially.md";
+const INSTINCT = "memory/sam/instincts/run-database-tests-serially.md";
 
 test("evolve --to rule writes a Rule that reads as one sentence, links the instinct to it and ends its candidacy (§3.6)", () =>
   stdinWorld(async (w) => {
@@ -25,7 +25,7 @@ test("evolve --to rule writes a Rule that reads as one sentence, links the insti
     const instinct = readFileSync(join(w.sam, INSTINCT), "utf8");
     assert.match(
       instinct,
-      /Evolved into the Rule \[Run database tests serially\]\(\.\.\/\.\.\/rules\/run-database-tests-serially\.md\)/,
+      /Evolved into the Rule \[Run database tests serially\]\(\.\.\/\.\.\/\.\.\/rules\/run-database-tests-serially\.md\)/,
     );
     const again = await w.kioku(["page", "evolve", INSTINCT, "--brain", "sam/brain", "--to", "playbook"]);
     assert.equal(again.out.error.code, "already_evolved");

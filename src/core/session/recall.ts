@@ -1,4 +1,5 @@
-import { isAbsolute, relative, sep } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
+import { readBrainFile } from "../brain/file.ts";
 import { globMatches } from "../brain/applies.ts";
 import { resolveChain } from "../config/chain.ts";
 import type { MachineConfig } from "../config/machine.ts";
@@ -11,7 +12,11 @@ import { brainRepoOfKey } from "../config/brain-ref.ts";
 import { readJournal } from "./journal.ts";
 import { historyRow, type Message } from "./message.ts";
 import { RECALL_MIN_PAGES } from "./recall-floor.ts";
-import { plural } from "../util.ts";
+import { fileOutpaced, recordedOutpaced } from "../outpaced.ts";
+import { REVIEW_ADVICE, expiredSince, pageDay, reviewOf, reviewSaid, type Review } from "../review.ts";
+import { lintReportPath } from "../state.ts";
+import { lastTouchOf } from "../touched.ts";
+import { plural, readJson } from "../util.ts";
 
 /**
  * At each prompt (§4.7): the few pages that stand out by meaning, named for the agent, never their text. The agent
@@ -58,6 +63,8 @@ export interface Recalled {
   id: string | null;
   title: string;
   summary: string;
+  /** Why it is due a second look, when it is (§4.4): said at the end of its line. */
+  review?: Review;
 }
 
 /** A page the recall weighs: what its line would say, and what decides whether it may be named. */
@@ -239,7 +246,7 @@ export const asksRecall = (prompt: string): boolean =>
 export async function recallFor(
   home: string,
   config: MachineConfig,
-  input: { cwd: string; prompt: string; sessionId?: string },
+  input: { cwd: string; prompt: string; sessionId?: string; now?: Date },
   semantic: SemanticDeps,
   tuning: RecallTuning = RECALL_TUNING,
 ): Promise<Recall> {
@@ -248,12 +255,17 @@ export async function recallFor(
   if (chain.inside !== undefined) return NOTHING;
   const keys = chain.links.filter((l) => l.cloned).map((l) => l.key);
   if (keys.length === 0) return NOTHING;
+  const roots = new Map(chain.links.map((l) => [l.key, l.path]));
+  const found = async (): Promise<Recall> => {
+    const recall = await recallIn(home, keys, input, semantic, tuning);
+    return { ...recall, pages: marked(home, roots, recall.pages, input.now ?? new Date()) };
+  };
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<Recall>((done) => {
     timer = setTimeout(() => done(NOTHING), tuning.budgetMs);
   });
   try {
-    return await Promise.race([late, recallIn(home, keys, input, semantic, tuning)]);
+    return await Promise.race([late, found()]);
   } finally {
     clearTimeout(timer);
   }
@@ -326,7 +338,7 @@ function seenIn(home: string, sessionId: string | undefined): Set<string> {
 export async function recallForPath(
   home: string,
   config: MachineConfig,
-  input: { cwd: string; file: string; sessionId?: string },
+  input: { cwd: string; file: string; sessionId?: string; now?: Date },
   max: number = RECALL_MAX,
 ): Promise<Recalled[]> {
   const chain = resolveChain(input.cwd, config, home);
@@ -351,7 +363,11 @@ export async function recallForPath(
       if (found.has(keyOf(page)) || seen.has(keyOf(page)) || !recallable({ kind, status })) continue;
       if (globMatches(glob, path)) found.set(keyOf(page), page);
     }
-    return [...found.values()].slice(0, max);
+    const roots = new Map(chain.links.map((l) => [l.key, l.path]));
+    return marked(home, roots, [...found.values()].slice(0, max), input.now ?? new Date(), {
+      folder: chain.root,
+      file: path,
+    });
   } catch {
     // An index an older version made has no such table: no page says what it is about yet.
     return [];
@@ -360,16 +376,57 @@ export async function recallForPath(
   }
 }
 
+/**
+ * The pages a recall names, each with its mark when it is due a second look (§4.4, §4.7). Past its date is read from
+ * the page. Not changed or confirmed is taken from the report last recorded for the brain, since a hook does not read
+ * a brain's whole history, and then asked of the page as it is: one question to git, for a page the report lists.
+ * A page that cannot be read, or a report that cannot, marks nothing: a mark never fails a recall.
+ */
+function marked(
+  home: string,
+  roots: Map<string, string>,
+  pages: Recalled[],
+  now: Date,
+  /** The file the pages were named for, relative to the project folder: the mark is then about that file (§4.7). */
+  at?: { folder: string; file: string },
+): Recalled[] {
+  let recorded: Record<string, { report?: { unconfirmed?: { path: string }[] } }> | undefined;
+  return pages.map((page) => {
+    try {
+      const root = roots.get(page.brain);
+      const read = root === undefined ? undefined : readBrainFile(join(root, page.path));
+      if (root === undefined || read === undefined || !read.ok) return page;
+      // What the code did after the page comes first: at a file, asked of git for that file; at a prompt, the report's.
+      const listed = at === undefined ? recordedOutpaced(home, page.brain).pages.get(page.path) : undefined;
+      if (at !== undefined || listed !== undefined) {
+        const touched = lastTouchOf(root, page.path);
+        const day = pageDay(read.file, touched);
+        const outpaced = at !== undefined && day !== undefined ? fileOutpaced(at.folder, day, at.file) : listed;
+        const review = outpaced === undefined ? undefined : reviewOf(page.path, read.file, touched, now, outpaced);
+        if (review?.reason === "outpaced") return { ...page, review };
+      }
+      const expired = expiredSince(read.file, now);
+      if (expired !== undefined) return { ...page, review: { reason: "expired" as const, since: expired } };
+      recorded ??= readJson(lintReportPath(home)) ?? {};
+      if (!(recorded[page.brain]?.report?.unconfirmed ?? []).some((u) => u.path === page.path)) return page;
+      const review = reviewOf(page.path, read.file, lastTouchOf(root, page.path), now);
+      return review === undefined ? page : { ...page, review };
+    } catch {
+      return page;
+    }
+  });
+}
+
 /** What a prompt's context carries for the pages it recalled (§4.7): one line each, under what to do with them. */
 export function recallText(pages: Recalled[], by: RecallBy = "meaning"): string {
   return [
     by === "path" ? "## Kioku: pages about this file" : "## Kioku: pages that may bear on this prompt",
     "",
-    `Found by ${by === "words" ? "the words of this prompt" : by === "path" ? "the file you just read or are changing, which each says it is about," : "meaning"} in the brains of this session. Read one with \`kioku page show <path> --brain <brain>\` before relying on it; the line here is only its summary.`,
+    `Found by ${by === "words" ? "the words of this prompt" : by === "path" ? "the file you just read or are changing, which each says it is about," : "meaning"} in the brains of this session. Read one with \`kioku page show <path> --brain <brain>\` before relying on it; the line here is only its summary.${pages.some((p) => p.review !== undefined) ? ` A line that ends in brackets is due a second look: ${REVIEW_ADVICE}.` : ""}`,
     "",
     ...pages.map((p) => {
       const summary = oneLine(p.summary);
-      return `- ${oneLine(p.title)}${summary === "" ? "" : `: ${summary}`} (${brainRepoOfKey(p.brain)}, ${oneLine(p.path)})`;
+      return `- ${oneLine(p.title)}${summary === "" ? "" : `: ${summary}`} (${brainRepoOfKey(p.brain)}, ${oneLine(p.path)})${p.review === undefined ? "" : ` [${reviewSaid(p.review, by === "path")}]`}`;
     }),
   ].join("\n");
 }

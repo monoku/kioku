@@ -21,6 +21,15 @@ in this order, until the cap:
    sections the tool keeps); when the cap cuts them, a last line says so and how to list
    them.
 
+That the Rules no longer fit is known when one is written, not a session
+later: `page save` and `page update` of a Rule answer how the Rules of the
+folder's brains fit the summary of a session started there, `rules`: how many
+there are, the characters they take whole, the room the summary leaves them,
+and the ones it leaves out, the least specific brain's last. It is worked out
+by what composes the summary, and the write is done either way: it is a
+report, as a Rule's own length is (§5.1). `brain lint` lists the Rules left
+out (§4.4).
+
 **What the memory holds.** After its heading, the tool adds, in this order,
 until the cap:
 
@@ -122,7 +131,10 @@ brain of the machine, and reindexes them for full text, leaving meaning to the
 next `sync`. With `--background`, a failed fetch of the search model (§4.3) is
 tried again after six hours; by hand it is tried at once, as a step that names
 its size. Commits of this machine that cannot go on top of what others
-published are kept on a branch, and the brain is `conflict` (§1.6).
+published are kept on a branch, and the brain is `conflict` (§1.6). In a brain
+of format 3, Memory pages the pull brought outside the folder of their
+namespace are moved there, in one commit that is then pushed (§3.2); one with
+no namespace of the brain stays where it is, for the validator to name.
 
 ## 4.3 Search
 
@@ -156,7 +168,8 @@ itself; until the model is on the machine, or while more pages wait, it
 answers with full text alone and says why; with `--json` it answers
 `{mode, reason, hits}`. A retired or superseded page is a hit only with
 `--include-retired`, and its hit carries `status`, `deprecated` or
-`superseded`. `doctor` reports the same, and how many pages are indexed by
+`superseded`. A hit of a page due a second look says so, `review`, and ranks
+where it ranked (§4.4). `doctor` reports the same, and how many pages are indexed by
 meaning. Indexing a whole brain never runs inside a hook. The similar pages of
 `save` (§1.4) come from full text alone: a page whose title holds every word
 of the new title first, then by the share of the new page's words each holds;
@@ -184,17 +197,47 @@ model:
   confirmed for longer than their kind lasts: nine months for context, a year
   for a playbook, a Rule, a Skill or a Memory, the same in every brain;
   decisions and instincts are left out;
+- in a project brain, the pages the code has outpaced: a page that says which
+  files it is about (`applies_to`, §3.3), when those files, in the project
+  folder, have commits of a later day than the one the page was last changed
+  or confirmed, with how many and the day of the last. Commits only: what is
+  not committed is the session's own work. It is read from the project
+  folder's git, with no model, by `sync` and by `brain lint` run in the
+  project folder; run elsewhere, `brain lint` answers the list last recorded
+  and says from when. Where the folder is no git repository there is no list
+  and no error. A page whose globs match no file is the validator's (§5.1);
 - the pages this machine has not opened (§4.5), saying since when it counts,
   and those a recall keeps naming and no session opens, whose title and
   summary, all a recall shows of them, are to reword, or the page to retire;
 - in a brain with more than one namespace, the namespaces not described
-  (§3.2).
+  (§3.2);
+- the Rules of the brain that the summary of a session started in this folder
+  leaves out, because the Rules of its brains do not all fit (§4.1): to
+  revise, or to fold into one. Worked out for the brains of the folder's
+  chain; a brain linted from outside one has no such list.
 
 Each list shows its first 20 entries and says how many there are (§6.1).
 `sync` refreshes the report and the summary carries its count (§4.1). The
 action happens in conversation, with the verbs of §6.1, when the person asks:
 linking a pair or merging it, forgetting a page or a stale instinct, evolving a candidate,
 confirming a page that is still true or retiring one that is not.
+
+**Said where the page is used.** The report is read when someone asks for it,
+and a page is relied on long before. So a page past its `stale_after` date, or
+one nobody has changed or confirmed for longer than its kind lasts, says so
+wherever the tool gives it: in `page show` and `page list`, in a hit of `page
+search` (§4.3), and in the line a recall names it by (§4.7). So does a page
+the code has outpaced. The mark, `review`, says why, `outpaced`, `expired` or
+`unconfirmed`, the first of them that is true, since commits are evidence and
+the other two a calendar, and the day it counts from: the `stale_after` date,
+or the day the page was last changed or confirmed; for `outpaced`, also how
+many commits and the day of the last. That a page is outpaced is taken from
+the report last recorded, and holds only while the page's day is the one the
+report counted from. It hides nothing, orders nothing and retires
+nothing: a marked page is where it would be without the mark, and the mark
+ends the moment the page is confirmed or changed. A retired page has none. Not
+in the session summary (§4.1): its lines are counted against the host's cap,
+and a Rule, whole there, is the person's to confirm from the report.
 
 ## 4.5 What is opened
 
@@ -320,6 +363,23 @@ the index is brought up to date, by a `sync`, a search or a save (§4.3). Where
 no page of the machine's brains says which files it is about, the hook's
 wrapper ends before it starts the tool, so every other machine pays nothing
 for it.
+
+**Due a second look.** The line of a page that is (§4.4) ends with why and
+since when, and the line above the pages then says that a marked page is
+checked before it is relied on, and that `kioku page confirm` says it is still
+true. The mark is part of its line. That a page is past its date is read from
+the page. That nobody changed or confirmed it is taken from the report `sync`
+or `brain lint` last recorded for its brain, since a hook does not read a
+brain's whole history, and then asked of the page as it is, so one confirmed
+or changed since has no mark; on a machine with no report yet, only a page
+past its date is marked.
+
+At a file, the mark is about that file: whether it has a commit of a later
+day than the page's, asked of the project folder's git for that one path, and
+only when a page was named, so a machine with no such page still pays nothing.
+At a prompt, it is the report's: the page's files changed, as of the last
+`sync`. The report holds pages, counts and days, never a path of the
+project's files.
 
 Never recalled: a Rule, whole in every summary (§4.1); a retired or superseded
 page (§3.5); a page this session already opened or was already recalled. Nothing

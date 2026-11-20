@@ -5,6 +5,8 @@ import { updateIndex, type IndexedBrain } from "../core/index/indexer.ts";
 import { rankedSearch, type Ranked } from "../core/index/hybrid.ts";
 import { windowOf } from "../core/limit.ts";
 import { openMeaning } from "../core/semantic/meaning.ts";
+import { recordedOutpaced, type Outpaced } from "../core/outpaced.ts";
+import { REVIEW_ADVICE, reviewOf, reviewSaid, type Review } from "../core/review.ts";
 import { lastTouched, touchedOf } from "../core/touched.ts";
 import { readBrainFile } from "../core/brain/file.ts";
 import { parseVerb } from "./args.ts";
@@ -51,19 +53,30 @@ export const runSearch: Handler = async (args, ctx) => {
   const byKey = new Map(brains.map((b) => [b.key, b]));
   // The dates come from the file and from git, for the few pages a search returns (§3.3).
   const touched = new Map<string, Map<string, string>>();
+  const outpaced = new Map<string, Map<string, Outpaced>>();
   // One hit more than asked for: it is how the answer knows there are more (§6.1, bounded answers).
   const wanted = ranked.hits.filter((h) => includeRetired || h.status === null);
   const more = wanted.length > limit;
   const hits = wanted.slice(0, limit).map(({ status, ...h }) => {
     const b = byKey.get(h.brain);
-    if (b !== undefined && !touched.has(b.key)) touched.set(b.key, lastTouched(b.root));
+    if (b !== undefined && !touched.has(b.key)) {
+      touched.set(b.key, lastTouched(b.root));
+      outpaced.set(b.key, recordedOutpaced(ctx.home, b.key).pages);
+    }
     const file = b === undefined ? undefined : readBrainFile(`${b.root}/${h.path}`);
+    const last = b === undefined ? null : touchedOf(touched.get(b.key)!, h.path);
+    // A page due a second look says so where it is found (§4.4); a retired or superseded one is history already.
+    const review =
+      file?.ok && status === null
+        ? reviewOf(h.path, file.file, last, ctx.now(), b === undefined ? undefined : outpaced.get(b.key)?.get(h.path))
+        : undefined;
     return {
       ...h,
       ...(status !== null && { status }),
       brain: b?.key ?? h.brain,
       created: file?.ok ? (file.file.front.getString("created") ?? null) : null,
-      touched: b === undefined ? null : touchedOf(touched.get(b.key)!, h.path),
+      touched: last,
+      ...(review !== undefined && { review }),
     };
   });
   const lines =
@@ -71,6 +84,7 @@ export const runSearch: Handler = async (args, ctx) => {
       ? [nothingIn(`Nothing found for "${query}"`, brains)]
       : hits.map((h) => describe(h, ctx.ui ?? PLAIN));
   if (more) lines.push(`… more hits: narrow the words, or --limit ${limit * 2}`);
+  if (hits.some((h) => h.review !== undefined)) lines.push(paint(ctx.ui ?? PLAIN).dim(`Due a look: ${REVIEW_ADVICE}.`));
   if (ranked.mode === "full-text") lines.push(paint(ctx.ui ?? PLAIN).dim(`Full text only: ${ranked.reason}.`));
   return {
     data: { mode: ranked.mode, ...(ranked.reason !== undefined && { reason: ranked.reason }), hits, limit, more },
@@ -88,11 +102,13 @@ function describe(
     title: string;
     snippet: string;
     status?: string;
+    review?: Review;
   },
   ui: Ui,
 ): string {
   const state = h.status === undefined ? [] : [h.status === "superseded" ? "superseded" : "retired"];
-  const meta = [brainRepoOfKey(h.brain), h.subkind ?? h.kind ?? "?", ...state].join(" · ");
+  const due = h.review === undefined ? [] : [reviewSaid(h.review)];
+  const meta = [brainRepoOfKey(h.brain), h.subkind ?? h.kind ?? "?", ...state, ...due].join(" · ");
   return entry(ui, h.title, meta, [
     { text: h.path, keepEnd: true },
     { text: highlight(ui, h.snippet.replace(/\s+/g, " ").trim()), dim: false },

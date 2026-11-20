@@ -283,7 +283,7 @@ A project folder's `kioku.yaml`, committed with the code (§2.4), has `brain`,
 Between them, the most specific brain wins (§2.1).
 
 ```yaml
-format: 2
+format: 3
 name: northwind/app-brain
 tier: project
 namespaces: [app]

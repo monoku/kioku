@@ -4,6 +4,68 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## 0.7.0
+
+- **Writing a Rule says whether the Rules still fit.** The Rules of a session's
+  brains go whole into its summary, under the host's cap of 10,000 characters,
+  and that they no longer all fit was said only by a line of the next
+  session's summary, when one was cut already. `kioku page save` and `kioku
+  page update` of a Rule now answer `rules`: how many there are, the characters
+  they take, the room the summary leaves them, and the ones it leaves out.
+  `kioku brain lint` lists those under `rulesCut`. The write is done either
+  way; the skill tells the agent to revise or fold Rules before adding one.
+
+- **A page says when the code it is about changed after it.** A page of a
+  project brain that names files (`applies_to`) is now compared with the
+  project folder's history: when those files have commits of a later day than
+  the one the page was last changed or confirmed, `kioku brain lint` lists it
+  under `outpaced`, with how many commits and the day of the last, and the
+  page's `review` says so, before the other two reasons, in `kioku page show`,
+  `kioku page list` and a search hit. When the agent reads or changes a file
+  and a page is named for it, the line says whether that file changed after
+  the page. It is read from git, with no model, by `sync` and by `brain lint`
+  run in the project folder; what is not committed says nothing, and a folder
+  that is no repository has no list. `kioku page confirm` or an update moves
+  the page's day and ends the mark.
+
+- **A page due a second look says so where it is used.** That a page is past
+  its `stale_after` date, or that nobody has changed or confirmed it for longer
+  than its kind lasts, was said only by `kioku brain lint`, which is read when
+  someone asks. It is now said beside the page: `kioku page show`, `kioku page
+  list` and each hit of `kioku page search` answer `review`, with why
+  (`expired`, `unconfirmed`) and the day it counts from, and the line a recall
+  names a page by, at a prompt or at a file, ends with it. Nothing is hidden or
+  reordered, and `kioku page confirm` or an update ends the mark at once. At a
+  recall, that a page is not confirmed is taken from the report the last `sync`
+  recorded.
+
+- **A brain keeps its memory pages by namespace: format 3.** Every lesson was
+  in `memory/` and every instinct in `memory/instincts/`, whatever its
+  namespace, which only its front matter said: one folder that grew with
+  everything the agent saved. A memory page now lives in
+  `memory/<namespace>/`, an instinct in `memory/<namespace>/instincts/`, as a
+  knowledge page lives in `knowledge/<namespace>/`; Rules and Skills stay as
+  they were. `kioku page move` and `kioku namespace rename` move memory pages
+  with the rest. **Moving to it:** `kioku update` raises your personal brain by
+  itself; a project or team brain is yours to raise with `kioku brain upgrade
+  <brain>`, in a terminal, once your teammates have updated, since a version
+  before this one reads a brain of format 3 and refuses to write to it
+  (`format_newer`). The raise is one commit that moves the files: ids, fields
+  and text stay, links follow, and a page keeps its last-touched day and its
+  history. It refuses, touching nothing, while a memory page names no namespace
+  of the brain (`memory_unplaced`), and lists them with the command that gives
+  each one. Until a brain is raised the tool reads and writes it as it is. A
+  memory page a teammate saved before the raise and published after is moved to
+  its folder by `sync`.
+- **A page keeps its history when it moves.** `touched` and `history` followed
+  a page's path, so a page moved to another namespace, or whose namespace was
+  renamed, looked written that day and lost what came before. They now follow
+  the page across its moves.
+- **Renaming a namespace to another depth keeps the links out of it.** A page
+  moved from `payments/billing` to `billing` kept its links as written from the
+  old depth, which then pointed nowhere and the rename was refused. They are
+  written again from where the page now is.
+
 ## 0.6.5
 
 - **A trusted owner covers only its own addresses.** With an owner in

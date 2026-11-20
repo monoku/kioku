@@ -1,10 +1,20 @@
+import { join, relative, sep } from "node:path";
 import { brainRepoOfKey } from "../core/config/brain-ref.ts";
 import { userError } from "../core/errors.ts";
 import { parseVerb } from "./args.ts";
-import { cappedReport, lintBrains, recordLint, STALE_INSTINCT_DAYS, type LintReport } from "../core/lint.ts";
+import {
+  cappedReport,
+  lintBrains,
+  recordLint,
+  STALE_INSTINCT_DAYS,
+  withRulesCut,
+  type LintReport,
+} from "../core/lint.ts";
+import { readMachineConfig } from "../core/config/machine.ts";
+import { rulesFitOf } from "../core/session/start.ts";
 import { windowOf } from "../core/limit.ts";
 import { brainKeyOf, brainsNamed } from "./brains-named.ts";
-import { chainBrains } from "./chain.ts";
+import { chainBrains, chainOf } from "./chain.ts";
 import { PLAIN, paint, plural, type Ui } from "./render.ts";
 import type { Context, Outcome } from "./run.ts";
 
@@ -18,26 +28,41 @@ export async function runBrainLint(argv: string[], ctx: Context): Promise<Outcom
   const { limit } = windowOf(parsed.values.limit, undefined);
   if (args.length > 1) throw userError("brain lint takes at most one brain", "usage");
   const chain = chainBrains(ctx);
+  const project = chainOf(ctx);
   const roots = brainsNamed(args[0], ctx, "lint");
   const targets = roots.map((root) => {
     const link = chain.find((b) => b.root === root);
     return {
       key: brainKeyOf(chain, root),
       root,
+      // A brain of this machine named from outside its chain still has the report its `sync` recorded.
+      ...(link === undefined && recordedKey(ctx.home, root)),
+      // In its project folder, a project brain is asked what the code did after its pages (§4.4).
+      ...(link !== undefined && link.key === project.project && project.root !== undefined && { folder: project.root }),
       known: link !== undefined,
     };
   });
-  const reports = await lintBrains(ctx.home, targets, ctx.now());
+  const left = rulesFitOf(ctx.home, readMachineConfig(ctx.home), ctx.cwd, ctx.now())?.left;
+  const reports = (await lintBrains(ctx.home, targets, ctx.now())).map((r) => withRulesCut(r, left));
   await recordLint(
     ctx.home,
     targets.flatMap((t, i) => (t.known ? [{ key: t.key, report: reports[i]! }] : [])),
     ctx.now(),
   );
   const shown = reports.map((r) => cappedReport(r, limit));
-  return { data: { brains: shown }, text: shown.map((r) => describeLint(r, ctx.ui ?? PLAIN)).join("\n\n") };
+  return {
+    data: { brains: shown },
+    text: shown.map((r) => describeLint(r, ctx.ui ?? PLAIN, ctx.now().toISOString().slice(0, 10))).join("\n\n"),
+  };
 }
 
-function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: Ui): string {
+/** The name a brain of this machine is recorded under: `<owner>/<repo>`, from where its folder is (§2.5). */
+function recordedKey(home: string, root: string): { recorded: string } | undefined {
+  const rel = relative(join(home, ".kioku", "brains"), root).split(sep);
+  return rel.length === 2 && rel[0] !== ".." ? { recorded: rel.join("/") } : undefined;
+}
+
+function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: Ui, today: string): string {
   const p = paint(ui);
   const lines = [
     `${p.name(brainRepoOfKey(r.brain))}  ${r.count === 0 ? p.green("nothing to review") : p.yellow(`${plural(r.count, "thing")} to review`)}`,
@@ -87,6 +112,11 @@ function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: U
     "unconfirmed",
   );
   group(
+    `pages whose files changed after them${r.outpaced_as_of && r.outpaced_as_of.slice(0, 10) !== today ? ` (as of ${r.outpaced_as_of.slice(0, 10)}, in the project folder)` : ""}`,
+    (r.outpaced ?? []).map((o) => `${o.path} (${plural(o.commits, "commit")} since ${o.since}, last ${o.last})`),
+    "outpaced",
+  );
+  group(
     "pages that link to a retired page",
     (r.retiredLinks ?? []).map((l) => `${l.path} -> ${l.target}`),
     "retiredLinks",
@@ -114,6 +144,11 @@ function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: U
     "similarElsewhere",
   );
   group("namespaces that do not say what they are for (kioku namespace describe)", r.undescribed ?? [], "undescribed");
+  group(
+    "Rules the summary of a session started here leaves out: the Rules of its brains do not all fit (revise one, or fold several into one)",
+    r.rulesCut ?? [],
+    "rulesCut",
+  );
   group(
     "changes of yours that conflicted with what others published (kioku brain conflicts)",
     (r.conflicts ?? []).map((c) => `${c.branch}: ${c.pages.join(", ") || "no page differs now"}`),

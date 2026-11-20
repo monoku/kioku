@@ -151,7 +151,7 @@ test("kioku page link: each page under the other's See also, a Changelog line wh
     assert.deepEqual([again.out.status, again.out.error.code], ["error", "already_linked"]);
     const self = await w.kioku(["page", "link", MIGRATE, MIGRATE, "--brain", "northwind/brain-acme"]);
     assert.equal(self.out.error.code, "usage");
-    const across = await w.kioku(["page", "link", MIGRATE, "memory/prefer-small-commits.md"]);
+    const across = await w.kioku(["page", "link", MIGRATE, "memory/sam/prefer-small-commits.md"]);
     assert.equal(across.out.error.code, "different_brains");
 
     assert.deepEqual(

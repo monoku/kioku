@@ -3,12 +3,13 @@ import { join } from "node:path";
 import { brainRel, isFrontPageAt } from "../brain/brain.ts";
 import { brainRepoOfKey } from "../config/brain-ref.ts";
 import { appendChangelog, evidenceOf, parseBrainFile, serializeBrainFile, type BrainFile } from "../brain/file.ts";
-import { specFor } from "../brain/kinds.ts";
+import { folderFor, placementOf, specFor } from "../brain/kinds.ts";
+import { memoryByNamespace } from "../config/folder-config.ts";
 import { linkBetween, linksOf, resolveLink } from "../brain/paths.ts";
 import { namedError, userError } from "../errors.ts";
 import { git, gitQuiet } from "../git.ts";
 import { applyChanges, bringIn, type TargetBrain, type WriteContext } from "./apply.ts";
-import { assembleBody, joinSections, retargetLinks, SEE_ALSO, splitSections } from "./body.ts";
+import { assembleBody, joinSections, rebaseLinks, retargetLinks, SEE_ALSO, splitSections } from "./body.ts";
 import { relink } from "./rewrite.ts";
 import { described, readPage, today, type Done } from "./verbs.ts";
 
@@ -155,17 +156,41 @@ export async function restore(brain: TargetBrain, rel: string, env: WriteContext
       "not_found",
     );
   // `./`: the path is the brain's, wherever the brain is in its repository.
-  const text = `${git(brain.root, ["show", `${deleted}^:./${rel}`])}\n`;
+  let text = `${git(brain.root, ["show", `${deleted}^:./${rel}`])}\n`;
   const parsed = parseBrainFile(text);
   const front = parsed.ok ? parsed.file.front : undefined;
-  const applied = await applyChanges(brain, [{ rel, text }], `restore: ${front?.getString("title") ?? rel}`, env, seen);
+  // A Memory page forgotten before the brain kept Memory by namespace comes back in the folder of its namespace
+  // (§3.1), its own links written again from there; one whose namespace is gone is refused by the validator, as any.
+  const place = placementOf(rel);
+  const namespace = front?.getString("namespace");
+  let to = rel;
+  if (
+    parsed.ok &&
+    place?.kind === "memory" &&
+    place.namespace === undefined &&
+    namespace !== undefined &&
+    memoryByNamespace(seen.repo.config().format)
+  ) {
+    to = `${folderFor({ kind: "memory", ...(place.sub !== undefined && { sub: place.sub }) }, namespace, true)}/${rel.split("/").at(-1)}`;
+    if (existsSync(join(brain.root, to)))
+      throw userError(`${to}, where ${rel} now belongs, is in ${name}: there is nothing to restore`, "path_exists");
+    parsed.file.body = rebaseLinks(parsed.file.body, rel, to);
+    text = serializeBrainFile(parsed.file);
+  }
+  const applied = await applyChanges(
+    brain,
+    [{ rel: to, text }],
+    `restore: ${front?.getString("title") ?? rel}`,
+    env,
+    seen,
+  );
   const id = front?.getString("id");
   return {
     status: "done",
     brain: brain.key,
-    path: rel,
+    path: to,
     ...(id !== undefined && { id }),
-    ...described(rel, front),
+    ...described(to, front),
     undoes: git(brain.root, ["rev-parse", "--short", deleted]),
     ...applied,
   };

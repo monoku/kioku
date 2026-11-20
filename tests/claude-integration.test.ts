@@ -152,7 +152,13 @@ test("AGENTS.md names no agent host and says what §2.7 asks: BRAIN.md first, wh
   const text = agentsMd("northwind/brain-acme", "project", "1.2.3");
   assert.doesNotMatch(text, /Claude|Codex|Cursor|Copilot/);
   assert.match(text, /Start with `BRAIN\.md`/);
-  for (const f of ["rules/", "skills/", "knowledge/<namespace>/", "memory/", "memory/instincts/"])
+  for (const f of [
+    "rules/",
+    "skills/",
+    "knowledge/<namespace>/",
+    "memory/<namespace>/",
+    "memory/<namespace>/instincts/",
+  ])
     assert.ok(text.includes(`\`${f}\``), f);
   for (const v of [
     "kioku page search",

@@ -148,7 +148,7 @@ test("a page that says which files it is about is named when the agent reads or 
     assert.match(text, /`kioku page show <path> --brain <brain>` before relying on it/);
     assert.match(
       text,
-      /^- Billing rounds each line: What to know there\. \(northwind\/brain-acme, memory\/billing-rounds-each-line\.md\)$/m,
+      /^- Billing rounds each line: What to know there\. \(northwind\/brain-acme, memory\/acme\/billing-rounds-each-line\.md\)$/m,
     );
     assert.doesNotMatch(text, /nothing in particular|It broke/);
     assert.equal(r.out.systemMessage, "\n⬢ kioku.md ↓ recalled  by path · 1 page (project)");
@@ -156,7 +156,7 @@ test("a page that says which files it is about is named when the agent reads or 
     assert.equal(entry.by, "path");
     assert.deepEqual(
       entry.hits?.map((h) => h.path),
-      ["memory/billing-rounds-each-line.md"],
+      ["memory/acme/billing-rounds-each-line.md"],
     );
     assert.ok(
       !readFileSync(join(w.home, ".kioku/sessions/s.jsonl"), "utf8").includes("invoice.ts"),

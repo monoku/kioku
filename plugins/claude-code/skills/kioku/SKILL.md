@@ -46,7 +46,7 @@ The other verbs, answering the same way, each `kioku page <verb>`:
 - `merge <from> <into> --brain <b>`, the merged body on stdin: one page of two, never decisions;
 - `confirm <path> --brain <b>`: the person says a page is still true; `retire <path> --brain <b> [--reason …]`: no longer true, and nothing replaces it; `rename <path> --brain <b> --title …`: links follow;
 - `link <path> <path> --brain <b> [--type contradicts|qualifies]`: two related pages, each under the other's See also; a contradiction is for the person to settle;
-- `search <words>`: before answering from memory, or when the summary lacks it; `list [--brain <b>]` (20 at a time; `next` is the `--offset` to read on); `show <path> --brain <b> [--section <heading>]`; `evolve [<path> --brain <b>]`;
+- `search <words>`: before answering from memory, or when the summary lacks it; `list [--brain <b>]` (20 at a time; `next` is the `--offset` to read on); `show <path> --brain <b> [--section <heading>]`; `evolve [<path> --brain <b>]`; a page these mark as due a look (`review`), or a recall's line ending in brackets, is checked against what is true now before you rely on it;
 - `kioku brain log [--since <when>]`: the writes (20 at a time, `next`) since today, `yesterday`, `3d` or a date.
 
 What to save as, and the `## ` sections its body holds, in order:
@@ -61,6 +61,8 @@ What to save as, and the `## ` sections its body holds, in order:
 | how you must always work in this brain | `--kind rule` | Rule, Why |
 
 Never write a Changelog, Evidence or See also section: the tool keeps them. Skills come from `evolve`, not from `save`.
+
+A Rule goes whole into every session, and the Rules share one room: before adding one, revise a Rule that covers it, and fold narrow Rules into one principle with its reason. When a Rule's write answers `rules` with some `left`, tell the person which no longer fit.
 
 ## What to save
 
