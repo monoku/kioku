@@ -21,6 +21,15 @@ in this order, until the cap:
    sections the tool keeps); when the cap cuts them, a last line says so and how to list
    them.
 
+That the Rules no longer fit is known when one is written, not a session
+later: `page save` and `page update` of a Rule answer how the Rules of the
+folder's brains fit the summary of a session started there, `rules`: how many
+there are, the characters they take whole, the room the summary leaves them,
+and the ones it leaves out, the least specific brain's last. It is worked out
+by what composes the summary, and the write is done either way: it is a
+report, as a Rule's own length is (§5.1). `brain lint` lists the Rules left
+out (§4.4).
+
 **What the memory holds.** After its heading, the tool adds, in this order,
 until the cap:
 
@@ -201,7 +210,11 @@ model:
   and those a recall keeps naming and no session opens, whose title and
   summary, all a recall shows of them, are to reword, or the page to retire;
 - in a brain with more than one namespace, the namespaces not described
-  (§3.2).
+  (§3.2);
+- the Rules of the brain that the summary of a session started in this folder
+  leaves out, because the Rules of its brains do not all fit (§4.1): to
+  revise, or to fold into one. Worked out for the brains of the folder's
+  chain; a brain linted from outside one has no such list.
 
 Each list shows its first 20 entries and says how many there are (§6.1).
 `sync` refreshes the report and the summary carries its count (§4.1). The
