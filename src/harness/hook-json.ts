@@ -125,6 +125,7 @@ export function parseToolResult(raw: string): ToolResult | undefined {
     output: typeof response === "string" ? response : typeof response?.stdout === "string" ? response.stdout : "",
     ...(typeof r.session_id === "string" && { sessionId: r.session_id }),
     ...(typeof r.tool_use_id === "string" && { callId: r.tool_use_id }),
+    ...(typeof r.agent_id === "string" && r.agent_id !== "" && { agentId: r.agent_id }),
     ...(typeof r.cwd === "string" && { cwd: r.cwd }),
     ...(typeof response === "object" &&
       typeof response?.persistedOutputPath === "string" && { persistedPath: response.persistedOutputPath }),

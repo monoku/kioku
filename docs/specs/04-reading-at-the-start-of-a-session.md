@@ -397,10 +397,10 @@ given the Rule: that is what it means for a Rule to be about some files.
 Never recalled at a prompt: a Rule, whole in every summary (§4.1) or given
 with its files; never recalled at all: a retired or superseded
 page (§3.5); a page this session already opened or was already recalled. What
-a subagent was named at a file the session was not: each has a context of its
-own, so a page is named once to the session and once to each subagent that
-reads or changes such a file, and a page a subagent alone was named may still
-be recalled at a prompt. Nothing
+a subagent was named at a file, or opened, the session was not: each has a
+context of its own, so a page is named once to the session and once to each
+subagent that reads or changes such a file, and a page a subagent alone was
+named or opened may still be named to the session, at a file or at a prompt. Nothing
 is recalled for a prompt that starts with `/`, one with fewer than three words,
 inside a brain (§2.7), or on a machine with no index; the hook never fetches
 the search model (§4.3), and never indexes: it never creates, rebuilds or writes
