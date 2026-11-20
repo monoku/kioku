@@ -19,7 +19,11 @@ import {
 import { merge, restore } from "../core/write/merge.ts";
 import { move, rename } from "../core/write/rewrite.ts";
 import { type ChainBrain, chainBrains, locate, pickBrain, target } from "./chain.ts";
-import type { Context } from "./run.ts";
+import type { Context, Outcome } from "./run.ts";
+import { readMachineConfig } from "../core/config/machine.ts";
+import { rulesFitOf } from "../core/session/start.ts";
+import type { RulesFit } from "../core/session/summary.ts";
+import { plural } from "../core/util.ts";
 import {
   acting,
   cloned,
@@ -37,6 +41,28 @@ import {
   withWarnings,
   writing,
 } from "./writing.ts";
+
+/**
+ * A written Rule is answered with how the Rules of the folder's brains fit a session's summary (§4.1): the moment to
+ * revise one is when it is written, not a session later, when one was cut. A report: the write is done either way,
+ * and one that cannot be worked out is left out.
+ */
+function withRules(ctx: Context, done: Outcome): Outcome {
+  const data = done.data as { status?: string; kind?: string };
+  if (data.status !== "done" || data.kind !== "rule") return done;
+  let rules: RulesFit | undefined;
+  try {
+    rules = rulesFitOf(ctx.home, readMachineConfig(ctx.home), ctx.cwd, ctx.now());
+  } catch {
+    rules = undefined;
+  }
+  if (rules === undefined) return done;
+  const said =
+    rules.left.length === 0
+      ? `The ${plural(rules.rules, "Rule")} of this folder's brains take ${rules.characters} of the ${rules.room} characters a session's summary leaves them.`
+      : `The Rules of this folder's brains no longer fit a session's summary (${rules.characters} characters for ${rules.room}): it leaves out ${rules.left.map((l) => `${l.path} (${brainRepoOfKey(l.brain)})`).join(", ")}. Revise a Rule, or fold several into one, rather than add another.`;
+  return { ...done, data: { ...data, rules }, text: `${done.text}\n${said}` };
+}
 
 /** `save` (§1.4): `--see-also` narrows the pages a created page links to; `--see-also none` links none. */
 export const runSave = writing("page save", NONE, async (c) => {
@@ -59,7 +85,7 @@ export const runSave = writing("page save", NONE, async (c) => {
     ...(seeAlso !== undefined && { seeAlso }),
     ...(others.length > 0 && { others }),
   };
-  return outcome("Saved", await save(brain, input, env(ctx)));
+  return withRules(ctx, outcome("Saved", await save(brain, input, env(ctx))));
 });
 
 /** `link` (§3.3): two pages of one brain, each under the other's See also. */
@@ -95,7 +121,7 @@ export const runUpdate = writing("page update", PATH, async (c) => {
       "applies-to",
     ]),
   };
-  return outcome("Updated", await update(where.brain, where.rel, input, env(c.ctx)));
+  return withRules(c.ctx, outcome("Updated", await update(where.brain, where.rel, input, env(c.ctx))));
 });
 
 export const runSupersede = writing("page supersede", PATH, async (c) => {

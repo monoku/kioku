@@ -10,7 +10,8 @@ import { acquireLock } from "./fs/lock.ts";
 import { git, gitQuiet } from "./git.ts";
 import { openIndex } from "./index/db.ts";
 import { purgeReads, readReads } from "./reads.ts";
-import { lintBrain, recordLint } from "./lint.ts";
+import { lintBrain, recordLint, withRulesCut } from "./lint.ts";
+import { rulesFitOf } from "./session/start.ts";
 import { recordedOutpaced } from "./outpaced.ts";
 import { updateIndex, type IndexReport } from "./index/indexer.ts";
 import type { SemanticDeps } from "./semantic/meaning.ts";
@@ -287,17 +288,22 @@ async function syncOnce(opts: SyncOptions): Promise<SyncResult> {
       );
       purgeReads(home, ids);
       const reads = readReads(home);
+      // The Rules a session started in this folder is not given whole (§4.1), as its summary would work it out.
+      const rulesLeft = rulesFitOf(home, readMachineConfig(home), cwd, now)?.left;
       await recordLint(
         home,
         brains.map((b) => ({
           key: b.key,
           // The project brain, linted in its project folder, is asked what the code did after its pages (§4.4).
-          report: lintBrain(
-            b,
-            db,
-            now,
-            reads,
-            b.key === chain.project && chain.root !== undefined ? chain.root : recordedOutpaced(home, b.key),
+          report: withRulesCut(
+            lintBrain(
+              b,
+              db,
+              now,
+              reads,
+              b.key === chain.project && chain.root !== undefined ? chain.root : recordedOutpaced(home, b.key),
+            ),
+            rulesLeft,
           ),
         })),
         now,

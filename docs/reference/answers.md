@@ -59,6 +59,11 @@ shape, with `status`
   save, which is nothing of the save itself, since they see it by its row, and
   to answer what they asked (spec §1.1). A page of `elsewhere` that says
   otherwise is still told.
+- `rules`, from `page save` and `page update` of a Rule, on `done`: how the
+  Rules of the folder's brains fit the summary of a session started there
+  (spec §4.1): `rules` (how many), `characters` (what they take whole), `room`
+  (what the summary leaves them) and `left`, the ones it leaves out, each
+  with `brain` and `path`; empty while they all fit.
 - `namespace`: nothing written; `namespaces`, each with `namespace`, `summary`
   (or null), `pages` and `below`.
 - `error`: `error` holds `code`, `message` and, when the validator refused the
@@ -156,7 +161,9 @@ length of each list that was cut) and its lists: `similar`, `staleInstincts`,
 `unopened` (each with `since`, `days`, `surfaced`), `unfollowed` (each with
 `path` and `recalled`) and `similarElsewhere` (each with `path`, `brain` and
 `other`, which `count` leaves out), `counting_since`, and `outpaced_as_of`
-(when `outpaced` was worked out in the project folder, or null).
+(when `outpaced` was worked out in the project folder, or null). `rulesCut` lists
+the brain's Rules that the summary of a session started in the folder leaves
+out.
 
 **`kioku handoff`**: every answer has `folder` and `branch` (null outside a
 repository, or with none checked out). `set` adds `status` (`done`) and `at`;

@@ -6,6 +6,15 @@ What changed in each version of Kioku. What is true now is in the
 
 ## Unreleased
 
+- **Writing a Rule says whether the Rules still fit.** The Rules of a session's
+  brains go whole into its summary, under the host's cap of 10,000 characters,
+  and that they no longer all fit was said only by a line of the next
+  session's summary, when one was cut already. `kioku page save` and `kioku
+  page update` of a Rule now answer `rules`: how many there are, the characters
+  they take, the room the summary leaves them, and the ones it leaves out.
+  `kioku brain lint` lists those under `rulesCut`. The write is done either
+  way; the skill tells the agent to revise or fold Rules before adding one.
+
 - **A page says when the code it is about changed after it.** A page of a
   project brain that names files (`applies_to`) is now compared with the
   project folder's history: when those files have commits of a later day than
