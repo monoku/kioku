@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.7.1
 
 - **A Rule can be about some files only.** Every Rule went whole into every
   session's summary, so a Rule about one folder cost every session its room
