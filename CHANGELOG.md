@@ -4,6 +4,15 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## 0.7.3
+
+- **A page named for a file reaches the session after a subagent.** A page
+  that says which files it is about was named once a session, to whoever read
+  or changed such a file first: when that was a subagent, whose context ends
+  with it, the session that then changed the file was told nothing. It is now
+  named once to the session and once to each subagent, as a Rule about some
+  files is since 0.7.2; a page the session opened is still named to no one.
+
 ## 0.7.2
 
 - **A Rule about some files reaches each subagent, and the session after it.**
