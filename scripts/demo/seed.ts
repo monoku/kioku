@@ -515,6 +515,15 @@ function appPages(): PagePlan[] {
       "When two environments disagree about a day, compare their clocks first.",
     ),
     m(
+      "app/deploy",
+      "Release notes are the release pull request's description",
+      "The app keeps no changelog file: a release's notes are the description of its pull request, linked in the deploys channel.",
+      45,
+      "Support asked what shipped in 3.12 and nobody could say; the changelog file had not been touched in a year and was removed.",
+      "Write a release's notes in the description of its pull request, and link it in the deploys channel.",
+      "When someone asks what shipped, open the release's pull request.",
+    ),
+    m(
       "app/data",
       "The nightly report locked the orders table",
       "A report run against the primary held a lock during checkout and slowed every order for four minutes.",
