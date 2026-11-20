@@ -507,6 +507,12 @@ export function composeUsage(input: SummaryInput): {
     room,
     left: rules.slice(c.fitted).map(({ brain, path }) => ({ brain, path })),
   };
+  // The Rules about some files are not here: one line says they exist, so that the agent knows they will come (§3.4).
+  const scoped = readable.flatMap((b) => b.docs.filter((d) => aboutFiles(b, d.file)));
+  if (scoped.length > 0)
+    c.section("## Rules about some files", [
+      `${plural(scoped.length, "Rule")} of the project brain ${scoped.length === 1 ? "is" : "are"} about some files only: each is given to you, whole, when you read or change one of them, and holds from then on as every Rule does.`,
+    ]);
   // Said only when a Rule did not fit, not when the front page alone did not (§4.1).
   return { usage: c.text(rules.length > 0 && !allRules ? RULES_CUT : undefined), loaded, rules: fit };
 }
@@ -523,10 +529,20 @@ export interface RulesFit {
 }
 
 /** The Rules of these brains as the summary says them (§4.1): each its title, its Rule and its Why; a brain's by path. */
+/**
+ * Whether a Rule is about some files only (§3.4): a Rule of the project brain that says which (`applies_to`, §3.3). It
+ * is given when the agent reads or changes one of them (§4.7), and takes no room in the summary.
+ */
+export const aboutFiles = (b: { isProject: boolean }, file: BrainFile): boolean =>
+  b.isProject && kindOf(file) === "rule" && (file.front.getList("applies_to") ?? []).length > 0;
+
+/** A Rule as the agent is given it (§4.1, §4.7): its Rule and its Why, with no heading of its own level. */
+export const ruleSaid = (body: string): string => demote(ruleText(body));
+
 const ruleItems = (readable: SummaryBrain[]): { text: string; brain: string; path: string }[] =>
   readable.flatMap((b) =>
     b.docs
-      .filter((d) => kindOf(d.file) === "rule")
+      .filter((d) => kindOf(d.file) === "rule" && !aboutFiles(b, d.file))
       .sort((x, y) => (x.rel < y.rel ? -1 : 1))
       .map((d) => ({
         text: `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`,

@@ -19,7 +19,9 @@ in this order, until the cap:
 2. the Rules of the three brains, each its title, its Rule and its Why, never
    its See also (a Rule written without those sections, its text up to the
    sections the tool keeps); when the cap cuts them, a last line says so and how to list
-   them.
+   them. A Rule of the project brain about some files only (§3.4) is not
+   among them and takes none of their room: one line says how many there are
+   and that each comes with its files (§4.7).
 
 That the Rules no longer fit is known when one is written, not a session
 later: `page save` and `page update` of a Rule answer how the Rules of the
@@ -381,7 +383,17 @@ At a prompt, it is the report's: the page's files changed, as of the last
 `sync`. The report holds pages, counts and days, never a path of the
 project's files.
 
-Never recalled: a Rule, whole in every summary (§4.1); a retired or superseded
+**A Rule about the file.** A Rule of the project brain that says which files
+it is about (§3.4) is given by the same hook, before the pages and not counted
+among their three: its title, its Rule and its Why, whole, as the summary
+gives a Rule, under a line that says it holds from now on. Once a session,
+and again after a compaction, which took its text. Together they take 6,000
+characters of the hook's at most, and a last line says how many more there
+are and how to read them. A session that never touches such a file is never
+given the Rule: that is what it means for a Rule to be about some files.
+
+Never recalled at a prompt: a Rule, whole in every summary (§4.1) or given
+with its files; never recalled at all: a retired or superseded
 page (§3.5); a page this session already opened or was already recalled. Nothing
 is recalled for a prompt that starts with `/`, one with fewer than three words,
 inside a brain (§2.7), or on a machine with no index; the hook never fetches

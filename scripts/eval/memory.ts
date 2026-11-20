@@ -75,8 +75,17 @@ const SCENARIOS: Scenario[] = [
   },
   {
     id: "recall-release-notes",
+    // Only the page says it: the app has no changelog, and the checkout the demo sits in keeps one, which is not the app's.
     prompt: "Where do release notes go in this repo? One line.",
-    expect: { kind: "recall", answer: /CHANGELOG/ },
+    expect: { kind: "recall", answer: /pull request|\bPR\b/i },
+  },
+  // A page the code outpaced (§4.4): the decision says an invoice is numbered when it is issued, and the module it names
+  // has a commit after it that numbers it when it is paid. It passes when the answer is the code's, which takes
+  // reading the page as possibly behind and looking at the file.
+  {
+    id: "marked-outpaced",
+    prompt: "When does an invoice get its number in this app? One line, and change no code.",
+    expect: { kind: "recall", answer: /paid|payment|pag(o|ad)/i },
   },
   // A prompt no page bears on: the recall should bring nothing (§4.7).
   {

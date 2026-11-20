@@ -169,7 +169,7 @@ repairing links, never shown to the agent, which neither mentions nor uses it.
 | `source_version` | no | the version of the source the page was written from: a commit sha, a date or a hash, one line; `kioku brain sources` reads it |
 | `evidence` | when a person said it | a short quote, chosen under §1.5 |
 | `stale_after` | no | a date, `YYYY-MM-DD`, after which the page needs a second look; `brain lint` lists the page from that day |
-| `applies_to` | no | the files of the project the page is about: a list of globs relative to the project folder (§2.4), ten at most, such as `src/billing/**`, `db/migrations` or `*.sql`; the page is named to the agent when it reads or changes one (§4.7); a project brain's |
+| `applies_to` | no | the files of the project the page is about: a list of globs relative to the project folder (§2.4), ten at most, such as `src/billing/**`, `db/migrations` or `*.sql`; the page is named to the agent when it reads or changes one (§4.7), and a Rule is given whole then, and only then (§3.4); a project brain's |
 | `status` | no | `deprecated` when the page was retired: kept as history, not current; absent means current |
 | `verified` | no | written by the tool: a list of one entry, `by` (`human:<name>`, the name the person goes by, §2.3: the name git on the machine knows, else the system user) and `at` (an ISO 8601 moment in UTC), when a person confirmed the page is still true |
 | `supersedes` | decisions only, optional | relative link to the decision this one replaces (`./old.md`); a brain-relative path is also accepted |
@@ -224,8 +224,12 @@ commit, day, author and message, those at an earlier path included.
 | Skill | `skills/` | | When to use, Steps | yes |
 
 A **playbook** is followed by a person with the agent helping; a **Skill** is
-run by the agent alone; a **Rule** is always on, a Skill is invoked when it
-applies. An **instinct** has a playbook's shape (when, do) but is tentative
+run by the agent alone; a **Rule** is always on where it applies, a Skill is
+invoked when it applies. A Rule applies to every session of its brains,
+unless it is a Rule of the project brain that says which files it is about
+(`applies_to`, §3.3): that one is given to the agent, whole, when it reads or
+changes one of them (§4.7), holds from then on, and takes no room in the
+summary (§4.1). An **instinct** has a playbook's shape (when, do) but is tentative
 conduct the agent learned, supported by the occasions under Evidence; a
 **Memory** without that shape is a lesson or a fact. Rules go whole into the
 summary, so the validator warns past 600 characters.

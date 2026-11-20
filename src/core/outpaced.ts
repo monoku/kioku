@@ -1,4 +1,4 @@
-import { cleanGlob, globProblem } from "./brain/applies.ts";
+import { globMatches, globProblem } from "./brain/applies.ts";
 import { gitQuiet } from "./git.ts";
 import { lintReportPath } from "./state.ts";
 import { readJson } from "./util.ts";
@@ -16,9 +16,6 @@ export interface Outpaced {
   commits: number;
   last: string;
 }
-
-/** A glob of `applies_to` as git reads it: without a wildcard a file, or a folder and what is under it, as §3.3 has it. */
-const pathspecOf = (glob: string): string => `${/[*?]/.test(glob) ? ":(glob)" : ":(literal)"}${cleanGlob(glob)}`;
 
 /**
  * The commits of `folder` that touched these paths on a later day than `day`, by the author's day, as a page's last
@@ -40,10 +37,51 @@ export function commitsAfter(
   return days.length === 0 ? undefined : { commits: days.length, last: days.at(-1)! };
 }
 
-/** What the files a page's globs match did after `day`, in the project folder. */
-export function outpacedBy(folder: string, day: string, globs: string[]): Outpaced | undefined {
-  const found = commitsAfter(folder, day, globs.filter((g) => globProblem(g) === undefined).map(pathspecOf));
-  return found === undefined ? undefined : { since: day, ...found };
+/**
+ * What the code did after each of these pages (§4.4), by path: one question to git for them all, the folder's commits
+ * since the oldest page's day with the files each touched, which the pages' globs are then held against as §3.3 reads
+ * them. One question a page took a brain of two hundred such pages eight seconds; this takes one. None where the
+ * folder is no repository, git cannot be read, or the history since is more than the tool reads at once.
+ */
+export function outpacedPages(
+  folder: string,
+  pages: { path: string; day: string; globs: string[] }[],
+): Map<string, Outpaced> {
+  const out = new Map<string, Outpaced>();
+  const asked = pages.filter((p) => p.globs.some((g) => globProblem(g) === undefined));
+  if (asked.length === 0) return out;
+  const floor = asked.map((p) => p.day).sort()[0]!;
+  let log: string | undefined;
+  try {
+    log = gitQuiet(folder, [
+      "log",
+      "--no-merges",
+      "--relative",
+      "--name-only",
+      `--since=${floor}T00:00:00`,
+      "--format=%x1e%as",
+      "--",
+      ".",
+    ]);
+  } catch {
+    log = undefined;
+  }
+  const commits = (log ?? "")
+    .split("\x1e")
+    .slice(1)
+    .map((record) => {
+      const [day, ...files] = record.split("\n").map((l) => l.trim());
+      return { day: day ?? "", files: files.filter((f) => f !== "") };
+    })
+    .filter((c) => /^\d{4}-\d{2}-\d{2}$/.test(c.day));
+  for (const p of asked) {
+    const days = commits
+      .filter((c) => c.day > p.day && c.files.some((f) => p.globs.some((g) => globMatches(g, f))))
+      .map((c) => c.day)
+      .sort();
+    if (days.length > 0) out.set(p.path, { since: p.day, commits: days.length, last: days.at(-1)! });
+  }
+  return out;
 }
 
 /** What one file of the project folder, relative to it, did after `day`. */
