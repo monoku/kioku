@@ -78,6 +78,7 @@ export function parseToolPath(raw: string): ToolPath | undefined {
     file,
     ...(typeof r.cwd === "string" && { cwd: r.cwd }),
     ...(typeof r.session_id === "string" && { sessionId: r.session_id }),
+    ...(typeof r.agent_id === "string" && r.agent_id !== "" && { agentId: r.agent_id }),
   };
 }
 

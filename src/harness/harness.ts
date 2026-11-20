@@ -31,6 +31,8 @@ export interface ToolPath {
   file: string;
   cwd?: string;
   sessionId?: string;
+  /** The subagent the call is made in, when it is made in one: its context is its own (§4.7). */
+  agentId?: string;
 }
 
 /** What a prompt-submit hook is told. */

@@ -33,11 +33,12 @@ const saveRule = (w: World, title: string, rule: string, applies?: string) =>
   );
 const start = (w: World, source = "startup") =>
   w.kioku(["hook", "session-start"], { stdin: JSON.stringify({ cwd: w.repo, session_id: "s", source }) });
-const touch = (w: World, file: string, session = "s") =>
+const touch = (w: World, file: string, session = "s", agent?: string) =>
   w.kioku(["hook", "pre-tool-path"], {
     stdin: JSON.stringify({
       cwd: w.repo,
       session_id: session,
+      ...(agent !== undefined && { agent_id: agent, agent_type: "Explore" }),
       hook_event_name: "PreToolUse",
       tool_name: "Edit",
       tool_input: { file_path: join(w.repo, file) },
@@ -85,6 +86,18 @@ test("a project Rule about some files is not in the summary and is given whole w
     assert.match(contextOf(await touch(w, "src/billing/tax.ts")), /Round money once, on the total/);
     assert.equal(contextOf(await touch(w, "src/billing/invoice.ts")), "");
     assert.match(contextOf(await touch(w, "src/billing/invoice.ts", "other")), /Round money once/);
+
+    // A subagent has a context of its own: it is given the Rule the session already has, once, and what a subagent
+    // was given first the session is still given.
+    assert.match(contextOf(await touch(w, "src/billing/invoice.ts", "s", "a1")), /Round money once/);
+    assert.equal(contextOf(await touch(w, "src/billing/tax.ts", "s", "a1")), "");
+    assert.match(contextOf(await touch(w, "src/billing/invoice.ts", "s", "a2")), /Round money once/);
+    assert.match(contextOf(await touch(w, "src/billing/invoice.ts", "fresh", "a1")), /Round money once/);
+    assert.match(
+      contextOf(await touch(w, "src/billing/invoice.ts", "fresh")),
+      /Round money once/,
+      "the session after its subagent",
+    );
 
     // A prompt never recalls a Rule, and a page about the file comes after the Rules, on its line.
     const page = await w.kioku(
