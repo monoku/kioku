@@ -97,6 +97,8 @@ export interface LintReport {
   counting_since: string | null;
   /** Namespaces that do not say what they are for, in a brain that has more than one (§3.2). */
   undescribed: string[];
+  /** The brain's Rules the summary of a session started in the folder leaves out (§4.1, §4.4); set by `withRulesCut`. */
+  rulesCut: string[];
   /** How many things there are to review, all lists together. */
   count: number;
 }
@@ -379,8 +381,15 @@ export function lintBrain(
     similarElsewhere: [],
     counting_since: reads?.counting_since ?? null,
     undescribed,
+    rulesCut: [],
     count,
   };
+}
+
+/** A report with the Rules of its brain that a session's summary leaves out (§4.4), which count as things to review. */
+export function withRulesCut(report: LintReport, left: { brain: string; path: string }[] | undefined): LintReport {
+  const rulesCut = (left ?? []).filter((l) => l.brain === report.brain).map((l) => l.path);
+  return { ...report, rulesCut, count: report.count - report.rulesCut.length + rulesCut.length };
 }
 
 /** Keep each brain's count and report under `~/.kioku/`, for the session summary (§4.1 item 7). */
@@ -418,6 +427,7 @@ export const LINT_LISTS = [
   "unfollowed",
   "similarElsewhere",
   "undescribed",
+  "rulesCut",
 ] as const;
 
 /** A report with each list cut to its first `limit` entries; `totals` has the lists that were cut, with their full length. */

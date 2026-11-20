@@ -14,7 +14,14 @@ import { recordSurfaced } from "../reads.ts";
 import { brainsOfLinks } from "./labels.ts";
 import { cmd, dim, historyRow, type Message } from "./message.ts";
 import { sessionReads, type SessionReads } from "./session-reads.ts";
-import { composeForSubagent, composeHandoff, composeHolds, composeUsage, type SummaryBrainSource } from "./summary.ts";
+import {
+  composeForSubagent,
+  composeHandoff,
+  composeHolds,
+  composeUsage,
+  type RulesFit,
+  type SummaryBrainSource,
+} from "./summary.ts";
 import { loadSummaryBrains } from "./summary-load.ts";
 import { type RuleChange, takeRuleNews } from "./rule-news.ts";
 import { holdViews, newSince, readViews, recordViews } from "./views.ts";
@@ -51,6 +58,34 @@ const hintsOf = (chain: ReturnType<typeof resolveChain>, cwd: string, brains: Su
   basename(chain.root ?? cwd),
   ...(chain.project !== undefined ? [brains.find((b) => b.isProject)?.link.ref.repo ?? ""] : []),
 ];
+
+/**
+ * How the Rules of the brains of `cwd` fit the summary of a session started there (§4.1), by the code that composes
+ * it, so that what a write or `lint` says of them is what the next session does. Without what only a moment says (a
+ * publication pending, a sync that failed), which takes a line or two of the same room. Undefined with no brain.
+ */
+export function rulesFitOf(
+  home: string,
+  config: MachineConfig | undefined,
+  cwd: string,
+  now: Date,
+): RulesFit | undefined {
+  if (config === undefined) return undefined;
+  const { reads, chain, cloned } = openChain(home, config, cwd);
+  if (cloned.length === 0) return undefined;
+  const brains: SummaryBrainSource[] = cloned.map((link) => ({ link, isProject: link.key === chain.project }));
+  return composeUsage({
+    hints: hintsOf(chain, cwd, brains),
+    brains: loadSummaryBrains(brains, reads),
+    missing: chain.missing,
+    untrusted: chain.untrusted,
+    notHere: chain.notHere,
+    ...(chain.inside !== undefined && { inside: chain.inside, notLoaded: chain.notLoaded }),
+    ...(chain.teamFrom !== undefined && { teamFrom: chain.teamFrom }),
+    problems: chain.problems,
+    now,
+  }).rules;
+}
 
 /**
  * What a subagent of a session in `cwd` is given at its start (§4.1): the Rules of the session's brains, inside a

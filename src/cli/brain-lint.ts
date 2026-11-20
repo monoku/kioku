@@ -2,7 +2,16 @@ import { join, relative, sep } from "node:path";
 import { brainRepoOfKey } from "../core/config/brain-ref.ts";
 import { userError } from "../core/errors.ts";
 import { parseVerb } from "./args.ts";
-import { cappedReport, lintBrains, recordLint, STALE_INSTINCT_DAYS, type LintReport } from "../core/lint.ts";
+import {
+  cappedReport,
+  lintBrains,
+  recordLint,
+  STALE_INSTINCT_DAYS,
+  withRulesCut,
+  type LintReport,
+} from "../core/lint.ts";
+import { readMachineConfig } from "../core/config/machine.ts";
+import { rulesFitOf } from "../core/session/start.ts";
 import { windowOf } from "../core/limit.ts";
 import { brainKeyOf, brainsNamed } from "./brains-named.ts";
 import { chainBrains, chainOf } from "./chain.ts";
@@ -33,7 +42,8 @@ export async function runBrainLint(argv: string[], ctx: Context): Promise<Outcom
       known: link !== undefined,
     };
   });
-  const reports = await lintBrains(ctx.home, targets, ctx.now());
+  const left = rulesFitOf(ctx.home, readMachineConfig(ctx.home), ctx.cwd, ctx.now())?.left;
+  const reports = (await lintBrains(ctx.home, targets, ctx.now())).map((r) => withRulesCut(r, left));
   await recordLint(
     ctx.home,
     targets.flatMap((t, i) => (t.known ? [{ key: t.key, report: reports[i]! }] : [])),
@@ -134,6 +144,11 @@ function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: U
     "similarElsewhere",
   );
   group("namespaces that do not say what they are for (kioku namespace describe)", r.undescribed ?? [], "undescribed");
+  group(
+    "Rules the summary of a session started here leaves out: the Rules of its brains do not all fit (revise one, or fold several into one)",
+    r.rulesCut ?? [],
+    "rulesCut",
+  );
   group(
     "changes of yours that conflicted with what others published (kioku brain conflicts)",
     (r.conflicts ?? []).map((c) => `${c.branch}: ${c.pages.join(", ") || "no page differs now"}`),

@@ -62,6 +62,8 @@ What to save as, and the `## ` sections its body holds, in order:
 
 Never write a Changelog, Evidence or See also section: the tool keeps them. Skills come from `evolve`, not from `save`.
 
+A Rule goes whole into every session, and the Rules share one room: before adding one, revise a Rule that covers it, and fold narrow Rules into one principle with its reason. When a Rule's write answers `rules` with some `left`, tell the person which no longer fit.
+
 ## What to save
 
 Save the moment you notice something that passes both tests:

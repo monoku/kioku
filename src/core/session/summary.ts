@@ -193,6 +193,8 @@ class Composer {
   readonly offered: { brain: string; id: string | null }[] = [];
   private used = 0;
   private stopped = false;
+  /** How many items of the last section got in. */
+  fitted = 0;
   private readonly room: number;
 
   constructor(cap: number, reserve: number) {
@@ -208,6 +210,7 @@ class Composer {
   /** A section: its heading goes in with its first item, or not at all. `blocks` separates items of several lines. True when every item got in. */
   section(heading: string, items: (string | Offer)[], blocks = false): boolean {
     let first = true;
+    this.fitted = 0;
     for (const entry of items) {
       if (this.stopped) return false;
       const item = typeof entry === "string" ? entry : entry.text;
@@ -219,6 +222,7 @@ class Composer {
       if (typeof entry !== "string") this.offered.push(entry.page);
       this.parts.push(piece);
       this.used += piece.length + 1;
+      this.fitted++;
       first = false;
     }
     return true;
@@ -226,6 +230,11 @@ class Composer {
 
   get cut(): boolean {
     return this.stopped;
+  }
+
+  /** The characters still free. */
+  get left(): number {
+    return Math.max(0, this.room - this.used);
   }
 
   text(closing?: string): string {
@@ -391,6 +400,7 @@ function partsOfInput(input: SummaryInput) {
 export function composeUsage(input: SummaryInput): {
   usage: string;
   loaded: { brains: string[]; pages: number; counts: number[] };
+  rules: RulesFit;
 } {
   const { brains, readable, project, cap, loaded } = partsOfInput(input);
   const c = new Composer(cap, RULES_CUT.length + 2);
@@ -484,18 +494,45 @@ export function composeUsage(input: SummaryInput): {
 
   // 2. The Rules of the three brains, each its Rule and its Why; most specific brain first.
   const rules = ruleItems(readable);
-  const allRules = c.section("## Rules", rules, true);
+  const room = c.left;
+  const allRules = c.section(
+    "## Rules",
+    rules.map((r) => r.text),
+    true,
+  );
+  const fit: RulesFit = {
+    rules: rules.length,
+    // As the composer counts them: each Rule and the line that parts it from the next, and the heading once.
+    characters: rules.reduce((n, r) => n + r.text.length + 2, rules.length > 0 ? "\n## Rules\n".length : 0),
+    room,
+    left: rules.slice(c.fitted).map(({ brain, path }) => ({ brain, path })),
+  };
   // Said only when a Rule did not fit, not when the front page alone did not (§4.1).
-  return { usage: c.text(rules.length > 0 && !allRules ? RULES_CUT : undefined), loaded };
+  return { usage: c.text(rules.length > 0 && !allRules ? RULES_CUT : undefined), loaded, rules: fit };
+}
+
+/**
+ * How the Rules of a session's brains fit its summary (§4.1): how many there are, the characters they take whole, the
+ * room the summary leaves them under the host's cap, and the ones it leaves out, the least specific brain's last.
+ */
+export interface RulesFit {
+  rules: number;
+  characters: number;
+  room: number;
+  left: { brain: string; path: string }[];
 }
 
 /** The Rules of these brains as the summary says them (§4.1): each its title, its Rule and its Why; a brain's by path. */
-const ruleItems = (readable: SummaryBrain[]): string[] =>
+const ruleItems = (readable: SummaryBrain[]): { text: string; brain: string; path: string }[] =>
   readable.flatMap((b) =>
     b.docs
       .filter((d) => kindOf(d.file) === "rule")
       .sort((x, y) => (x.rel < y.rel ? -1 : 1))
-      .map((d) => `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`),
+      .map((d) => ({
+        text: `### ${titleOf(d)} (${nameOf(b)}, ${d.rel})\n\n${demote(ruleText(d.file.body))}`,
+        brain: b.link.key,
+        path: d.rel,
+      })),
   );
 
 /**
@@ -517,7 +554,15 @@ export function composeForSubagent(brains: SummaryBrain[], cap: number = SUMMARY
   if (rules.length === 0) return undefined;
   const c = new Composer(Math.min(SUMMARY_CAP, Math.max(MIN_SUMMARY_CAP, cap)), RULES_CUT.length + 2);
   c.must(SUBAGENT_OPENING);
-  return c.text(c.section("## Rules", rules, true) ? undefined : RULES_CUT);
+  return c.text(
+    c.section(
+      "## Rules",
+      rules.map((r) => r.text),
+      true,
+    )
+      ? undefined
+      : RULES_CUT,
+  );
 }
 
 /**
