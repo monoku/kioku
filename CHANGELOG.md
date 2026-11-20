@@ -4,6 +4,14 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **A Rule about some files reaches each subagent, and the session after it.**
+  The Rule was given once a session, whoever read the file first: when that
+  was a subagent, the session itself was never given it, and a subagent that
+  read the file after the session was not either. Each has a context of its
+  own, so each is now given the Rule once.
+
 ## 0.7.1
 
 - **A Rule can be about some files only.** Every Rule went whole into every
