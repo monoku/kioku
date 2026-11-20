@@ -4,6 +4,13 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **`brain lint` asks the project folder's history once.** The list of pages
+  the code outpaced asked git once a page: a brain with two hundred pages that
+  name files took eight seconds to lint, and `sync` with it. It is one
+  question now, and the same brain takes under a second.
+
 ## 0.7.0
 
 - **Writing a Rule says whether the Rules still fit.** The Rules of a session's
