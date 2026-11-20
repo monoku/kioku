@@ -12,7 +12,8 @@ import { brainRepoOfKey } from "../config/brain-ref.ts";
 import { readJournal } from "./journal.ts";
 import { historyRow, type Message } from "./message.ts";
 import { RECALL_MIN_PAGES } from "./recall-floor.ts";
-import { REVIEW_ADVICE, expiredSince, reviewOf, reviewSaid, type Review } from "../review.ts";
+import { fileOutpaced, recordedOutpaced } from "../outpaced.ts";
+import { REVIEW_ADVICE, expiredSince, pageDay, reviewOf, reviewSaid, type Review } from "../review.ts";
 import { lintReportPath } from "../state.ts";
 import { lastTouchOf } from "../touched.ts";
 import { plural, readJson } from "../util.ts";
@@ -363,7 +364,10 @@ export async function recallForPath(
       if (globMatches(glob, path)) found.set(keyOf(page), page);
     }
     const roots = new Map(chain.links.map((l) => [l.key, l.path]));
-    return marked(home, roots, [...found.values()].slice(0, max), input.now ?? new Date());
+    return marked(home, roots, [...found.values()].slice(0, max), input.now ?? new Date(), {
+      folder: chain.root,
+      file: path,
+    });
   } catch {
     // An index an older version made has no such table: no page says what it is about yet.
     return [];
@@ -378,13 +382,29 @@ export async function recallForPath(
  * a brain's whole history, and then asked of the page as it is: one question to git, for a page the report lists.
  * A page that cannot be read, or a report that cannot, marks nothing: a mark never fails a recall.
  */
-function marked(home: string, roots: Map<string, string>, pages: Recalled[], now: Date): Recalled[] {
+function marked(
+  home: string,
+  roots: Map<string, string>,
+  pages: Recalled[],
+  now: Date,
+  /** The file the pages were named for, relative to the project folder: the mark is then about that file (§4.7). */
+  at?: { folder: string; file: string },
+): Recalled[] {
   let recorded: Record<string, { report?: { unconfirmed?: { path: string }[] } }> | undefined;
   return pages.map((page) => {
     try {
       const root = roots.get(page.brain);
       const read = root === undefined ? undefined : readBrainFile(join(root, page.path));
       if (root === undefined || read === undefined || !read.ok) return page;
+      // What the code did after the page comes first: at a file, asked of git for that file; at a prompt, the report's.
+      const listed = at === undefined ? recordedOutpaced(home, page.brain).pages.get(page.path) : undefined;
+      if (at !== undefined || listed !== undefined) {
+        const touched = lastTouchOf(root, page.path);
+        const day = pageDay(read.file, touched);
+        const outpaced = at !== undefined && day !== undefined ? fileOutpaced(at.folder, day, at.file) : listed;
+        const review = outpaced === undefined ? undefined : reviewOf(page.path, read.file, touched, now, outpaced);
+        if (review?.reason === "outpaced") return { ...page, review };
+      }
       const expired = expiredSince(read.file, now);
       if (expired !== undefined) return { ...page, review: { reason: "expired" as const, since: expired } };
       recorded ??= readJson(lintReportPath(home)) ?? {};
@@ -406,7 +426,7 @@ export function recallText(pages: Recalled[], by: RecallBy = "meaning"): string 
     "",
     ...pages.map((p) => {
       const summary = oneLine(p.summary);
-      return `- ${oneLine(p.title)}${summary === "" ? "" : `: ${summary}`} (${brainRepoOfKey(p.brain)}, ${oneLine(p.path)})${p.review === undefined ? "" : ` [${reviewSaid(p.review)}]`}`;
+      return `- ${oneLine(p.title)}${summary === "" ? "" : `: ${summary}`} (${brainRepoOfKey(p.brain)}, ${oneLine(p.path)})${p.review === undefined ? "" : ` [${reviewSaid(p.review, by === "path")}]`}`;
     }),
   ].join("\n");
 }

@@ -16,7 +16,8 @@ import { updateIndex } from "./index/indexer.ts";
 import { sameSubject, similarPages } from "./index/similar.ts";
 export { SIMILAR_REPORT_SHARE } from "./index/similar.ts";
 import { seeAlsoEntries } from "./write/body.ts";
-import { daysSince, expiredSince, unconfirmedSince } from "./review.ts";
+import { outpacedBy, recordedOutpaced, type Outpaced, type RecordedOutpaced } from "./outpaced.ts";
+import { daysSince, expiredSince, pageDay, unconfirmedSince } from "./review.ts";
 export { CONFIRM_DAYS } from "./review.ts";
 import { lintReportPath } from "./state.ts";
 import { lastTouched, touchedOf } from "./touched.ts";
@@ -73,6 +74,10 @@ export interface LintReport {
   expired: { path: string; stale_after: string }[];
   /** Pages nobody has changed or confirmed for longer than their kind lasts without it (§4.4). */
   unconfirmed: { path: string; since: string; days: number; window: number }[];
+  /** In a project brain, the pages whose files have commits of a later day than the page's own (§4.4). */
+  outpaced: ({ path: string } & Outpaced)[];
+  /** When `outpaced` was worked out, in the project folder: now, or when a report recorded it; null when it never was. */
+  outpaced_as_of: string | null;
   /** Current pages (not retired, not superseded) that link to a page that was retired. */
   retiredLinks: { path: string; target: string }[];
   /** Two live pages one of which says it contradicts the other, and nothing has been done about it (§3.3). */
@@ -121,13 +126,16 @@ function targetsOf(d: Doc): { written: string; resolved: string[] }[] {
 /** The reports of these brains, with the machine's index opened and closed around them. */
 export async function lintBrains(
   home: string,
-  brains: { key: string; root: string }[],
+  /** `folder`: the project folder a project brain is linted in; `recorded`: the name its report is kept under, when not `key`. */
+  brains: { key: string; root: string; folder?: string; recorded?: string }[],
   now: Date,
 ): Promise<LintReport[]> {
   const index = await openIndex(home);
   const reads = readReads(home);
   try {
-    const reports = brains.map((b) => lintBrain(b, index, now, reads));
+    const reports = brains.map((b) =>
+      lintBrain(b, index, now, reads, b.folder ?? recordedOutpaced(home, b.recorded ?? b.key)),
+    );
     // Each brain against the ones after it, the more shared: a pair is listed once, in the more specific brain.
     brains.forEach((a, i) => {
       for (const b of brains.slice(i + 1)) reports[i]!.similarElsewhere.push(...similarAcross(index, a, b));
@@ -165,6 +173,8 @@ export function lintBrain(
   index: Index,
   now: Date = new Date(),
   reads?: ReadsState,
+  /** The project folder, for a project brain linted in it; else what its report last recorded of the code (§4.4). */
+  code?: string | RecordedOutpaced,
 ): LintReport {
   updateIndex(index, [brain]);
   const docs: Doc[] = [];
@@ -242,6 +252,20 @@ export function lintBrain(
     const found = unconfirmedSince(d.rel, d.file, touchedOf(touched, d.rel), now);
     if (found !== undefined) unconfirmed.push({ path: d.rel, ...found });
   }
+
+  // What the code did after a page (§4.4): asked of the project folder's git where the brain is linted in it; elsewhere
+  // the list last recorded, less the pages changed, confirmed or gone since.
+  const outpaced: LintReport["outpaced"] = [];
+  for (const d of live) {
+    const day = pageDay(d.file, touchedOf(touched, d.rel));
+    if (day === undefined || code === undefined || d.file.front.getString("superseded_by") !== undefined) continue;
+    const found =
+      typeof code === "string"
+        ? outpacedBy(code, day, d.file.front.getList("applies_to") ?? [])
+        : [code.pages.get(d.rel)].find((o) => o?.since === day);
+    if (found !== undefined) outpaced.push({ path: d.rel, ...found });
+  }
+  const outpaced_as_of = code === undefined ? null : typeof code === "string" ? now.toISOString() : code.as_of;
 
   const retiredLinks: LintReport["retiredLinks"] = [];
   // A superseded decision is history and always links to what replaced it.
@@ -327,6 +351,7 @@ export function lintBrain(
     skillCandidates.length +
     expired.length +
     unconfirmed.length +
+    outpaced.length +
     retiredLinks.length +
     contradictions.length +
     conflicts.length +
@@ -344,6 +369,8 @@ export function lintBrain(
     skillCandidates,
     expired,
     unconfirmed,
+    outpaced,
+    outpaced_as_of,
     retiredLinks,
     contradictions,
     conflicts,
@@ -383,6 +410,7 @@ export const LINT_LISTS = [
   "skillCandidates",
   "expired",
   "unconfirmed",
+  "outpaced",
   "retiredLinks",
   "contradictions",
   "conflicts",

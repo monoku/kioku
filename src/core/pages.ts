@@ -5,6 +5,7 @@ import { evidenceOf, parseBrainFile, type BrainFile } from "./brain/file.ts";
 import { placementOf } from "./brain/kinds.ts";
 import { isRetired, verifiedOf, type Verification } from "./brain/lifecycle.ts";
 import { linksOf, resolveLink } from "./brain/paths.ts";
+import type { Outpaced } from "./outpaced.ts";
 import { reviewOf, type Review } from "./review.ts";
 import { seeAlsoEntries } from "./write/body.ts";
 import { newSince, readViews, type NewPage } from "./session/views.ts";
@@ -103,7 +104,8 @@ export function showPage(
   rel: string,
   changes?: Changes,
   now: Date = new Date(),
-  pages: PageRecord[] = pagesOf(brain, changes, now),
+  outpaced?: Map<string, Outpaced>,
+  pages: PageRecord[] = pagesOf(brain, changes, now, outpaced),
 ): ShownPage | undefined {
   const page = pages.find((p) => p.path === rel);
   if (page === undefined) return undefined;
@@ -112,7 +114,13 @@ export function showPage(
 }
 
 /** Every readable page of a brain, in path order. Pages whose front matter cannot be read are the validator's. */
-export function pagesOf(brain: { key: string; root: string }, changes?: Changes, now: Date = new Date()): PageRecord[] {
+export function pagesOf(
+  brain: { key: string; root: string },
+  changes?: Changes,
+  now: Date = new Date(),
+  /** The pages the code had outpaced when the brain's report was last recorded (§4.4). */
+  outpaced?: Map<string, Outpaced>,
+): PageRecord[] {
   const docs: Doc[] = [];
   for (const rel of listMarkdown(brain.root)) {
     if (isFrontPageAt(rel)) continue;
@@ -146,7 +154,7 @@ export function pagesOf(brain: { key: string; root: string }, changes?: Changes,
     supersedes: str(d, "supersedes"),
     superseded_by: str(d, "superseded_by"),
     touched: touchedOf(touched, d.rel),
-    review: reviewOf(d.rel, d.file, touchedOf(touched, d.rel), now) ?? null,
+    review: reviewOf(d.rel, d.file, touchedOf(touched, d.rel), now, outpaced?.get(d.rel)) ?? null,
     links: links.get(d.rel) ?? [],
     linkedFrom: (linkedFrom.get(d.rel) ?? []).sort(),
     relations: seeAlsoEntries(d.file.body).flatMap((e) => {

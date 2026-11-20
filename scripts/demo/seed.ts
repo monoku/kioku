@@ -49,6 +49,8 @@ export interface PagePlan {
   edits?: { age: number; section: string; text: string; note: string }[];
   /** Pages this one is linked to later with `kioku page link`, by title. */
   linkTo?: { title: string; age: number }[];
+  /** `--applies-to` at save: the globs of the app's files the page is about. */
+  appliesTo?: string[];
   /** `--stale-after` at save: the day, `YYYY-MM-DD`, after which the page needs a second look. */
   staleAfter?: string;
   /** Confirmed with `kioku page confirm` this many days before today. */
@@ -246,6 +248,8 @@ function appPages(): PagePlan[] {
       "An invoice takes its number from a per-year counter in the same transaction that issues it.",
       "A gap in the sequence is a question from the auditors; a number taken earlier, at order time, leaves gaps when orders are cancelled.",
       "Issuing an invoice is serialised per year; drafts have no number.",
+      // The page says which code it is about, and the app's history has a commit there after it: lint lists it (§4.4).
+      { appliesTo: ["src/invoicing/**"] },
     ),
     d(
       "app",

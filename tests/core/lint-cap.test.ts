@@ -14,6 +14,8 @@ const report = (n: number): LintReport => ({
   skillCandidates: [],
   expired: [],
   unconfirmed: [],
+  outpaced: [],
+  outpaced_as_of: null,
   retiredLinks: [],
   contradictions: [],
   conflicts: [],

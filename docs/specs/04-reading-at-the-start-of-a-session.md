@@ -188,6 +188,15 @@ model:
   confirmed for longer than their kind lasts: nine months for context, a year
   for a playbook, a Rule, a Skill or a Memory, the same in every brain;
   decisions and instincts are left out;
+- in a project brain, the pages the code has outpaced: a page that says which
+  files it is about (`applies_to`, §3.3), when those files, in the project
+  folder, have commits of a later day than the one the page was last changed
+  or confirmed, with how many and the day of the last. Commits only: what is
+  not committed is the session's own work. It is read from the project
+  folder's git, with no model, by `sync` and by `brain lint` run in the
+  project folder; run elsewhere, `brain lint` answers the list last recorded
+  and says from when. Where the folder is no git repository there is no list
+  and no error. A page whose globs match no file is the validator's (§5.1);
 - the pages this machine has not opened (§4.5), saying since when it counts,
   and those a recall keeps naming and no session opens, whose title and
   summary, all a recall shows of them, are to reword, or the page to retire;
@@ -204,10 +213,14 @@ confirming a page that is still true or retiring one that is not.
 and a page is relied on long before. So a page past its `stale_after` date, or
 one nobody has changed or confirmed for longer than its kind lasts, says so
 wherever the tool gives it: in `page show` and `page list`, in a hit of `page
-search` (§4.3), and in the line a recall names it by (§4.7). The mark,
-`review`, says why, `expired` or `unconfirmed`, the first when both are true,
-and the day it counts from: the `stale_after` date, or the day the page was
-last changed or confirmed. It hides nothing, orders nothing and retires
+search` (§4.3), and in the line a recall names it by (§4.7). So does a page
+the code has outpaced. The mark, `review`, says why, `outpaced`, `expired` or
+`unconfirmed`, the first of them that is true, since commits are evidence and
+the other two a calendar, and the day it counts from: the `stale_after` date,
+or the day the page was last changed or confirmed; for `outpaced`, also how
+many commits and the day of the last. That a page is outpaced is taken from
+the report last recorded, and holds only while the page's day is the one the
+report counted from. It hides nothing, orders nothing and retires
 nothing: a marked page is where it would be without the mark, and the mark
 ends the moment the page is confirmed or changed. A retired page has none. Not
 in the session summary (§4.1): its lines are counted against the host's cap,
@@ -347,6 +360,13 @@ or `brain lint` last recorded for its brain, since a hook does not read a
 brain's whole history, and then asked of the page as it is, so one confirmed
 or changed since has no mark; on a machine with no report yet, only a page
 past its date is marked.
+
+At a file, the mark is about that file: whether it has a commit of a later
+day than the page's, asked of the project folder's git for that one path, and
+only when a page was named, so a machine with no such page still pays nothing.
+At a prompt, it is the report's: the page's files changed, as of the last
+`sync`. The report holds pages, counts and days, never a path of the
+project's files.
 
 Never recalled: a Rule, whole in every summary (§4.1); a retired or superseded
 page (§3.5); a page this session already opened or was already recalled. Nothing
