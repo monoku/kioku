@@ -318,11 +318,19 @@ async function recallIn(
 }
 
 /** What this session already opened or was already recalled, by key: not named again (§4.7). */
-function seenIn(home: string, sessionId: string | undefined, sinceCompaction = false): Set<string> {
+function seenIn(
+  home: string,
+  sessionId: string | undefined,
+  /** For the Rules about a file: what this agent, the session's own or one subagent, still holds of them. */
+  rulesOf?: { agent: string | undefined },
+): Set<string> {
   let entries = sessionId === undefined ? [] : readJournal(home, sessionId);
-  // A Rule is text the session must still hold: what a compaction took is given again (§4.7).
-  if (sinceCompaction)
-    entries = entries.slice(entries.findLastIndex((e) => e.what === "summary" && e.source === "compact") + 1);
+  // A Rule is text the agent must still hold (§4.7): what a compaction took is given again, and what a subagent was
+  // given the session was not, nor the reverse, since each has a context of its own.
+  if (rulesOf !== undefined)
+    entries = entries
+      .slice(entries.findLastIndex((e) => e.what === "summary" && e.source === "compact") + 1)
+      .filter((e) => e.what === "recalled" && e.agent === rulesOf.agent);
   return new Set(
     sessionId === undefined
       ? []
@@ -345,7 +353,7 @@ function seenIn(home: string, sessionId: string | undefined, sinceCompaction = f
 export async function recallForPath(
   home: string,
   config: MachineConfig,
-  input: { cwd: string; file: string; sessionId?: string; now?: Date },
+  input: { cwd: string; file: string; sessionId?: string; now?: Date; agent?: string },
   max: number = RECALL_MAX,
 ): Promise<Recalled[]> {
   const chain = resolveChain(input.cwd, config, home);
@@ -365,7 +373,7 @@ export async function recallForPath(
         WHERE a.brain = ? ORDER BY p.path`)
       .all(chain.project) as unknown as (RecallPage & { glob: string })[];
     const seen = seenIn(home, input.sessionId);
-    const given = seenIn(home, input.sessionId, true);
+    const given = seenIn(home, input.sessionId, { agent: input.agent });
     const roots = new Map(chain.links.map((l) => [l.key, l.path]));
     const found = new Map<string, Recalled>();
     const rules: Recalled[] = [];

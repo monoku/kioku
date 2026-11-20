@@ -328,6 +328,7 @@ export const preToolPath: Handler = guarded(async (harness, ctx) => {
     cwd,
     file: input.file,
     now: ctx.now(),
+    ...(input.agentId !== undefined && { agent: input.agentId }),
     ...(input.sessionId !== undefined && { sessionId: input.sessionId }),
   });
   if (pages.length === 0) return undefined;
@@ -345,6 +346,7 @@ export const preToolPath: Handler = guarded(async (harness, ctx) => {
           // With each page's id, which the count of §4.5 is kept by: what tells, later, that the session opened it.
           hits: pages.map(({ brain, path, title, id }) => ({ brain, path, title, ...(id !== null && { id }) })),
           by: "path",
+          ...(input.agentId !== undefined && { agent: input.agentId }),
         },
         labels,
       ),

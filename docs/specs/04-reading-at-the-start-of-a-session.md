@@ -387,7 +387,9 @@ project's files.
 it is about (§3.4) is given by the same hook, before the pages and not counted
 among their three: its title, its Rule and its Why, whole, as the summary
 gives a Rule, under a line that says it holds from now on. Once a session,
-and again after a compaction, which took its text. Together they take 6,000
+and again after a compaction, which took its text; and once to each subagent
+that reads or changes such a file, whose context is its own: what a subagent
+was given, the session was not. Together they take 6,000
 characters of the hook's at most, and a last line says how many more there
 are and how to read them. A session that never touches such a file is never
 given the Rule: that is what it means for a Rule to be about some files.
