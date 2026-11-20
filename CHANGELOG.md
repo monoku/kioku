@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.7.3
 
 - **A page named for a file reaches the session after a subagent.** A page
   that says which files it is about was named once a session, to whoever read
