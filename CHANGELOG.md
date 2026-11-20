@@ -4,6 +4,23 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## 0.7.1
+
+- **A Rule can be about some files only.** Every Rule went whole into every
+  session's summary, so a Rule about one folder cost every session its room
+  under the host's cap. A Rule of a project brain that says which files it is
+  about (`--applies-to`, as a page does) is now left out of the summary, which
+  says in one line how many such Rules there are, and is given to the agent,
+  whole, when it reads or changes one of those files: once a session, and
+  again after a compaction. It takes none of the room `rules` reports. A Rule
+  that names no files is as it was: always on. A session that never touches
+  such a file is never given the Rule.
+
+- **`brain lint` asks the project folder's history once.** The list of pages
+  the code outpaced asked git once a page: a brain with two hundred pages that
+  name files took eight seconds to lint, and `sync` with it. It is one
+  question now, and the same brain takes under a second.
+
 ## 0.7.0
 
 - **Writing a Rule says whether the Rules still fit.** The Rules of a session's

@@ -16,7 +16,7 @@ import { updateIndex } from "./index/indexer.ts";
 import { sameSubject, similarPages } from "./index/similar.ts";
 export { SIMILAR_REPORT_SHARE } from "./index/similar.ts";
 import { seeAlsoEntries } from "./write/body.ts";
-import { outpacedBy, recordedOutpaced, type Outpaced, type RecordedOutpaced } from "./outpaced.ts";
+import { outpacedPages, recordedOutpaced, type Outpaced, type RecordedOutpaced } from "./outpaced.ts";
 import { daysSince, expiredSince, pageDay, unconfirmedSince } from "./review.ts";
 export { CONFIRM_DAYS } from "./review.ts";
 import { lintReportPath } from "./state.ts";
@@ -258,14 +258,16 @@ export function lintBrain(
   // What the code did after a page (§4.4): asked of the project folder's git where the brain is linted in it; elsewhere
   // the list last recorded, less the pages changed, confirmed or gone since.
   const outpaced: LintReport["outpaced"] = [];
-  for (const d of live) {
+  const asked = live.flatMap((d) => {
     const day = pageDay(d.file, touchedOf(touched, d.rel));
-    if (day === undefined || code === undefined || d.file.front.getString("superseded_by") !== undefined) continue;
-    const found =
-      typeof code === "string"
-        ? outpacedBy(code, day, d.file.front.getList("applies_to") ?? [])
-        : [code.pages.get(d.rel)].find((o) => o?.since === day);
-    if (found !== undefined) outpaced.push({ path: d.rel, ...found });
+    return day === undefined || code === undefined || d.file.front.getString("superseded_by") !== undefined
+      ? []
+      : [{ path: d.rel, day, globs: d.file.front.getList("applies_to") ?? [] }];
+  });
+  const found = typeof code === "string" ? outpacedPages(code, asked) : code?.pages;
+  for (const a of asked) {
+    const o = found?.get(a.path);
+    if (o !== undefined && o.since === a.day) outpaced.push({ path: a.path, ...o });
   }
   const outpaced_as_of = code === undefined ? null : typeof code === "string" ? now.toISOString() : code.as_of;
 

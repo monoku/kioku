@@ -10,6 +10,7 @@ import { keyOf, vectorStore, type PageKey, type VectorStore } from "../index/vec
 import { openMeaning, type SemanticDeps } from "../semantic/meaning.ts";
 import { brainRepoOfKey } from "../config/brain-ref.ts";
 import { readJournal } from "./journal.ts";
+import { ruleSaid } from "./summary.ts";
 import { historyRow, type Message } from "./message.ts";
 import { RECALL_MIN_PAGES } from "./recall-floor.ts";
 import { fileOutpaced, recordedOutpaced } from "../outpaced.ts";
@@ -65,6 +66,8 @@ export interface Recalled {
   summary: string;
   /** Why it is due a second look, when it is (§4.4): said at the end of its line. */
   review?: Review;
+  /** For a Rule about the file (§3.4): its text, which is given whole, as a Rule is. */
+  rule?: string;
 }
 
 /** A page the recall weighs: what its line would say, and what decides whether it may be named. */
@@ -315,11 +318,15 @@ async function recallIn(
 }
 
 /** What this session already opened or was already recalled, by key: not named again (§4.7). */
-function seenIn(home: string, sessionId: string | undefined): Set<string> {
+function seenIn(home: string, sessionId: string | undefined, sinceCompaction = false): Set<string> {
+  let entries = sessionId === undefined ? [] : readJournal(home, sessionId);
+  // A Rule is text the session must still hold: what a compaction took is given again (§4.7).
+  if (sinceCompaction)
+    entries = entries.slice(entries.findLastIndex((e) => e.what === "summary" && e.source === "compact") + 1);
   return new Set(
     sessionId === undefined
       ? []
-      : readJournal(home, sessionId).flatMap((e) =>
+      : entries.flatMap((e) =>
           e.what === "opened" && e.brain !== undefined && e.path !== undefined
             ? [keyOf({ brain: e.brain, path: e.path })]
             : e.what === "recalled"
@@ -358,12 +365,27 @@ export async function recallForPath(
         WHERE a.brain = ? ORDER BY p.path`)
       .all(chain.project) as unknown as (RecallPage & { glob: string })[];
     const seen = seenIn(home, input.sessionId);
-    const found = new Map<string, Recalled>();
-    for (const { glob, kind, status, ...page } of rows) {
-      if (found.has(keyOf(page)) || seen.has(keyOf(page)) || !recallable({ kind, status })) continue;
-      if (globMatches(glob, path)) found.set(keyOf(page), page);
-    }
+    const given = seenIn(home, input.sessionId, true);
     const roots = new Map(chain.links.map((l) => [l.key, l.path]));
+    const found = new Map<string, Recalled>();
+    const rules: Recalled[] = [];
+    for (const { glob, kind, status, ...page } of rows) {
+      if (status !== null || !globMatches(glob, path)) continue;
+      if (kind === "rule") {
+        // A Rule about this file (§3.4): given whole, once, and again after a compaction took it.
+        if (given.has(keyOf(page)) || rules.some((r) => keyOf(r) === keyOf(page))) continue;
+        const read = readBrainFile(join(roots.get(page.brain) ?? "", page.path));
+        if (read.ok) rules.push({ ...page, rule: ruleSaid(read.file.body) });
+      } else if (!found.has(keyOf(page)) && !seen.has(keyOf(page))) found.set(keyOf(page), page);
+    }
+    if (rules.length > 0)
+      return [
+        ...rules,
+        ...marked(home, roots, [...found.values()].slice(0, max), input.now ?? new Date(), {
+          folder: chain.root,
+          file: path,
+        }),
+      ];
     return marked(home, roots, [...found.values()].slice(0, max), input.now ?? new Date(), {
       folder: chain.root,
       file: path,
@@ -418,8 +440,36 @@ function marked(
 }
 
 /** What a prompt's context carries for the pages it recalled (§4.7): one line each, under what to do with them. */
-export function recallText(pages: Recalled[], by: RecallBy = "meaning"): string {
+export function recallText(all: Recalled[], by: RecallBy = "meaning"): string {
+  const rules = all.filter((p) => p.rule !== undefined);
+  const pages = all.filter((p) => p.rule === undefined);
+  // The Rules about the file first, whole (§3.4), under the room one hook has; then the pages, one line each.
+  const said: string[] = [];
+  let room = RULES_ROOM;
+  rules.forEach((r, i) => {
+    const text = `### ${oneLine(r.title)} (${brainRepoOfKey(r.brain)}, ${oneLine(r.path)})\n\n${r.rule}`;
+    if (room < 0) return;
+    room -= text.length;
+    said.push(
+      room < 0
+        ? `${plural(rules.length - i, "more Rule")} about this file: \`kioku page list --kind rule\` lists them, and \`kioku page show\` reads one.`
+        : text,
+    );
+  });
+  const rulesPart =
+    rules.length === 0
+      ? []
+      : [
+          "## Kioku: Rules about this file",
+          "",
+          "The project brain's Rules for the file you just read or are changing. They hold from now on, as every Rule of this session does.",
+          "",
+          said.join("\n\n"),
+        ];
+  if (pages.length === 0) return rulesPart.join("\n");
   return [
+    ...rulesPart,
+    ...(rulesPart.length > 0 ? [""] : []),
     by === "path" ? "## Kioku: pages about this file" : "## Kioku: pages that may bear on this prompt",
     "",
     `Found by ${by === "words" ? "the words of this prompt" : by === "path" ? "the file you just read or are changing, which each says it is about," : "meaning"} in the brains of this session. Read one with \`kioku page show <path> --brain <brain>\` before relying on it; the line here is only its summary.${pages.some((p) => p.review !== undefined) ? ` A line that ends in brackets is due a second look: ${REVIEW_ADVICE}.` : ""}`,
@@ -430,6 +480,9 @@ export function recallText(pages: Recalled[], by: RecallBy = "meaning"): string 
     }),
   ].join("\n");
 }
+
+/** The most the Rules about one file take of what the hook adds, under the host's cap of 10,000 characters a hook (§4.1). */
+const RULES_ROOM = 6000;
 
 /**
  * A field of a page on one line: what a brain's author wrote, a title of several lines say, never adds a line, and so

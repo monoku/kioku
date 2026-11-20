@@ -36,7 +36,7 @@ The answer is JSON: `status` is `done` (committed; `publication` is `pushed`, `p
 - `--aliases`: other names for the subject, comma-separated; search and `save` find it by them.
 - `--source`: `Session <today's date> in <repository folder>`, or a URL.
 - `--evidence`: see "Never saved".
-- `--applies-to`: globs of the project files a project page is about (`src/billing/**`); reading or changing one names it.
+- `--applies-to`: globs of the project files a project page is about (`src/billing/**`); reading or changing one names it; on a project Rule, the Rule is then given with those files and not in every session: use it for a Rule about one part of the code.
 
 The other verbs, answering the same way, each `kioku page <verb>`:
 

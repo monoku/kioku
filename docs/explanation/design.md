@@ -59,7 +59,10 @@ bends a principle changes it here first, and the spec with it.
    pages that stand out by meaning, or by their words where meaning cannot
    run, are named, never their text (§4.7); search
    brings the rest when the agent asks. An agent does not look for what it does
-   not know is there, so the memory does not wait to be asked.
+   not know is there, so the memory does not wait to be asked. A Rule is
+   always on where it applies: in every session, or, when it says which files
+   it is about, from the moment the agent reads or changes one of them, so
+   that a Rule about one folder does not cost every session its room.
 
 10. **A brain receives before it sends, and a conflict is kept aside.** A write
     starts from what was published; commits that cannot go on top are kept on
