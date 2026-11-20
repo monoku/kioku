@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.7.4
 
 - **A page a subagent opened is still named to the session.** A page opened
   with `kioku page show` counted as known to the whole session, whoever opened
