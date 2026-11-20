@@ -318,9 +318,9 @@ async function recallIn(
 }
 
 /**
- * What an agent of this session was already given, by key: not named again (§4.7). The session itself, or one of its
- * subagents, each with a context of its own: what a subagent was named the session was not, nor the reverse. A page
- * the session opened is known to it and is named to no one again.
+ * What an agent of this session was already given or opened itself, by key: not named again (§4.7). The session, or
+ * one of its subagents, each with a context of its own: what a subagent was named or opened the session was not, nor
+ * the reverse.
  */
 function seenIn(
   home: string,
@@ -337,11 +337,13 @@ function seenIn(
       .filter((e) => e.what === "recalled");
   return new Set(
     entries.flatMap((e) =>
-      e.what === "opened" && e.brain !== undefined && e.path !== undefined
-        ? [keyOf({ brain: e.brain, path: e.path })]
-        : e.what === "recalled" && e.agent === agent
-          ? (e.hits ?? []).map(keyOf)
-          : [],
+      e.agent !== agent
+        ? []
+        : e.what === "opened" && e.brain !== undefined && e.path !== undefined
+          ? [keyOf({ brain: e.brain, path: e.path })]
+          : e.what === "recalled"
+            ? (e.hits ?? []).map(keyOf)
+            : [],
     ),
   );
 }

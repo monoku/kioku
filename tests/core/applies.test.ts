@@ -208,13 +208,57 @@ test("a page named to a subagent is still named to the session, and to each suba
       entries.map((e) => e.agent),
       ["a1", undefined, "a2"],
     );
-    // A page the session opened is known to it: named to no one again.
+    // A page a subagent opened, through the hook that records what a command read, is still named to the session,
+    // and to another subagent; the one that opened it, and the session once it opened it too, are not named it.
     await w.kioku(SAVE("Billing has a second lesson", "src/billing/**"), { stdin: BODY });
     await reindex(w);
     const other = "memory/acme/billing-has-a-second-lesson.md";
-    record(w.home, "s", [{ what: "opened", arrow: "read", brain: "northwind/brain-acme", path: other }], new Date());
-    assert.doesNotMatch(contextOf(await touch(w, "Read", file, { agent: "a3" })), /second lesson/);
-    assert.equal(contextOf(await touch(w, "Read", join(w.repo, "src/billing/tax.ts"))), "");
+    const show = async (agent?: string) => {
+      const shown = await w.kioku(["page", "show", other, "--brain", "northwind/brain-acme"]);
+      return w.kioku(["hook", "post-tool-use"], {
+        stdin: JSON.stringify({
+          cwd: w.repo,
+          session_id: "s",
+          hook_event_name: "PostToolUse",
+          tool_name: "Bash",
+          tool_input: { command: `kioku page show ${other} --brain northwind/brain-acme` },
+          tool_response: { stdout: shown.raw },
+          ...(agent !== undefined && { agent_id: agent, agent_type: "Explore" }),
+        }),
+      });
+    };
+    await show("b1");
+    const openedBy = readJournal(w.home, "s").filter((e) => e.what === "opened" && e.path === other);
+    assert.deepEqual(
+      openedBy.map((e) => e.agent),
+      ["b1"],
+    );
+    const tax = join(w.repo, "src/billing/tax.ts");
+    assert.doesNotMatch(contextOf(await touch(w, "Read", tax, { agent: "b1" })), /second lesson/, "it opened it");
+    assert.match(contextOf(await touch(w, "Read", tax, { agent: "b2" })), /second lesson/, "another subagent");
+    assert.match(
+      contextOf(await touch(w, "Edit", tax)),
+      /second lesson/,
+      "the session after the subagent that opened it",
+    );
+    // And what the session opened is the session's: a subagent started later is still named it.
+    await w.kioku(SAVE("Billing has a third lesson", "src/billing/**"), { stdin: BODY });
+    await reindex(w);
+    record(
+      w.home,
+      "s",
+      [
+        {
+          what: "opened",
+          arrow: "read",
+          brain: "northwind/brain-acme",
+          path: "memory/acme/billing-has-a-third-lesson.md",
+        },
+      ],
+      new Date(),
+    );
+    assert.equal(contextOf(await touch(w, "Edit", file)), "", "the session opened it");
+    assert.match(contextOf(await touch(w, "Read", file, { agent: "b3" })), /third lesson/);
   }));
 
 test("the hook's wrapper starts nothing for a file while no page says which files it is about (§4.7)", () => {
