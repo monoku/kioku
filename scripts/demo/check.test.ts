@@ -121,6 +121,7 @@ test("the demo builds, every brain validates, and the maintenance report has a f
     "skillCandidates",
     "expired",
     "unconfirmed",
+    "outpaced",
     "retiredLinks",
     "contradictions",
   ]) {
