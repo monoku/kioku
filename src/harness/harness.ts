@@ -52,6 +52,8 @@ export interface ToolResult {
   sessionId?: string;
   /** The id the host gave the call, which the journal's entries hold (§4.6). */
   callId?: string;
+  /** The subagent the command ran in, when it ran in one: what it read, the session did not (§4.7). */
+  agentId?: string;
   /** Where the host kept the whole output when it cut `output` short; read only by the adapter that knows the place. */
   persistedPath?: string;
 }

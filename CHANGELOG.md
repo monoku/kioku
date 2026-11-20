@@ -4,6 +4,15 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **A page a subagent opened is still named to the session.** A page opened
+  with `kioku page show` counted as known to the whole session, whoever opened
+  it: when a subagent did, as it is told to before relying on a page, the
+  session that then changed the file, or sent a prompt on the subject, was not
+  named it. What a subagent opens is now its own, as what it is named has been
+  since 0.7.3, and what the session opened is the session's.
+
 ## 0.7.3
 
 - **A page named for a file reaches the session after a subagent.** A page

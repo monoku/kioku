@@ -260,9 +260,12 @@ export const postToolUse: Handler = guarded(async (harness, ctx) => {
   // Every read and write is an entry of the session's journal (§4.6). It keeps each brain by its key and, beside it,
   // as the person is shown it (§1.2).
   const labels = labelsFor(ctx.home, result.cwd ?? ctx.cwd, { machine: machineOf(ctx) });
-  const entries = entriesFor(result.command, result.output, labels).map((e) =>
-    result.callId === undefined ? e : { ...e, call: result.callId },
-  );
+  // What a subagent read or wrote says so: its context is its own, and what it opened the session did not (§4.7).
+  const entries = entriesFor(result.command, result.output, labels).map((e) => ({
+    ...e,
+    ...(result.callId !== undefined && { call: result.callId }),
+    ...(result.agentId !== undefined && { agent: result.agentId }),
+  }));
   // A page opened that a recall named to this session before is that recall followed (§4.5): counted before this
   // opening is in the journal, so that a second opening is not counted again.
   const opened = entries.flatMap((e) =>
