@@ -211,6 +211,8 @@ test("brain lint keeps the fields programs read", () =>
         "skillCandidates",
         "expired",
         "unconfirmed",
+        "outpaced",
+        "outpaced_as_of",
         "retiredLinks",
         "contradictions",
         "count",

@@ -1,10 +1,11 @@
+import { join, relative, sep } from "node:path";
 import { brainRepoOfKey } from "../core/config/brain-ref.ts";
 import { userError } from "../core/errors.ts";
 import { parseVerb } from "./args.ts";
 import { cappedReport, lintBrains, recordLint, STALE_INSTINCT_DAYS, type LintReport } from "../core/lint.ts";
 import { windowOf } from "../core/limit.ts";
 import { brainKeyOf, brainsNamed } from "./brains-named.ts";
-import { chainBrains } from "./chain.ts";
+import { chainBrains, chainOf } from "./chain.ts";
 import { PLAIN, paint, plural, type Ui } from "./render.ts";
 import type { Context, Outcome } from "./run.ts";
 
@@ -18,12 +19,17 @@ export async function runBrainLint(argv: string[], ctx: Context): Promise<Outcom
   const { limit } = windowOf(parsed.values.limit, undefined);
   if (args.length > 1) throw userError("brain lint takes at most one brain", "usage");
   const chain = chainBrains(ctx);
+  const project = chainOf(ctx);
   const roots = brainsNamed(args[0], ctx, "lint");
   const targets = roots.map((root) => {
     const link = chain.find((b) => b.root === root);
     return {
       key: brainKeyOf(chain, root),
       root,
+      // A brain of this machine named from outside its chain still has the report its `sync` recorded.
+      ...(link === undefined && recordedKey(ctx.home, root)),
+      // In its project folder, a project brain is asked what the code did after its pages (§4.4).
+      ...(link !== undefined && link.key === project.project && project.root !== undefined && { folder: project.root }),
       known: link !== undefined,
     };
   });
@@ -34,10 +40,19 @@ export async function runBrainLint(argv: string[], ctx: Context): Promise<Outcom
     ctx.now(),
   );
   const shown = reports.map((r) => cappedReport(r, limit));
-  return { data: { brains: shown }, text: shown.map((r) => describeLint(r, ctx.ui ?? PLAIN)).join("\n\n") };
+  return {
+    data: { brains: shown },
+    text: shown.map((r) => describeLint(r, ctx.ui ?? PLAIN, ctx.now().toISOString().slice(0, 10))).join("\n\n"),
+  };
 }
 
-function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: Ui): string {
+/** The name a brain of this machine is recorded under: `<owner>/<repo>`, from where its folder is (§2.5). */
+function recordedKey(home: string, root: string): { recorded: string } | undefined {
+  const rel = relative(join(home, ".kioku", "brains"), root).split(sep);
+  return rel.length === 2 && rel[0] !== ".." ? { recorded: rel.join("/") } : undefined;
+}
+
+function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: Ui, today: string): string {
   const p = paint(ui);
   const lines = [
     `${p.name(brainRepoOfKey(r.brain))}  ${r.count === 0 ? p.green("nothing to review") : p.yellow(`${plural(r.count, "thing")} to review`)}`,
@@ -85,6 +100,11 @@ function describeLint(r: LintReport & { totals?: Record<string, number> }, ui: U
     "pages not changed or confirmed for a long time",
     (r.unconfirmed ?? []).map((u) => `${u.path} (${u.days} days since ${u.since})`),
     "unconfirmed",
+  );
+  group(
+    `pages whose files changed after them${r.outpaced_as_of && r.outpaced_as_of.slice(0, 10) !== today ? ` (as of ${r.outpaced_as_of.slice(0, 10)}, in the project folder)` : ""}`,
+    (r.outpaced ?? []).map((o) => `${o.path} (${plural(o.commits, "commit")} since ${o.since}, last ${o.last})`),
+    "outpaced",
   );
   group(
     "pages that link to a retired page",

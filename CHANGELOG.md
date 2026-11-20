@@ -6,6 +6,19 @@ What changed in each version of Kioku. What is true now is in the
 
 ## Unreleased
 
+- **A page says when the code it is about changed after it.** A page of a
+  project brain that names files (`applies_to`) is now compared with the
+  project folder's history: when those files have commits of a later day than
+  the one the page was last changed or confirmed, `kioku brain lint` lists it
+  under `outpaced`, with how many commits and the day of the last, and the
+  page's `review` says so, before the other two reasons, in `kioku page show`,
+  `kioku page list` and a search hit. When the agent reads or changes a file
+  and a page is named for it, the line says whether that file changed after
+  the page. It is read from git, with no model, by `sync` and by `brain lint`
+  run in the project folder; what is not committed says nothing, and a folder
+  that is no repository has no list. `kioku page confirm` or an update moves
+  the page's day and ends the mark.
+
 - **A page due a second look says so where it is used.** That a page is past
   its `stale_after` date, or that nobody has changed or confirmed it for longer
   than its kind lasts, was said only by `kioku brain lint`, which is read when

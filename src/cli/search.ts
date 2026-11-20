@@ -5,6 +5,7 @@ import { updateIndex, type IndexedBrain } from "../core/index/indexer.ts";
 import { rankedSearch, type Ranked } from "../core/index/hybrid.ts";
 import { windowOf } from "../core/limit.ts";
 import { openMeaning } from "../core/semantic/meaning.ts";
+import { recordedOutpaced, type Outpaced } from "../core/outpaced.ts";
 import { REVIEW_ADVICE, reviewOf, reviewSaid, type Review } from "../core/review.ts";
 import { lastTouched, touchedOf } from "../core/touched.ts";
 import { readBrainFile } from "../core/brain/file.ts";
@@ -52,16 +53,23 @@ export const runSearch: Handler = async (args, ctx) => {
   const byKey = new Map(brains.map((b) => [b.key, b]));
   // The dates come from the file and from git, for the few pages a search returns (§3.3).
   const touched = new Map<string, Map<string, string>>();
+  const outpaced = new Map<string, Map<string, Outpaced>>();
   // One hit more than asked for: it is how the answer knows there are more (§6.1, bounded answers).
   const wanted = ranked.hits.filter((h) => includeRetired || h.status === null);
   const more = wanted.length > limit;
   const hits = wanted.slice(0, limit).map(({ status, ...h }) => {
     const b = byKey.get(h.brain);
-    if (b !== undefined && !touched.has(b.key)) touched.set(b.key, lastTouched(b.root));
+    if (b !== undefined && !touched.has(b.key)) {
+      touched.set(b.key, lastTouched(b.root));
+      outpaced.set(b.key, recordedOutpaced(ctx.home, b.key).pages);
+    }
     const file = b === undefined ? undefined : readBrainFile(`${b.root}/${h.path}`);
     const last = b === undefined ? null : touchedOf(touched.get(b.key)!, h.path);
     // A page due a second look says so where it is found (§4.4); a retired or superseded one is history already.
-    const review = file?.ok && status === null ? reviewOf(h.path, file.file, last, ctx.now()) : undefined;
+    const review =
+      file?.ok && status === null
+        ? reviewOf(h.path, file.file, last, ctx.now(), b === undefined ? undefined : outpaced.get(b.key)?.get(h.path))
+        : undefined;
     return {
       ...h,
       ...(status !== null && { status }),

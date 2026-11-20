@@ -151,10 +151,12 @@ and the team's with `from` (`folder`, `machine`); `inside`; `notLoaded` (`tier`,
 **`kioku brain lint`**: `brains`, each with `brain`, `count`, `totals` (the
 length of each list that was cut) and its lists: `similar`, `staleInstincts`,
 `superseded`, `brokenLinks`, `missingSummary`, `skillCandidates`, `expired`,
-`unconfirmed`, `retiredLinks`, `contradictions`, `conflicts`, `undescribed`,
+`unconfirmed`, `outpaced` (each with `path`, `since`, `commits` and `last`),
+`retiredLinks`, `contradictions`, `conflicts`, `undescribed`,
 `unopened` (each with `since`, `days`, `surfaced`), `unfollowed` (each with
 `path` and `recalled`) and `similarElsewhere` (each with `path`, `brain` and
-`other`, which `count` leaves out), and `counting_since`.
+`other`, which `count` leaves out), `counting_since`, and `outpaced_as_of`
+(when `outpaced` was worked out in the project folder, or null).
 
 **`kioku handoff`**: every answer has `folder` and `branch` (null outside a
 repository, or with none checked out). `set` adds `status` (`done`) and `at`;
@@ -210,8 +212,9 @@ tree.
 full text alone, `limit`, `more`, and `hits`, each with `brain`, `path`, `id`,
 `title`, `kind`, `subkind`, `namespace`, `summary`, `snippet`, `created`,
 `touched`, with `--include-retired` `status` (`deprecated`, `superseded`),
-and, on a hit of a page due a second look, `review` (`reason`: `expired` or
-`unconfirmed`; `since`, the day it counts from).
+and, on a hit of a page due a second look, `review` (`reason`: `outpaced`,
+`expired` or `unconfirmed`; `since`, the day it counts from; for `outpaced`,
+`commits` and `last`).
 
 **`kioku page list`**: `pages`, `total`, `offset`, `limit` and `next`. A page
 has `brain`, `path`, `id`, `kind`, `subkind`, `namespace`, `title`, `summary`,

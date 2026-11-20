@@ -11,6 +11,7 @@ import { git, gitQuiet } from "./git.ts";
 import { openIndex } from "./index/db.ts";
 import { purgeReads, readReads } from "./reads.ts";
 import { lintBrain, recordLint } from "./lint.ts";
+import { recordedOutpaced } from "./outpaced.ts";
 import { updateIndex, type IndexReport } from "./index/indexer.ts";
 import type { SemanticDeps } from "./semantic/meaning.ts";
 import { refreshSemantic, type SemanticOutcome } from "./semantic/refresh.ts";
@@ -290,7 +291,14 @@ async function syncOnce(opts: SyncOptions): Promise<SyncResult> {
         home,
         brains.map((b) => ({
           key: b.key,
-          report: lintBrain(b, db, now, reads),
+          // The project brain, linted in its project folder, is asked what the code did after its pages (§4.4).
+          report: lintBrain(
+            b,
+            db,
+            now,
+            reads,
+            b.key === chain.project && chain.root !== undefined ? chain.root : recordedOutpaced(home, b.key),
+          ),
         })),
         now,
       );
