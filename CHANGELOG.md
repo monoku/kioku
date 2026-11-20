@@ -4,7 +4,7 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
-## Unreleased
+## 0.7.0
 
 - **Writing a Rule says whether the Rules still fit.** The Rules of a session's
   brains go whole into its summary, under the host's cap of 10,000 characters,
