@@ -4,6 +4,15 @@ What changed in each version of Kioku. What is true now is in the
 [spec](docs/specs/README.md); what shapes it, in
 [How Kioku is designed](docs/explanation/design.md).
 
+## Unreleased
+
+- **The skill says what `--evidence` and `--applies-to` refuse.** The agent
+  passed `--evidence` to `update` on pages that are not instincts, and `**` to
+  `--applies-to` for a page about the whole project, and only learnt from the
+  error that both are refused. The skill now says `--evidence` on `update` is
+  for an instinct's new occasion, and that a page about the whole project
+  takes no `--applies-to`.
+
 ## 0.7.4
 
 - **A page a subagent opened is still named to the session.** A page opened

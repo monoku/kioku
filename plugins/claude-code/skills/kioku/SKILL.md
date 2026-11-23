@@ -36,7 +36,7 @@ The answer is JSON: `status` is `done` (committed; `publication` is `pushed`, `p
 - `--aliases`: other names for the subject, comma-separated; search and `save` find it by them.
 - `--source`: `Session <today's date> in <repository folder>`, or a URL.
 - `--evidence`: see "Never saved".
-- `--applies-to`: globs of the project files a project page is about (`src/billing/**`); reading or changing one names it; on a project Rule, the Rule is then given with those files and not in every session: use it for a Rule about one part of the code.
+- `--applies-to`: globs of the project files a project page is about (`src/billing/**`); reading or changing one names it; on a project Rule, the Rule is then given with those files and not in every session: use it for a Rule about one part of the code. Leave it off for a page about the whole project: a glob that matches every file, `**`, is refused.
 
 The other verbs, answering the same way, each `kioku page <verb>`:
 
@@ -99,7 +99,7 @@ When you already know the page, go straight to `update`. An answer's `elsewhere`
 2. **Never in a project or team brain:** personal remarks, opinions about colleagues or clients, the person's health or personal situation, anything they said about themselves rather than the work. When in doubt, the personal brain or nowhere.
 3. **Not on your own initiative, even in the personal brain:** health, religion, politics, sexual orientation, ethnicity and the like. Only when the person asks you to remember it.
 
-`--evidence` is required when a person said the thing: a short quote of their words, chosen under these three layers. For what you derived from your own work, `--source` is enough.
+`--evidence` is required on `save` when a person said the thing: a short quote of their words, chosen under these three layers. On `update` it is for instincts only, a new occasion (see "Instincts"); any other page refuses it. For what you derived from your own work, `--source` is enough.
 
 ## In your reply
 
